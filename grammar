@@ -1,0 +1,47 @@
+// Prototype grammar for Starling
+// only defines functions and basic statements and expressions
+
+program = declaration*
+declaration = function*
+function = type IDENTIFIER LEFT_BRACKET (type IDENTIFIER)* RIGHT_BRACKET block
+type = INTEGER_TYPE | FLOAT_TYPE | STRING_TYPE | BOOL_TYPE
+
+block = LEFT_CURLY statement* RIGHT_CURLY
+statement = if | while | return | assignment | ( expression SEMICOLON )
+if = IF expression (statement | block) (ELSE ( statement | block ))?
+while = WHILE expression block
+return = RETURN expression SEMICOLON
+assignment = IDENTIFIER EQUALS expression SEMICOLON
+
+expression = binary_expr
+binary_expr = unary_expr (BINARY_OP unary_expr)* // precedence will be handled at a semantic level
+unary_expr = UNARY_OP* primary
+primary =  INTEGER | FLOAT | STRING | BOOL | IDENTIFIER | call | group_expr
+call = IDENTIFIER LEFT_BRACKET (expression (COMMA expression)*)*
+group_expr = LEFT_BRACKET expression RIGHT_BRACKET
+
+
+// tokens
+INTEGER = [0-9]+
+FLOAT = INTEGER "." INTEGER
+STRING = "\"" [^\"]* "\""
+BOOL = "true" | "false"
+IDENTIFIER = [a-zA-z_] [a-zA-Z0-9_]*
+INTEGER_TYPE = "int"
+FLOAT_TYPE = "float"
+STRING_TYPE = "str"
+BOOL_TYPE = "bool"
+
+BINARY_OP = "==" | "!=" | "<" | ">" | "<=" | ">=" | "*" | "/" | "+" | "-"
+UNARY_OP = "!" | "-"
+
+SEMICOLON = ";"
+COMMA = ","
+LEFT_BRACKET = "("
+RIGHT_BRACKET = ")"
+LEFT_CURLY = "{"
+RIGHT_CURLY = "}"
+IF = "if"
+ELSE = "else"
+WHILE = "while"
+RETURN = "return"
