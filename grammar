@@ -32,8 +32,20 @@ FLOAT_TYPE = "float"
 STRING_TYPE = "str"
 BOOL_TYPE = "bool"
 
-BINARY_OP = "==" | "!=" | "<" | ">" | "<=" | ">=" | "*" | "/" | "+" | "-"
-UNARY_OP = "!" | "-"
+BINARY_OP = EQUALS_EQUALS | BANG_EQUALS | LESS_THAN | GREATER_THAN | LESS_EQUALS | GREATER_EQUALS
+       | STAR | SLASH | PLUS | MINUS
+UNARY_OP = BANG | MINUS
+EQUALS_EQUALS = "=="
+BANG_EQUALS = "!="
+LESS_THAN = "<"
+GREATER_THAN = ">"
+LESS_EQUALS = "<="
+GREATER_EQUALS = ">="
+STAR = "*"
+SLASH = "/"
+PLUS = "+"
+MINUS = "-"
+BANG = "!"
 
 SEMICOLON = ";"
 COMMA = ","
