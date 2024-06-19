@@ -13,9 +13,9 @@ Starling is a high-level programming language designed for data processing.
 ## Bootstrap
 This will likely be done only in Python as a simple starting point.
 
-- [ ] Prototype grammar
-- [ ] Lexer
-- [ ] Parser
+- [x] Prototype grammar
+- [x] Lexer
+- [x] Parser
 - [ ] Basic codegen (maybe just an interpreter)
 
 ## Initial Design
