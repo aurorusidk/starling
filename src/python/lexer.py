@@ -80,10 +80,12 @@ def tokenise(src):
             lexeme = src[cur:cur + i]
         elif char == '"':
             # string
-            i = 0
-            while src[1]:
-                pass
-            pass
+            i = 1
+            while src[cur + i] != '"':
+                i += 1
+            i += 1
+            lexeme = src[cur:cur + i]
+            typ = STRING
         else:
             # all the easy tokens
             for monograph, token in MONOGRAPHS.items():
