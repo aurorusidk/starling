@@ -37,9 +37,9 @@ TYPE_TOKENS = (
 
 
 class Parser:
-    def __init__(self):
+    def __init__(self, tokens):
         self.cur = 0
-        self.tokens = []
+        self.tokens = tokens
         self.ast = None
 
     def check(self, *token_types, lookahead=0):
@@ -67,7 +67,7 @@ class Parser:
 
     def parse_program(self):
         declarations = []
-        while self.cur < len(tokens):
+        while self.cur < len(self.tokens):
             logging.debug(f"declrs: {declarations}")
             declarations.append(self.parse_declaration())
         return Node(PROGRAM, declarations)
@@ -77,13 +77,13 @@ class Parser:
 
     def parse_function(self):
         ftype = self.parse_type()
-        fname = self.consume(T.IDENTIFIER)
+        fname = self.consume(T.IDENTIFIER).lexeme
         self.consume(T.LEFT_BRACKET)
         ptypes = []
         pnames = []
         while not self.consume(T.RIGHT_BRACKET):
             ptypes.append(self.parse_type())
-            pnames.append(self.consume(T.IDENTIFIER))
+            pnames.append(self.consume(T.IDENTIFIER).lexeme)
             self.consume(T.COMMA)
         contents = self.parse_block()
         return Node(FUNCTION, [ftype, fname, ptypes, pnames, contents])
@@ -91,7 +91,7 @@ class Parser:
     def parse_type(self):
         tok = self.consume(*TYPE_TOKENS)
         if tok:
-            return tok
+            return Node(TYPE, [tok])
         assert False, "Failed to parse type"
 
     def parse_block(self):
@@ -99,7 +99,7 @@ class Parser:
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
             statements.append(self.parse_statement())
-        return statements
+        return Node(BLOCK, statements)
 
     def parse_statement(self):
         if self.check(T.IF):
@@ -188,7 +188,7 @@ class Parser:
 
     def parse_primary(self):
         if self.check(T.IDENTIFIER) and self.check(T.LEFT_BRACKET, lookahead=1):
-            self.parse_call()
+            return self.parse_call()
         elif self.consume(T.LEFT_BRACKET):
             expr = self.parse_expression()
             self.consume(T.RIGHT_BRACKET)
@@ -206,16 +206,14 @@ class Parser:
         self.consume(T.LEFT_BRACKET)
         args = []
         while not self.consume(T.RIGHT_BRACKET):
-            args.append(self.parse_expression)
+            args.append(self.parse_expression())
             self.consume(T.COMMA)
         return Node(CALL, [func, args])
 
 
 def parse(tokens):
     # helper that hides the class behaviour
-    parser = Parser()
-    return parser.parse(tokens)
-
+    return Parser(tokens).parse_program()
 
 def repr_children(children, indent=1):
     # recursive string representation for the node's children
