@@ -52,6 +52,12 @@ MONOGRAPHS = {
     "}": RIGHT_CURLY,
 }
 
+def get(src, index):
+    if index < len(src):
+        return src[index]
+    else:
+        return ""
+
 def tokenise(src):
     cur = 0
     tokens = []
@@ -64,7 +70,7 @@ def tokenise(src):
         elif char.isalpha() or char == '_':
             # identifier or keyword (including bool or type)
             i = 0
-            while src[cur + i].isalnum() or src [cur + i] == '_':
+            while get(src, cur + i).isalnum() or get(src, cur + i) == '_':
                 i += 1
             lexeme = src[cur:cur + i]
             typ = KEYWORDS.get(lexeme) or IDENTIFIER
@@ -72,16 +78,17 @@ def tokenise(src):
             # int or float
             i = 0
             typ = INTEGER
-            while src[cur + i].isnumeric():
+            while get(src, cur + i).isnumeric():
                 i += 1
-                if src[cur + i] == '.' and typ == INTEGER and src[cur + i + 1].isnumeric():
+                if get(src, cur + i) == '.' and typ == INTEGER \
+                   and get(src, cur + i + 1).isnumeric():
                     typ = FLOAT
                     i += 1
             lexeme = src[cur:cur + i]
         elif char == '"':
             # string
             i = 1
-            while src[cur + i] != '"':
+            while get(src, cur + i) != '"':
                 i += 1
             i += 1
             lexeme = src[cur:cur + i]
@@ -94,7 +101,7 @@ def tokenise(src):
                     typ = token
                     break
             for digraph, token in DIGRAPHS.items():
-                if char + src[cur + 1] == digraph:
+                if char + get(src, cur + 1) == digraph:
                     lexeme = digraph
                     typ = token
                     break
