@@ -18,16 +18,16 @@ Node = namedtuple("Node", ["typ", "children"])
 global_enum(NodeType)
 
 BINARY_OP_PRECEDENCE = {
-    T.PLUS: 10,
-    T.MINUS: 10,
-    T.STAR: 20,
-    T.SLASH: 20,
-    T.GREATER_THAN: 30,
-    T.LESS_THAN: 30,
-    T.GREATER_EQUALS: 30,
-    T.LESS_EQUALS: 30,
-    T.EQUALS_EQUALS: 30,
-    T.BANG_EQUALS: 30,
+    T.GREATER_THAN: 10,
+    T.LESS_THAN: 10,
+    T.GREATER_EQUALS: 10,
+    T.LESS_EQUALS: 10,
+    T.EQUALS_EQUALS: 10,
+    T.BANG_EQUALS: 10,
+    T.PLUS: 20,
+    T.MINUS: 20,
+    T.STAR: 30,
+    T.SLASH: 30,
 }
 
 TYPE_TOKENS = (
@@ -162,16 +162,19 @@ class Parser:
             if node == left:
                 break
             left = node
+        logging.debug(f"{repr_ast(left)}")
         return left
 
     def parse_binop_increasing_prec(self, left, precedence):
         logging.debug(f"binop: {precedence}: {left}")
-        if not (op := self.consume(*BINARY_OP_PRECEDENCE.keys())):
+        if not (op := self.check(*BINARY_OP_PRECEDENCE.keys())):
             return left
         next_precedence = BINARY_OP_PRECEDENCE[op.typ]
         if next_precedence <= precedence:
             return left
         else:
+            # skip the op we already found
+            self.cur += 1
             right = self.parse_binary_expr(next_precedence)
             return Node(BINARY_EXPR, [op, left, right])
 
@@ -214,6 +217,29 @@ def parse(tokens):
     return parser.parse(tokens)
 
 
+def repr_children(children, indent=1):
+    # recursive string representation for the node's children
+    out = "[\n"
+    for child in children:
+        out += "|   " * indent
+        if hasattr(child, "children"):
+            out += child.typ.name + ": "
+            out += repr_children(child.children, indent+1)
+        elif isinstance(child, list):
+            out += repr_children(child, indent+1)
+        else:
+            out += repr(child)
+        out += "\n"
+    out += "|   " * (indent - 1) + "]"
+    return out
+
+def repr_ast(ast):
+    # more readable representation of the nodes
+    out = ast.typ.name + ": "
+    out += repr_children(ast.children)
+    return out
+
+
 if __name__ == "__main__":
     import sys
     from lexer import tokenise
@@ -229,4 +255,4 @@ if __name__ == "__main__":
     tokens = tokenise(src)
     print(tokens)
     ast = parse(tokens)
-    print(ast)
+    print(repr_ast(ast))
