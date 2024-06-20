@@ -1,0 +1,12 @@
+# input/testing files
+input.txt
+
+# Python
+
+__pycache__/
+
+## environments
+.env
+.venv
+env/
+venv/
