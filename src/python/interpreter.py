@@ -20,25 +20,29 @@ class StarlingBuiltinFunction(StarlingFunction):
     pass
 
 
-class StarlingInteger:
+class StarlingType:
+    pass
+
+
+class StarlingInteger(StarlingType):
     typ = "int"
     def __init__(self, value):
         self.value = int(value)
 
 
-class StarlingFloat:
+class StarlingFloat(StarlingType):
     typ = "float"
     def __init__(self, value):
         self.value = float(value)
 
 
-class StarlingString:
+class StarlingString(StarlingType):
     typ = "str"
     def __init__(self, value):
         self.value = str(value)
 
 
-class StarlingBool:
+class StarlingBool(StarlingType):
     typ = "bool"
     def __init__(self, value):
         self.value = str(value)
