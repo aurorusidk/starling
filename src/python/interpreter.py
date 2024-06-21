@@ -16,6 +16,7 @@ class StarlingFunction:
         self.params = params
         self.block = block
 
+
 class StarlingBuiltinFunction(StarlingFunction):
     pass
 
@@ -25,25 +26,25 @@ class StarlingType:
 
 
 class StarlingInteger(StarlingType):
-    typ = "int"
+    name = "int"
     def __init__(self, value):
         self.value = int(value)
 
 
 class StarlingFloat(StarlingType):
-    typ = "float"
+    name = "float"
     def __init__(self, value):
         self.value = float(value)
 
 
 class StarlingString(StarlingType):
-    typ = "str"
+    name = "str"
     def __init__(self, value):
         self.value = str(value)
 
 
 class StarlingBool(StarlingType):
-    typ = "bool"
+    name = "bool"
     def __init__(self, value):
         self.value = str(value)
 
@@ -70,15 +71,24 @@ class StarlingNameError(StarlingException):
     pass
 
 
-def StarlingPrint(string):
-    print(string.value)
+def starling_print(obj):
+    print(starling_str(obj).value)
 
 StarlingPrintFunc = StarlingBuiltinFunction(
-    "print", None, [StarlingParameter("string", StarlingString)], StarlingPrint
+    "print", None, [StarlingParameter("obj", StarlingType)], starling_print
 )
 
+def starling_str(obj):
+    return StarlingString(obj.value)
+
+StarlingStrFunc = StarlingBuiltinFunction(
+    "str", None, [StarlingParameter("obj", StarlingType)], starling_str
+)
+
+
 StarlingBuiltins = {
-    "print": StarlingPrintFunc
+    "print": StarlingPrintFunc,
+    "str": StarlingStrFunc,
 }
 
 
@@ -181,7 +191,9 @@ class Interpreter:
             raise StarlingTypeError(f"{fname} is not a function")
         if len(func.params) != len(args):
             raise StarlingTypeError(
-                f"{fname} takes {len(func.params)} but {len(args)} provided"
+                f"{fname} takes {len(func.params)} " \
+                f"argument{'s' if len(func.params) != 1 else ''} " \
+                f"but {len(args)} provided"
             )
         local_vars = {}
         for arg, param in zip(args, func.params):
@@ -189,8 +201,9 @@ class Interpreter:
             value = self.eval_node(arg)
             if not isinstance(value, param.typ):
                 raise StarlingTypeError(
-                    f"Expected type {ptype} for parameter {param.name} \
-                    but got {value.typ}"
+                    f"Expected type {param.typ.name} " \
+                    f"for parameter '{param.name}' " \
+                    f"but got {value.name}"
                 )
             local_vars[param.name] = value
         logging.debug(f"{func.block}")
@@ -212,7 +225,10 @@ def repl(ast):
     while (i := input(">")) != "exit()":
         tokens = tokenise(i)
         ast = Parser(tokens).parse_expression()
-        print(interpreter.eval_node(ast))
+        try:
+            print(interpreter.eval_node(ast))
+        except StarlingException as e:
+            print(f"{e.__class__.__name__}:", str(e))
 
 
 if __name__ == "__main__":
