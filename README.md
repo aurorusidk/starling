@@ -16,7 +16,7 @@ This will likely be done only in Python as a simple starting point.
 - [x] Prototype grammar
 - [x] Lexer
 - [x] Parser
-- [ ] Basic codegen (maybe just an interpreter)
+- [x] Basic codegen (maybe just an interpreter)
 
 ## Initial Design
 - [ ] Create language design goals
