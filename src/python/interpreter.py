@@ -82,13 +82,13 @@ def starling_str(obj):
     return StarlingString(obj.value)
 
 StarlingStrFunc = StarlingBuiltinFunction(
-    "str", None, [StarlingParameter("obj", StarlingType)], starling_str
+    "to_str", None, [StarlingParameter("obj", StarlingType)], starling_str
 )
 
 
 StarlingBuiltins = {
     "print": StarlingPrintFunc,
-    "str": StarlingStrFunc,
+    "to_str": StarlingStrFunc,
 }
 
 
@@ -156,17 +156,60 @@ class Interpreter:
     def eval_binary_expr(self, op, left, right):
         left = self.eval_node(left)
         right = self.eval_node(right)
+        assert type(left) == type(right), "Type coercion not implemented"
         match op.typ:
             case T.PLUS:
-                return left + right
+                return self.eval_add(left, right)
+            case T.MINUS:
+                return self.eval_sub(left, right)
+            case T.STAR:
+                return self.eval_mul(left, right)
+            case T.SLASH:
+                return self.eval_div(left, right)
             case _:
                 assert False, f"Unimplemented operator: {op.typ}"
+
+    def eval_add(self, left, right):
+        return type(left)(left.value + right.value)
+
+    def eval_sub(self, left, right):
+        if isinstance(left, StarlingString):
+            raise StarlingTypeError("Subtraction not supported on type str")
+        return type(left)(left.value - right.value)
+
+    def eval_mul(self, left, right):
+        if not isinstance(left, (StarlingInteger, StarlingFloat)):
+            raise StarlingTypeError(
+                f"Multiplication not supported on type {type(left).name}"
+            )
+        return type(left)(left.value * right.value)
+
+    def eval_div(self, left, right):
+        if not isinstance(left, (StarlingInteger, StarlingFloat)):
+            raise StarlingTypeError(
+                f"Division not supported on type {type(left).name}"
+            )
+        return type(left)(left.value / right.value)
 
     def eval_unary_expr(self, op, right):
         right = self.eval_node(right)
         match op.typ:
+            case T.BANG:
+                return self.eval_not(right)
+            case T.MINUS:
+                return self.eval_neg(right)
             case _:
                 assert False, f"Unimplemented operator: {op.typ}"
+
+    def eval_not(self, right):
+        return type(right)(not right.value)
+
+    def eval_neg(self, right):
+        if not isinstance(right, (StarlingInteger, StarlingFloat)):
+            raise StarlingTypeError(
+                f"Negation not supported on type {type(right).name}"
+            )
+        return type(right)(-right.value)
 
     def eval_primary(self, value):
         match value.typ:
@@ -226,7 +269,7 @@ def repl(ast):
         tokens = tokenise(i)
         ast = Parser(tokens).parse_expression()
         try:
-            print(interpreter.eval_node(ast))
+            starling_print(interpreter.eval_node(ast))
         except StarlingException as e:
             print(f"{e.__class__.__name__}:", str(e))
 
