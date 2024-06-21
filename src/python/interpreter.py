@@ -215,13 +215,12 @@ class Interpreter:
 
     def eval_call(self, callee, args):
         logging.debug("evaluating call")
-        fname = callee.lexeme
-        func = self.name_map.get(fname)
+        func = self.name_map.get(callee)
         if not isinstance(func, StarlingFunction):
-            raise StarlingTypeError(f"{fname} is not a function")
+            raise StarlingTypeError(f"{callee} is not a function")
         if len(func.params) != len(args):
             raise StarlingTypeError(
-                f"{fname} takes {len(func.params)} " \
+                f"{callee} takes {len(func.params)} " \
                 f"argument{'s' if len(func.params) != 1 else ''} " \
                 f"but {len(args)} provided"
             )
@@ -238,7 +237,7 @@ class Interpreter:
             local_vars[param.name] = value
         logging.debug(f"{func.block}")
         if isinstance(func, StarlingBuiltinFunction):
-            logging.debug(f"calling builtin {fname}")
+            logging.debug(f"calling builtin {callee}")
             return func.block(**local_vars)
         try:
             self.eval_node(func.block, local_vars=local_vars)
@@ -249,9 +248,9 @@ class Interpreter:
         return self.eval_node(expr)
 
 
-def repl(ast):
-    interpreter = Interpreter()
-    interpreter.eval_node(ast)
+def repl(interpreter=None):
+    if interpreter is None:
+        interpreter = Interpreter()
     while (i := input(">")) != "exit()":
         tokens = tokenise(i)
         ast = Parser(tokens).parse_expression()
@@ -260,21 +259,34 @@ def repl(ast):
         except StarlingException as e:
             print(f"{e.__class__.__name__}:", str(e))
 
+def main(src_file=None):
+    interpreter = Interpreter()
+    if src_file is not None:
+        with open(src_file) as f:
+            src = f.read()
+        tokens = tokenise(src)
+        print(tokens)
+        ast = parse(tokens)
+        print(repr_ast(ast))
+        interpreter.eval_node(ast)
+        # define entry point
+        if "main" in interpreter.name_map:
+            interpreter.eval_call("main", [])
+    repl(interpreter)
+
 
 if __name__ == "__main__":
     import sys
     from parser import repr_ast
 
+    from lexer import Token
+    print(Token(T.IDENTIFIER, "main"))
+
     logging.basicConfig(format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.DEBUG)
+
     if len(sys.argv) == 2:
         src_file = sys.argv[1]
+        main(src_file)
     else:
-        src_file = "input.txt"
-    with open(src_file) as f:
-        src = f.read()
-    tokens = tokenise(src)
-    print(tokens)
-    ast = parse(tokens)
-    print(repr_ast(ast))
-    repl(ast)
+        main()

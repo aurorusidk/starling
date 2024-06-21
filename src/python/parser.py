@@ -202,7 +202,7 @@ class Parser:
             return Node(PRIMARY, [value])
 
     def parse_call(self):
-        func = self.consume(T.IDENTIFIER)
+        func = self.consume(T.IDENTIFIER).lexeme
         self.consume(T.LEFT_BRACKET)
         args = []
         while not self.consume(T.RIGHT_BRACKET):
