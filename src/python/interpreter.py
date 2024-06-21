@@ -1,4 +1,6 @@
 from collections import namedtuple
+from dataclasses import dataclass
+from enum import Enum
 import logging
 
 from lexer import TokenType as T, tokenise
@@ -7,46 +9,26 @@ from parser import NodeType as N, Parser, parse
 # move these to classes if additional behaviour is needed
 StarlingParameter = namedtuple("Parameter", ["name", "typ"])
 StarlingVariable = namedtuple("Variable", ["name", "value"])
+StarlingType = Enum("StarlingType", [
+    "INTEGER", "FLOAT", "STRING", "BOOL",
+])
 
-
+@dataclass
 class StarlingFunction:
-    def __init__(self, name, typ, params, block):
-        self.name = name
-        self.typ = typ
-        self.params = params
-        self.block = block
+    name: str
+    typ: StarlingType
+    params: list[StarlingParameter]
+    block: tuple # node
 
 
 class StarlingBuiltinFunction(StarlingFunction):
     pass
 
 
-class StarlingType:
-    pass
-
-
-class StarlingInteger(StarlingType):
-    name = "int"
-    def __init__(self, value):
-        self.value = int(value)
-
-
-class StarlingFloat(StarlingType):
-    name = "float"
-    def __init__(self, value):
-        self.value = float(value)
-
-
-class StarlingString(StarlingType):
-    name = "str"
-    def __init__(self, value):
-        self.value = str(value)
-
-
-class StarlingBool(StarlingType):
-    name = "bool"
-    def __init__(self, value):
-        self.value = str(value)
+@dataclass
+class StarlingObject:
+    typ: StarlingType
+    value: object
 
 
 class StarlingException(Exception):
@@ -79,10 +61,12 @@ StarlingPrintFunc = StarlingBuiltinFunction(
 )
 
 def starling_str(obj):
-    return StarlingString(obj.value)
+    return StarlingObject(StarlingType.STRING, str(obj.value))
 
 StarlingStrFunc = StarlingBuiltinFunction(
-    "to_str", None, [StarlingParameter("obj", StarlingType)], starling_str
+    "to_str", StarlingType.STRING,
+    [StarlingParameter("obj", StarlingType)],
+    starling_str
 )
 
 
@@ -117,18 +101,21 @@ class Interpreter:
     def eval_type(self, value):
         match value.typ:
             case T.INTEGER_TYPE:
-                return StarlingInteger
+                return StarlingType.INTEGER
             case T.FLOAT_TYPE:
-                return StarlingFloat
+                return StarlingType.FLOAT
             case T.STRING_TYPE:
-                return StarlingString
+                return StarlingType.STRING
             case T.BOOL_TYPE:
-                return StarlingBool
+                return StarlingType.BOOL
             case _:
                 assert False, f"Unimplemented type: {value.typ}"
 
-    def eval_block(self, *stmts, **local_vars):
+    def eval_block(self, *stmts, local_vars):
+        logging.debug(f"outer scope: {self.name_map}")
         outer_scope = self.name_map
+        self.name_map |= local_vars
+        logging.debug(f"inner scope: {self.name_map}")
         for stmt in stmts:
             self.eval_node(stmt)
         self.name_map = outer_scope
@@ -214,17 +201,17 @@ class Interpreter:
     def eval_primary(self, value):
         match value.typ:
             case T.INTEGER:
-                return StarlingInteger(value.lexeme)
+                return StarlingObject(StarlingType.INTEGER, int(value.lexeme))
             case T.FLOAT:
-                return StarlingFloat(value.lexeme)
+                return StarlingObject(StarlingType.FLOAT, float(value.lexeme))
             case T.STRING:
-                return StarlingString(value.lexeme[1:-1])
+                return StarlingObject(StarlingType.STRING, str(value.lexeme))
             case T.BOOL:
-                return StarlingBool(value.lexeme)
+                return StarlingObject(StarlingType.BOOL, bool(value.lexeme))
             case T.IDENTIFIER:
-                if value.value not in self.name_map:
-                    raise StarlingNameError(f"Name {value.value} not defined")
-                return self.name_map[value.value]
+                if value.lexeme not in self.name_map:
+                    raise StarlingNameError(f"Name {value.lexeme} not defined")
+                return self.name_map[value.lexeme]
 
     def eval_call(self, callee, args):
         logging.debug("evaluating call")
@@ -242,11 +229,11 @@ class Interpreter:
         for arg, param in zip(args, func.params):
             logging.debug(f"{param.typ}")
             value = self.eval_node(arg)
-            if not isinstance(value, param.typ):
+            if value.typ != param.typ and not isinstance(value.typ, param.typ):
                 raise StarlingTypeError(
-                    f"Expected type {param.typ.name} " \
+                    f"Expected type {param.typ} " \
                     f"for parameter '{param.name}' " \
-                    f"but got {value.name}"
+                    f"but got {value.typ}"
                 )
             local_vars[param.name] = value
         logging.debug(f"{func.block}")
