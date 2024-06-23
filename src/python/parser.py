@@ -5,9 +5,11 @@ import logging
 from lexer import TokenType as T
 
 NodeType = Enum("NodeType", [
-    "PROGRAM", "FUNCTION", "TYPE",
+    "PROGRAM", "FUNCTION", "VARIABLE_DECLR", "TYPE", "ARRAY_TYPE",
     "BLOCK", "IF", "WHILE", "RETURN", "ASSIGNMENT",
-    "BINARY_EXPR", "UNARY_EXPR", "PRIMARY", "CALL", "GROUP_EXPR",
+    "BINARY_EXPR", "UNARY_EXPR", "PRIMARY_EXPR",
+    "SELECTOR", "INDEX", "CALL",
+    "PRIMARY", "GROUP_EXPR", "RANGE_EXPR",
 ])
 # this may want to be changed to give each node type a static format
 # rather than using the generic `children` list
@@ -31,7 +33,7 @@ BINARY_OP_PRECEDENCE = {
 }
 
 TYPE_TOKENS = (
-    T.INTEGER_TYPE, T.FLOAT_TYPE,
+    T.INTEGER_TYPE, T.FLOAT_TYPE, T.RATIONAL_TYPE,
     T.STRING_TYPE, T.BOOL_TYPE
 )
 
@@ -73,10 +75,15 @@ class Parser:
         return Node(PROGRAM, declarations)
 
     def parse_declaration(self):
-        return self.parse_function()
+        if self.check(T.FUNC):
+            return self.parse_function()
+        elif self.check(T.VAR):
+            return self.parse_variable_declr()
+        else:
+            assert False, "Failed to parse declaration"
 
     def parse_function(self):
-        ftype = self.parse_type()
+        self.consume(T.FUNC)
         fname = self.consume(T.IDENTIFIER).lexeme
         self.consume(T.LEFT_BRACKET)
         ptypes = []
@@ -85,14 +92,37 @@ class Parser:
             ptypes.append(self.parse_type())
             pnames.append(self.consume(T.IDENTIFIER).lexeme)
             self.consume(T.COMMA)
+        ftype = None
+        if not self.check(T.LEFT_CURLY):
+            ftype = self.parse_type()
         contents = self.parse_block()
         return Node(FUNCTION, [ftype, fname, ptypes, pnames, contents])
+
+    def parse_variable_declr(self):
+        self.consume(T.VAR)
+        name = self.consume(T.IDENTIFIER).lexeme
+        typ = None
+        if not self.check(T.EQUALS):
+            typ = self.parse_type()
+        self.consume(T.EQUALS)
+        value = self.parse_expression()
+        self.consume(T.SEMICOLON)
+        return Node(VARIABLE_DECLR, [typ, name, value])
 
     def parse_type(self):
         tok = self.consume(*TYPE_TOKENS)
         if tok:
             return Node(TYPE, [tok])
+        elif self.check(T.LEFT_SQUARE):
+            return self.parse_array_type()
         assert False, "Failed to parse type"
+
+    def parse_array_type(self):
+        self.consume(T.LEFT_SQUARE)
+        length = self.parse_expression()
+        self.consume(T.RIGHT_SQUARE)
+        typ = self.parse_type()
+        return Node(ARRAY_TYPE, [length, typ])
 
     def parse_block(self):
         statements = []
@@ -102,18 +132,23 @@ class Parser:
         return Node(BLOCK, statements)
 
     def parse_statement(self):
-        if self.check(T.IF):
+        if self.check(T.FUNC, T.VAR):
+            return self.parse_declaration()
+        elif self.check(T.IF):
             return self.parse_if()
         elif self.check(T.WHILE):
             return self.parse_while()
         elif self.check(T.RETURN):
             return self.parse_return()
-        elif self.check(T.IDENTIFIER) and self.check(T.EQUALS, lookahead=1):
-            return self.parse_assignment()
-        else:
-            expr = self.parse_expression()
-            self.consume(T.SEMICOLON)
+
+        expr = self.parse_expression()
+        if self.consume(T.SEMICOLON):
             return expr
+        elif self.check(T.EQUALS):
+            return self.parse_assignment(expr)
+        else:
+            assert False, "Failed to parse statement"
+
 
     def parse_if(self):
         self.consume(T.IF)
@@ -139,12 +174,13 @@ class Parser:
 
     def parse_return(self):
         self.consume(T.RETURN)
-        value = self.parse_expression()
+        value = None
+        if not self.check(T.SEMICOLON):
+            value = self.parse_expression()
         self.consume(T.SEMICOLON)
         return Node(RETURN, [value])
 
-    def parse_assignment(self):
-        target = self.consume(T.IDENTIFIER)
+    def parse_assignment(self, target):
         self.consume(T.EQUALS)
         value = self.parse_expression()
         self.consume(T.SEMICOLON)
@@ -184,15 +220,32 @@ class Parser:
             right = self.parse_unary_expr()
             return Node(UNARY_EXPR, [op, right])
         else:
-            return self.parse_primary()
+            return self.parse_primary_expr()
+
+    def parse_primary_expr(self):
+        expr = self.parse_primary()
+        while self.check(T.DOT, T.LEFT_SQUARE, T.LEFT_BRACKET):
+            if self.check(T.DOT):
+                expr = self.parse_selector(expr)
+            elif self.check(T.LEFT_SQUARE):
+                expr = self.parse_index(expr)
+            elif self.check(T.LEFT_BRACKET):
+                expr = self.parse_call_arguments(expr)
+            else:
+                assert False, "Unreachable"
+        return expr
 
     def parse_primary(self):
-        if self.check(T.IDENTIFIER) and self.check(T.LEFT_BRACKET, lookahead=1):
-            return self.parse_call()
-        elif self.consume(T.LEFT_BRACKET):
+        if self.consume(T.LEFT_BRACKET):
             expr = self.parse_expression()
             self.consume(T.RIGHT_BRACKET)
             return Node(GROUP_EXPR, [expr])
+        elif self.consume(T.LEFT_SQUARE):
+            start = self.parse_expression()
+            self.consume(T.COLON)
+            end = self.parse_expression()
+            self.consume(T.RIGHT_SQUARE)
+            return Node(RANGE_EXPR, [start, end])
         else:
             value = self.consume(
                 T.INTEGER, T.FLOAT, T.BOOL, T.STRING, T.IDENTIFIER
@@ -201,14 +254,24 @@ class Parser:
                 assert False, "Failed to parse primary"
             return Node(PRIMARY, [value])
 
-    def parse_call(self):
-        func = self.consume(T.IDENTIFIER).lexeme
+    def parse_selector(self, target):
+        self.consume(T.DOT)
+        name = self.consume(T.IDENTIFIER)
+        return Node(SELECTOR, [target, name])
+
+    def parse_index(self, target):
+        self.consume(T.LEFT_SQUARE)
+        value = self.parse_expression()
+        self.consume(T.RIGHT_SQUARE)
+        return Node(INDEX, [target, value])
+
+    def parse_call_arguments(self, target):
         self.consume(T.LEFT_BRACKET)
         args = []
         while not self.consume(T.RIGHT_BRACKET):
             args.append(self.parse_expression())
             self.consume(T.COMMA)
-        return Node(CALL, [func, args])
+        return Node(CALL, [target, args])
 
 
 def parse(tokens):
