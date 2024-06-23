@@ -7,7 +7,7 @@ from lexer import TokenType as T
 NodeType = Enum("NodeType", [
     "PROGRAM", "FUNCTION", "VARIABLE_DECLR", "TYPE", "ARRAY_TYPE",
     "BLOCK", "IF", "WHILE", "RETURN", "ASSIGNMENT",
-    "BINARY_EXPR", "UNARY_EXPR", "PRIMARY_EXPR",
+    "BINARY_EXPR", "UNARY_EXPR",# "PRIMARY_EXPR",
     "SELECTOR", "INDEX", "CALL",
     "PRIMARY", "GROUP_EXPR", "RANGE_EXPR",
 ])
@@ -235,28 +235,9 @@ class Parser:
                 assert False, "Unreachable"
         return expr
 
-    def parse_primary(self):
-        if self.consume(T.LEFT_BRACKET):
-            expr = self.parse_expression()
-            self.consume(T.RIGHT_BRACKET)
-            return Node(GROUP_EXPR, [expr])
-        elif self.consume(T.LEFT_SQUARE):
-            start = self.parse_expression()
-            self.consume(T.COLON)
-            end = self.parse_expression()
-            self.consume(T.RIGHT_SQUARE)
-            return Node(RANGE_EXPR, [start, end])
-        else:
-            value = self.consume(
-                T.INTEGER, T.FLOAT, T.BOOL, T.STRING, T.IDENTIFIER
-            )
-            if not value:
-                assert False, "Failed to parse primary"
-            return Node(PRIMARY, [value])
-
     def parse_selector(self, target):
         self.consume(T.DOT)
-        name = self.consume(T.IDENTIFIER)
+        name = self.consume(T.IDENTIFIER).lexeme
         return Node(SELECTOR, [target, name])
 
     def parse_index(self, target):
@@ -272,6 +253,25 @@ class Parser:
             args.append(self.parse_expression())
             self.consume(T.COMMA)
         return Node(CALL, [target, args])
+
+    def parse_primary(self):
+        if self.consume(T.LEFT_BRACKET):
+            expr = self.parse_expression()
+            self.consume(T.RIGHT_BRACKET)
+            return Node(GROUP_EXPR, [expr])
+        elif self.consume(T.LEFT_SQUARE):
+            start = self.parse_expression()
+            self.consume(T.COLON)
+            end = self.parse_expression()
+            self.consume(T.RIGHT_SQUARE)
+            return Node(RANGE_EXPR, [start, end])
+        else:
+            value = self.consume(
+                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOL, T.STRING, T.IDENTIFIER
+            )
+            if not value:
+                assert False, "Failed to parse primary"
+            return Node(PRIMARY, [value])
 
 
 def parse(tokens):
