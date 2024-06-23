@@ -2,33 +2,49 @@
 // only defines functions and basic statements and expressions
 
 program = declaration*
-declaration = function
-function = type IDENTIFIER LEFT_BRACKET (type IDENTIFIER)* RIGHT_BRACKET block
-type = INTEGER_TYPE | FLOAT_TYPE | STRING_TYPE | BOOL_TYPE
+declaration = function | variable_declr
+function = FUNC IDENTIFIER LEFT_BRACKET (type IDENTIFIER)* RIGHT_BRACKET type? block
+variable_declr = VAR IDENTIFIER type? EQUALS expression SEMICOLON
+type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type
+array_type = LEFT_SQUARE expression RIGHT_SQUARE type
 
 block = LEFT_CURLY statement* RIGHT_CURLY
-statement = if | while | return | assignment | ( expression SEMICOLON )
+statement = declaration
+	  | if
+	  | while
+	  | return
+	  | assignment
+	  | expression SEMICOLON
 if = IF expression (statement | block) (ELSE ( statement | block ))?
 while = WHILE expression block
 return = RETURN expression SEMICOLON
-assignment = IDENTIFIER EQUALS expression SEMICOLON
+assignment = expression EQUALS expression SEMICOLON
 
 expression = binary_expr
 binary_expr = unary_expr (BINARY_OP unary_expr)*
-unary_expr = UNARY_OP* primary
-primary =  INTEGER | FLOAT | STRING | BOOL | IDENTIFIER | call | group_expr
-call = IDENTIFIER LEFT_BRACKET (expression (COMMA expression)*)*
+unary_expr = UNARY_OP* primary_expr
+primary_expr = primary
+	     | primary_expr selector
+	     | primary_expr index
+	     | primary_expr call_arguments
+primary =  INTEGER | FLOAT | RATIONAL | STRING | BOOL | IDENTIFIER | group_expr | range_expr
 group_expr = LEFT_BRACKET expression RIGHT_BRACKET
+range_expr = LEFT_SQUARE expression COLON expression RIGHT_SQUARE
+selector = DOT IDENTIFIER
+index = LEFT_SQUARE expression RIGHT_SQUARE
+call_arguments = LEFT_BRACKET (expression (COMMA expression)*)* RIGHT_BRACKET
 
 
 // tokens
 INTEGER = [0-9]+
 FLOAT = INTEGER "." INTEGER
+RATIONAL = INTEGER "//" INTEGER
 STRING = "\"" [^\"]* "\""
 BOOL = "true" | "false"
 IDENTIFIER = [a-zA-z_] [a-zA-Z0-9_]*
 INTEGER_TYPE = "int"
 FLOAT_TYPE = "float"
+RATIONAL_TYPE = "frac"
 STRING_TYPE = "str"
 BOOL_TYPE = "bool"
 
@@ -50,12 +66,18 @@ MINUS = "-"
 BANG = "!"
 
 SEMICOLON = ";"
+COLON = ":"
 COMMA = ","
+DOT = "."
 LEFT_BRACKET = "("
 RIGHT_BRACKET = ")"
 LEFT_CURLY = "{"
 RIGHT_CURLY = "}"
+LEFT_SQUARE = "["
+RIGHT_SQUARE = "]"
 IF = "if"
 ELSE = "else"
 WHILE = "while"
 RETURN = "return"
+VAR = "var"
+FUNC = "fn"
