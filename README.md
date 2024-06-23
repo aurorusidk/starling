@@ -24,4 +24,5 @@ This will likely be done only in Python as a simple starting point.
 - [ ] Begin language grammar
 - [ ] Implement new grammar features into lexer and parser
 - [ ] Codegen framework and support for different backends (compiled/interpreted)
+- [ ] Testing suite
 - [ ] Zig implementation
