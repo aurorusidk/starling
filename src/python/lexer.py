@@ -2,13 +2,16 @@ from collections import namedtuple
 from enum import Enum, global_enum
 
 TokenType = Enum("TokenType", [
-    "INTEGER", "FLOAT", "STRING", "BOOL", "IDENTIFIER",
-    "INTEGER_TYPE", "FLOAT_TYPE", "STRING_TYPE", "BOOL_TYPE",
-    "EQUALS_EQUALS", "BANG_EQUALS", "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
+    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOL", "IDENTIFIER",
+    "INTEGER_TYPE", "FLOAT_TYPE", "RATIONAL_TYPE", "STRING_TYPE", "BOOL_TYPE",
+    "EQUALS_EQUALS", "BANG_EQUALS",
+    "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
     "EQUALS", "STAR", "SLASH", "PLUS", "MINUS", "BANG",
-    "SEMICOLON", "COMMA",
-    "LEFT_BRACKET", "RIGHT_BRACKET", "LEFT_CURLY", "RIGHT_CURLY",
+    "SEMICOLON", "COLON", "COMMA", "DOT",
+    "LEFT_BRACKET", "RIGHT_BRACKET",
+    "LEFT_CURLY", "RIGHT_CURLY", "LEFT_SQUARE", "RIGHT_SQUARE",
     "IF", "ELSE", "WHILE", "RETURN",
+    "VAR", "FUNC",
 ])
 Token = namedtuple("Token", ["typ", "lexeme"])
 
@@ -21,12 +24,15 @@ KEYWORDS = {
     "false": BOOL,
     "int": INTEGER_TYPE,
     "float": FLOAT_TYPE,
+    "frac": RATIONAL_TYPE,
     "str": STRING_TYPE,
     "bool": BOOL_TYPE,
     "if": IF,
     "else": ELSE,
     "while": WHILE,
     "return": RETURN,
+    "var": VAR,
+    "fn": FUNC,
 }
 
 DIGRAPHS = {
@@ -45,16 +51,20 @@ MONOGRAPHS = {
     "-": MINUS,
     "!": BANG,
     ";": SEMICOLON,
+    ":": COLON,
     ",": COMMA,
+    ".": DOT,
     "(": LEFT_BRACKET,
     ")": RIGHT_BRACKET,
     "{": LEFT_CURLY,
     "}": RIGHT_CURLY,
+    "[": LEFT_SQUARE,
+    "]": RIGHT_SQUARE,
 }
 
-def get(src, index):
-    if index < len(src):
-        return src[index]
+def get(src, index, length=1):
+    if index + length <= len(src):
+        return src[index:index+length]
     else:
         return ""
 
@@ -63,14 +73,13 @@ def tokenise(src):
     tokens = []
     while cur < len(src):
         char = src[cur]
-        print(char, cur)
         if char.isspace():
             cur += 1
             continue
         elif char.isalpha() or char == '_':
             # identifier or keyword (including bool or type)
             i = 0
-            while get(src, cur + i).isalnum() or get(src, cur + i) == '_':
+            while (c := get(src, cur + i)).isalnum() or c == '_':
                 i += 1
             lexeme = src[cur:cur + i]
             typ = KEYWORDS.get(lexeme) or IDENTIFIER
@@ -80,10 +89,15 @@ def tokenise(src):
             typ = INTEGER
             while get(src, cur + i).isnumeric():
                 i += 1
-                if get(src, cur + i) == '.' and typ == INTEGER \
-                   and get(src, cur + i + 1).isnumeric():
-                    typ = FLOAT
-                    i += 1
+                if typ == INTEGER:
+                    if get(src, cur + i) == '.' and \
+                       get(src, cur + i + 1).isnumeric():
+                        typ = FLOAT
+                        i += 1
+                    elif get(src, cur + i, 2) == '//' and \
+                         get(src, cur + i + 2).isnumeric():
+                        typ = RATIONAL
+                        i += 2
             lexeme = src[cur:cur + i]
         elif char == '"':
             # string
