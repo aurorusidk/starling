@@ -9,6 +9,9 @@ Starling is a high-level programming language designed for data processing.
 * Zig
 * LLVM
 
+# Design
+[Read more about the design and features of the language](./DESIGN.md)
+
 # Roadmap
 ## Bootstrap
 This will likely be done only in Python as a simple starting point.
