@@ -13,6 +13,7 @@ Starling is capable of handling data sets stored in external files. This include
 The language provides several common mathematical functions for convenience, such as:
 * Trigonometric functions
 * Statistical functions
+
 Starling also has several builtin data types not commonly found in other languages, including:
 * Rational numbers
 * Complex numbers
