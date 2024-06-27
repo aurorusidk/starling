@@ -108,7 +108,7 @@ class Parser:
         while not self.consume(T.RIGHT_CURLY):
             contents.append(self.parse_field_declr())
             self.consume(T.COMMA)
-        return Node(STRUCT, contents)
+        return Node(STRUCT, [sname, contents])
     
     def parse_field_declr(self):
         name = self.consume(T.IDENTIFIER).lexeme
