@@ -6,7 +6,7 @@ from lexer import TokenType as T
 
 NodeType = Enum("NodeType", [
     "PROGRAM", "FUNCTION", "STRUCT", "VARIABLE_DECLR", "FIELD_DECLR", "TYPE", "ARRAY_TYPE",
-    "BLOCK", "STRUCT_BLOCK", "IF", "WHILE", "RETURN", "ASSIGNMENT",
+    "BLOCK", "IF", "WHILE", "RETURN", "ASSIGNMENT",
     "BINARY_EXPR", "UNARY_EXPR",# "PRIMARY_EXPR",
     "SELECTOR", "INDEX", "CALL",
     "PRIMARY", "GROUP_EXPR", "RANGE_EXPR",
