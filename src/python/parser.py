@@ -105,6 +105,17 @@ class Parser:
         sname = self.consume(T.IDENTIFIER)
         contents = self.parse_struct_block()
         return Node(STRUCT, contents)
+    
+    def parse_struct_block(self):
+        fields = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
+            fields.append(self.parse_field_declr())
+        return Node(STRUCT_BLOCK, fields)
+    
+    def parse_field_declr(self):
+        name = self.consume(T.IDENTIFIER).lexeme
+        typ = self.parse_type()
 
     def parse_variable_declr(self):
         self.consume(T.VAR)
@@ -116,11 +127,6 @@ class Parser:
         value = self.parse_expression()
         self.consume(T.SEMICOLON)
         return Node(VARIABLE_DECLR, [typ, name, value])
-    
-    def parse_field_declr(self):
-        self.consume(T.VAR)
-        name = self.consume(T.IDENTIFIER).lexeme
-        typ = self.parse_type()
 
     def parse_type(self):
         tok = self.consume(*TYPE_TOKENS)
@@ -143,13 +149,6 @@ class Parser:
         while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
             statements.append(self.parse_statement())
         return Node(BLOCK, statements)
-    
-    def parse_struct_block(self):
-        fields = []
-        self.consume(T.LEFT_CURLY)
-        while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
-            fields.append(self.parse_field_declr())
-        return Node(STRUCT_BLOCK, fields)
 
     def parse_statement(self):
         if self.check(T.FUNC, T.VAR):

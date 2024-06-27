@@ -7,7 +7,7 @@ function = FUNC IDENTIFIER LEFT_BRACKET (type IDENTIFIER)* RIGHT_BRACKET type? b
 struct = STRUCT IDENTIFIER struct_block
 struct_block = LEFT_CURLY field_declr ("," field_declr)* RIGHT_CURLY
 variable_declr = VAR IDENTIFIER type? EQUALS expression SEMICOLON
-field_declr = VAR IDENTIFIER type?
+field_declr = IDENTIFIER type?
 type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type
 array_type = LEFT_SQUARE expression RIGHT_SQUARE type
 
