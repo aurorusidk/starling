@@ -113,6 +113,7 @@ class Parser:
     def parse_field_declr(self):
         name = self.consume(T.IDENTIFIER).lexeme
         typ = self.parse_type()
+        return Node(FIELD_DECLR, [typ, name])
 
     def parse_variable_declr(self):
         self.consume(T.VAR)
