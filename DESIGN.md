@@ -30,6 +30,7 @@ Sequence types like arrays (fixed size), vectors (variable size), dictionaries, 
 
 ### Interfaces
 Starling will also feature `interface`s for laying out methods that should be applicable to structures.
+
 Core sequence data structures will be members of the `iterable` interface.
 
 ### Functional programming
@@ -48,7 +49,7 @@ Starling aims to provide a variety of external libraries for use with the core l
 # Syntax
 
 ## Code blocks
-TBD - Blocks use curly brackets `{ }` in the prototype grammar, but this may change.
+Blocks will use curly brackets `{ }`.
 
 Variables declared within `if` or `loop` blocks will be accessible outside of the scope of those blocks. Variables declared within function blocks remain within the scope of the function.
 
@@ -74,7 +75,7 @@ fn main(argv vec) int {
 }
 ```
 
-The main entry point implicitly returns 0 unless an error occurs.
+The main entry point implicitly returns 0, unless an error occurs.
 
 ## Ranges
 Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
