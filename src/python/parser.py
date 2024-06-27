@@ -5,7 +5,7 @@ import logging
 from lexer import TokenType as T
 
 NodeType = Enum("NodeType", [
-    "PROGRAM", "FUNCTION", "VARIABLE_DECLR", "TYPE", "ARRAY_TYPE",
+    "PROGRAM", "FUNCTION", "STRUCT", "VARIABLE_DECLR", "FIELD_DECLR", "TYPE", "ARRAY_TYPE",
     "BLOCK", "IF", "WHILE", "RETURN", "ASSIGNMENT",
     "BINARY_EXPR", "UNARY_EXPR",# "PRIMARY_EXPR",
     "SELECTOR", "INDEX", "CALL",
@@ -77,6 +77,8 @@ class Parser:
     def parse_declaration(self):
         if self.check(T.FUNC):
             return self.parse_function()
+        elif self.check(T.STRUCT):
+            return self.parse_struct()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
         else:
@@ -97,6 +99,21 @@ class Parser:
             ftype = self.parse_type()
         contents = self.parse_block()
         return Node(FUNCTION, [ftype, fname, ptypes, pnames, contents])
+    
+    def parse_struct(self):
+        self.consume(T.STRUCT)
+        sname = self.consume(T.IDENTIFIER)
+        contents = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY):
+            contents.append(self.parse_field_declr())
+            self.consume(T.COMMA)
+        return Node(STRUCT, [sname, contents])
+    
+    def parse_field_declr(self):
+        name = self.consume(T.IDENTIFIER).lexeme
+        typ = self.parse_type()
+        return Node(FIELD_DECLR, [typ, name])
 
     def parse_variable_declr(self):
         self.consume(T.VAR)

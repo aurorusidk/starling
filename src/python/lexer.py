@@ -33,6 +33,7 @@ KEYWORDS = {
     "return": RETURN,
     "var": VAR,
     "fn": FUNC,
+    "struct": STRUCT,
 }
 
 DIGRAPHS = {
