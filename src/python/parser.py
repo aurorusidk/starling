@@ -103,15 +103,12 @@ class Parser:
     def parse_struct(self):
         self.consume(T.STRUCT)
         sname = self.consume(T.IDENTIFIER)
-        contents = self.parse_struct_block()
-        return Node(STRUCT, contents)
-    
-    def parse_struct_block(self):
-        fields = []
+        contents = []
         self.consume(T.LEFT_CURLY)
-        while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
-            fields.append(self.parse_field_declr())
-        return Node(STRUCT_BLOCK, fields)
+        while not self.consume(T.RIGHT_CURLY):
+            contents.append(self.parse_field_declr())
+            self.consume(T.COMMA)
+        return Node(STRUCT, contents)
     
     def parse_field_declr(self):
         name = self.consume(T.IDENTIFIER).lexeme
