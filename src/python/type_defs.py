@@ -34,3 +34,8 @@ class ArrayType(Type):
     elem_type: Type
     length: int
 
+
+@dataclass
+class FunctionType(Type):
+    return_type: Type
+    param_types: list[Type]
