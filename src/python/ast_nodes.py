@@ -109,6 +109,11 @@ class DeclrStmt(Stmt):
 
 
 @dataclass
+class ExprStmt(Stmt):
+    expr: Expr
+
+
+@dataclass
 class IfStmt(Stmt):
     condition: Expr
     if_block: Block

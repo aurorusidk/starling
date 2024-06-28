@@ -126,7 +126,7 @@ class Parser:
 
         expr = self.parse_expression()
         if self.consume(T.SEMICOLON):
-            return expr
+            return ast.ExprStmt(expr)
         elif self.check(T.EQUALS):
             return self.parse_assignment(expr)
         else:
