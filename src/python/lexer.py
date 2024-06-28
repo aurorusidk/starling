@@ -22,11 +22,6 @@ global_enum(TokenType)
 KEYWORDS = {
     "true": BOOL,
     "false": BOOL,
-    "int": INTEGER_TYPE,
-    "float": FLOAT_TYPE,
-    "frac": RATIONAL_TYPE,
-    "str": STRING_TYPE,
-    "bool": BOOL_TYPE,
     "if": IF,
     "else": ELSE,
     "while": WHILE,
