@@ -1,11 +1,12 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from lexer import Token
+import type_defs as types
 
 
 @dataclass
 class Node:
-    pos: tuple[int, int]
+    pos: tuple[int, int] = field(kw_only=True, default=None)
 
 
 @dataclass
@@ -20,7 +21,8 @@ class Stmt(Node):
 
 @dataclass
 class Expr(Node):
-    pass
+    # used by the type checker
+    typ: types.Type = field(init=False, default=None)
 
 
 @dataclass
