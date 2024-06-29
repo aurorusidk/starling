@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from enum import Enum, Flag, auto
 
 
-BaseTypeKind = Enum("BaseTypeKind", [
+BasicTypeKind = Enum("BasicTypeKind", [
     "INT", "FLOAT", "FRAC", "STR", "BOOL",
 ])
 
 
-class BaseTypeFlag(Flag):
+class BasicTypeFlag(Flag):
     INTEGER = auto()
     FLOAT = auto()
     RATIONAL = auto()
@@ -23,9 +23,9 @@ class Type:
 
 
 @dataclass
-class BaseType(Type):
-    kind: BaseTypeKind
-    flags: BaseTypeFlag
+class BasicType(Type):
+    kind: BasicTypeKind
+    flags: BasicTypeFlag
     string: str
 
 

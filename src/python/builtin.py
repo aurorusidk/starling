@@ -1,12 +1,12 @@
-from type_defs import BaseType, BaseTypeKind, BaseTypeFlag
+from type_defs import BasicType, BasicTypeKind, BasicTypeFlag
 
 
 types = (
-        BaseType(BaseTypeKind.INT, BaseTypeFlag.INTEGER, "int"),
-        BaseType(BaseTypeKind.FLOAT, BaseTypeFlag.FLOAT, "float"),
-        BaseType(BaseTypeKind.FRAC, BaseTypeFlag.RATIONAL, "frac"),
-        BaseType(BaseTypeKind.STR, BaseTypeFlag.STRING, "str"),
-        BaseType(BaseTypeKind.BOOL, BaseTypeFlag.BOOLEAN, "bool"),
+        BasicType(BasicTypeKind.INT, BasicTypeFlag.INTEGER, "int"),
+        BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
+        BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
+        BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str"),
+        BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
 )
 
 # TODO: builtin name definitions (vars and funcs)
