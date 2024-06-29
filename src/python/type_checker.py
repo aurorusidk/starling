@@ -1,7 +1,10 @@
 from dataclasses import dataclass
+import logging
 
+from lexer import TokenType as T
 import ast_nodes as ast
 import builtin
+from type_defs import ArrayType, VectorType, FunctionType
 
 
 class Scope:
@@ -21,11 +24,22 @@ class Scope:
                 return None
         return val
 
+    def declare(self, name: ast.Identifier, typ):
+        self.name_map[name.value] = typ
+
 
 class TypeChecker:
     def __init__(self, root):
         self.scope = Scope(None)
         self.root = root
+
+    def new_scope(self):
+        new_scope = Scope(self.scope)
+        self.scope.children.append(new_scope)
+        self.scope = new_scope
+
+    def exit_scope(self):
+        self.scope = self.scope.parent
 
     def check(self, node):
         match node:
@@ -46,32 +60,63 @@ class TypeChecker:
     def check_expr(self, node):
         match node:
             case ast.Literal(tok):
-                pass
+                match tok.typ:
+                    case T.INTEGER:
+                        node.typ = builtin.types["int"]
+                    case T.FLOAT:
+                        node.typ = builtin.types["float"]
+                    case T.RATIONAL:
+                        node.typ = builtin.types["frac"]
+                    case T.STRING:
+                        node.typ = builtin.types["str"]
+                    case T.BOOLEAN:
+                        node.typ = builtin.types["bool"]
+                    case _:
+                        assert False, f"Unknown literal type {tok.typ}"
+
             case ast.Identifier(name):
-                pass
+                # lookup the name
+                return self.scope.lookup(name)
+
             case ast.RangeExpr(start, end):
-                pass
-            case ast.GroupExpr(value):
-                pass
+                self.check_expr(start)
+                self.check_expr(end)
+                if start.typ != end.typ != builtin.types["int"]:
+                    assert False, "Invalid range expr"
+                # TODO: how should ranges be typed?
+                assert False, "Unimplemented: range expressions"
+
+            case ast.GroupExpr(expr):
+                self.check_expr(expr)
+                node.typ = expr.typ
+
             case ast.CallExpr(target, args):
                 target = self.check(target)
                 args = [self.check_expr(arg) for arg in args]
                 # TODO: check args against signature in target
+
             case ast.IndexExpr(target, index):
-                pass
+                self.check(target)
+                self.check(index)
+                # TODO: there are a few cases here: strings, arrays, vecs, maps
+                assert False, "Unimplemented: index expressions"
+
             case ast.SelectorExpr(target, name):
-                pass
+                self.check(target)
+                # TODO: there are no valid targets yet?
+                assert False, "Unimplemented: selector expressions"
             case ast.UnaryExpr(op, rhs):
+                assert False, "Unimplemented: unary expressions"
                 pass
             case ast.BinaryExpr(op, lhs, rhs):
-                pass
+                assert False, "Unimplemented: binary expressions"
             case _:
                 assert False, f"Unreachable: could not match expr {node}"
 
     def check_type(self, node):
         match node:
             case ast.TypeName(value):
-                pass
+                return builtin.types[value.value]
             case ast.ArrayType(length, elem_t):
                 pass
             case _:
@@ -87,30 +132,65 @@ class TypeChecker:
             case ast.ExprStmt(expr):
                 self.check_expr(expr)
             case ast.IfStmt(condition, if_block, else_block):
-                pass
+                self.check_expr(condition)
+                # TODO: maybe skip this check to have 'truthy'/'falsy'
+                assert condition.typ == builtin.types["bool"]
+
+                self.check_block(if_block)
+                self.check_block(else_block)
+
             case ast.WhileStmt(condition, block):
-                pass
+                self.check_expr(condition)
+                # TODO: maybe skip this check to have 'truthy'/'falsy'
+                assert condition.typ == builtin.types["bool"]
+
+                self.check_block(block)
+
             case ast.ReturnStmt(value):
-                pass
+                self.check(value)
+                # TODO: compare the value with the return type of the current function
+
             case ast.AssignmentStmt(target, value):
-                pass
+                target = self.check_expr(target)
+                value = self.check_expr(value)
+                assert target == value.typ
+
             case _:
                 assert False, f"Unreachable: could not match stmt {node}"
 
     def check_declr(self, node):
         match node:
             case ast.FunctionDeclr(name, return_t, params, block):
-                # TODO: add FunctionType to scope and allow for type inference
+                # TODO: allow for type inference
+                param_types = []
+                for param in params:
+                    param_types.append(self.check_type(param.type))
+
+                return_type = self.check_type(return_t)
+                ftype = FunctionType(return_type, param_types)
+                self.scope.declare(name, ftype)
+
+                self.new_scope()
                 self.check(block)
+                self.exit_scope()
+
             case ast.VariableDeclr(name, typ, value):
-                pass
+                self.check_expr(value)
+                # TODO: vars with no initialiser should use the declared type
+                if typ is not None:
+                    assert value.typ == self.check_type(typ), f"Cannot assign value with type {value.typ} " \
+                            f"to variable {name.value}"
+                self.scope.declare(name, value.typ)
+
             case _:
                 assert False, f"Unreachable: could not match declr {node}"
 
 
-
 if __name__ == "__main__":
     import lexer, parser
+
+    logging.basicConfig(format="%(levelname)s: %(message)s")
+    logging.getLogger().setLevel(logging.DEBUG)
     with open("input.txt") as f:
         src = f.read()
     toks = lexer.tokenise(src)

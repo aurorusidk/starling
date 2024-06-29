@@ -84,7 +84,7 @@ class Parser:
 
     def parse_variable_declr(self):
         self.consume(T.VAR)
-        name = self.consume(T.IDENTIFIER).lexeme
+        name = self.parse_identifier()
         typ = None
         if not self.check(T.EQUALS):
             typ = self.parse_type()
@@ -116,7 +116,7 @@ class Parser:
 
     def parse_statement(self):
         if self.check(T.FUNC, T.VAR):
-            return self.parse_declaration()
+            return ast.DeclrStmt(self.parse_declaration())
         elif self.check(T.IF):
             return self.parse_if()
         elif self.check(T.WHILE):
@@ -227,7 +227,7 @@ class Parser:
         self.consume(T.LEFT_SQUARE)
         value = self.parse_expression()
         self.consume(T.RIGHT_SQUARE)
-        return ast.IndexStmt(target, value)
+        return ast.IndexExpr(target, value)
 
     def parse_call_arguments(self, target):
         self.consume(T.LEFT_BRACKET)
