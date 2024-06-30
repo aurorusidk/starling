@@ -114,7 +114,7 @@ class TypeChecker:
                 if start.typ != end.typ != builtin.types["int"]:
                     assert False, "Invalid range expr"
                 node.typ = types.ArrayType(builtin.types["int"], None)
-                #TODO: add length eval for consts
+                # TODO: add length eval for consts
 
             case ast.GroupExpr(expr):
                 self.check_expr(expr)
@@ -130,13 +130,18 @@ class TypeChecker:
                         assert False, "Types do not match"
                 if target.return_type is not None:
                     node.typ = target.return_type
-                # TODO: check args against signature in target
 
             case ast.IndexExpr(target, index):
                 self.check(target)
                 self.check(index)
-                # TODO: there are a few cases here: strings, arrays, vecs, maps
-                assert False, "Unimplemented: index expressions"
+                # TODO: there are a few cases here: strings, arrays, vecs, maps]
+                if target.typ == builtin.types["str"]:
+                    node.typ = target.typ
+                elif target.typ == ArrayType or target.typ == VectorType:
+                    node.typ = target.typ.elem_type
+                else:
+                    assert False, "Item cannot be indexed"
+                # TODO: add map case once implemented
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
@@ -178,7 +183,7 @@ class TypeChecker:
         match node:
             case ast.TypeName(value):
                 return builtin.types[value.value]
-            case ast.ArrayType(length, elem_t):
+            case ast.ArrayType(length, elem_type):
                 pass
             case _:
                 assert False, f"Unreachable: could not match type {node}"
@@ -222,13 +227,13 @@ class TypeChecker:
 
     def check_declr(self, node):
         match node:
-            case ast.FunctionDeclr(name, return_t, params, block):
+            case ast.FunctionDeclr(name, return_type, params, block):
                 # TODO: allow for type inference
                 param_types = []
                 for param in params:
                     param_types.append(self.check_type(param.type))
 
-                return_type = self.check_type(return_t)
+                return_type = self.check_type(return_type)
                 ftype = types.FunctionType(return_type, param_types)
 
                 self.scope.declare(name, ftype)
