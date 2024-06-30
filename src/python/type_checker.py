@@ -113,8 +113,8 @@ class TypeChecker:
                 self.check_expr(end)
                 if start.typ != end.typ != builtin.types["int"]:
                     assert False, "Invalid range expr"
-                # TODO: how should ranges be typed?
-                assert False, "Unimplemented: range expressions"
+                node.typ = types.ArrayType(builtin.types["int"], None)
+                #TODO: add length eval for consts
 
             case ast.GroupExpr(expr):
                 self.check_expr(expr)
@@ -123,6 +123,13 @@ class TypeChecker:
             case ast.CallExpr(target, args):
                 target = self.check(target)
                 args = [self.check_expr(arg) for arg in args]
+                for i,arg in enumerate(args):
+                    if target.param_types[i] is None:
+                        target.param_types[i] = arg.typ
+                    elif arg.typ != target.param_types[i]:
+                        assert False, "Types do not match"
+                if target.return_type is not None:
+                    node.typ = target.return_type
                 # TODO: check args against signature in target
 
             case ast.IndexExpr(target, index):
