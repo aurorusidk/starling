@@ -45,7 +45,7 @@ class ArrayType(Type):
 
     @property
     def string(self):
-        return f"[{self.length}]{self.elem_type.string}"
+        return f"[{self.length}]{self.elem_type}"
 
 
 @dataclass
@@ -54,7 +54,7 @@ class VectorType(Type):
 
     @property
     def string(self):
-        return f"[]{self.elem_type.strin}"
+        return f"[]{self.elem_type}"
 
 
 @dataclass
@@ -64,8 +64,8 @@ class FunctionType(Type):
 
     @property
     def string(self):
-        format_ptypes = ", ".join(p.string for p in self.param_types)
-        return f"fn ({format_ptypes}) -> {self.return_type.string}"
+        format_ptypes = ", ".join(str(p) for p in self.param_types)
+        return f"fn ({format_ptypes}) -> {self.return_type}"
 
 
 def is_basic(typ, flag=None):
