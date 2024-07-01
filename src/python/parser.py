@@ -59,6 +59,8 @@ class Parser:
     def parse_declaration(self):
         if self.check(T.FUNC):
             return self.parse_function()
+        elif self.check(T.STRUCT):
+            return self.parse_struct()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
         else:
@@ -83,6 +85,21 @@ class Parser:
             ftype = self.parse_type()
         contents = self.parse_block()
         return ast.FunctionDeclr(fname, ftype, params, contents)
+
+    def parse_struct(self):
+        self.consume(T.STRUCT)
+        name = self.consume(T.IDENTIFIER)
+        fields = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY):
+            fields.append(self.parse_field_declr())
+            self.consume(T.COMMA)
+        return ast.StructDeclr(name, fields)
+
+    def parse_field_declr(self):
+        name = self.parse_identifier()
+        typ = self.parse_type()
+        return ast.FieldDeclr(name, typ)
 
     def parse_variable_declr(self):
         self.consume(T.VAR)

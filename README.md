@@ -22,8 +22,8 @@ This will likely be done only in Python as a simple starting point.
 - [x] Basic codegen (maybe just an interpreter)
 
 ## Initial Design
-- [ ] Create language design goals
-- [ ] Determine necessary features and main focuses
+- [x] Create language design goals
+- [x] Determine necessary features and main focuses
 - [ ] Begin language grammar
 - [ ] Implement new grammar features into lexer and parser
 - [ ] Codegen framework and support for different backends (compiled/interpreted)
