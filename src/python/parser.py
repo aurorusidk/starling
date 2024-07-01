@@ -86,7 +86,7 @@ class Parser:
         self.consume(T.VAR)
         name = self.parse_identifier()
         typ = None
-        if not self.check(T.EQUALS):
+        if not self.check(T.EQUALS, T.SEMICOLON):
             typ = self.parse_type()
         value = None
         if self.consume(T.EQUALS):

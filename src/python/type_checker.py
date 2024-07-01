@@ -243,12 +243,20 @@ class TypeChecker:
                 self.exit_scope()
 
             case ast.VariableDeclr(name, typ, value):
-                self.check_expr(value)
-                # TODO: vars with no initialiser should use the declared type
+                if value is not None:
+                    self.check_expr(value)
+
                 if typ is not None:
-                    assert value.typ == self.check_type(typ), f"Cannot assign value with type {value.typ} " \
-                            f"to variable {name.value}"
-                self.scope.declare(name, value.typ)
+                    typ = self.check_type(typ)
+                    if value is not None:
+                        assert value.typ == typ, f"Cannot assign value with type {value.typ} " \
+                            f"to variable {name.value} with type {typ}"
+                    self.scope.declare(name, typ)
+                else:
+                    if value is None:
+                        self.scope.declare(name, None)
+                    else:
+                        self.scope.declare(name, value.typ)
 
             case _:
                 assert False, f"Unreachable: could not match declr {node}"
