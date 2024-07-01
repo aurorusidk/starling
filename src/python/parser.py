@@ -72,7 +72,9 @@ class Parser:
         params = []
         while not self.consume(T.RIGHT_BRACKET):
             pname = self.parse_identifier()
-            ptype = self.parse_type()
+            ptype = None
+            if not self.check(T.COMMA, T.RIGHT_BRACKET):
+                ptype = self.parse_type()
             params.append(ast.Parameter(pname, ptype))
             self.consume(T.COMMA)
 

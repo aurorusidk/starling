@@ -46,6 +46,8 @@ class TypeChecker:
     def __init__(self, root):
         self.scope = Scope(None)
         self.root = root
+        # used to infer return types
+        self.function = None
 
     def new_scope(self):
         new_scope = Scope(self.scope)
@@ -107,6 +109,7 @@ class TypeChecker:
             case ast.Identifier(name):
                 # lookup the name
                 node.typ = self.scope.lookup(name)
+                assert node.typ is not None, f"Undefined name {name}"
 
             case ast.RangeExpr(start, end):
                 self.check_expr(start)
@@ -121,15 +124,15 @@ class TypeChecker:
                 node.typ = expr.typ
 
             case ast.CallExpr(target, args):
-                target = self.check(target)
-                args = [self.check_expr(arg) for arg in args]
-                for i,arg in enumerate(args):
-                    if target.param_types[i] is None:
-                        target.param_types[i] = arg.typ
-                    elif arg.typ != target.param_types[i]:
+                self.check(target)
+                for i, arg in enumerate(args):
+                    self.check_expr(arg)
+                    if target.typ.param_types[i] is None:
+                        target.typ.param_types[i] = arg.typ
+                    elif arg.typ != target.typ.param_types[i]:
                         assert False, "Types do not match"
-                if target.return_type is not None:
-                    node.typ = target.return_type
+                if target.typ.return_type is not None:
+                    node.typ = target.typ.return_type
 
             case ast.IndexExpr(target, index):
                 self.check(target)
@@ -169,7 +172,7 @@ class TypeChecker:
 
         pred = binary_op_preds.get(node.op.typ)
         if not pred(node.lhs.typ):
-            assert False, f"Unsupported op {node.op.typ} on {lhs.typ}"
+            assert False, f"Unsupported op {node.op.typ} on {node.lhs.typ}"
 
         if node.op.typ == T.SLASH:
             node.typ = builtin.types["float"]
@@ -214,7 +217,13 @@ class TypeChecker:
 
             case ast.ReturnStmt(value):
                 self.check(value)
-                # TODO: compare the value with the return type of the current function
+                assert self.function is not None, "Return statement outside a function"
+                if self.function.return_type is None:
+                    self.function.return_type = value.typ
+                else:
+                    assert self.function.return_type == value.typ, f"Return value with type {value.typ} " \
+                            f"does not match function return type {self.function.return_type}"
+                # TODO: log the return statements to check if a value is ever returned
 
             case ast.AssignmentStmt(target, value):
                 self.check_expr(target)
@@ -228,18 +237,32 @@ class TypeChecker:
     def check_declr(self, node):
         match node:
             case ast.FunctionDeclr(name, return_type, params, block):
-                # TODO: allow for type inference
+                # TODO: inference on parameters needs to be done from CallExprs
+                #       maybe we need a way to defer checking until the type is concrete
                 param_types = []
                 for param in params:
-                    param_types.append(self.check_type(param.type))
+                    typ = None
+                    logging.debug(param)
+                    if param.typ is not None:
+                        typ = self.check_type(param.typ)
+                    param_types.append(typ)
 
-                return_type = self.check_type(return_type)
+                if return_type is not None:
+                    return_type = self.check_type(return_type)
                 ftype = types.FunctionType(return_type, param_types)
 
+                logging.debug(ftype)
                 self.scope.declare(name, ftype)
 
+                # TODO: defer this seciton until all global declarations are checked
+                #       this allows for functions to be used before they are declared
                 self.new_scope()
+                for param, ptype in zip(params, param_types):
+                    self.scope.declare(param.name, ptype)
+                prev_function = self.function
+                self.function = ftype
                 self.check(block)
+                self.function = prev_function
                 self.exit_scope()
 
             case ast.VariableDeclr(name, typ, value):
