@@ -88,8 +88,9 @@ class Parser:
         typ = None
         if not self.check(T.EQUALS):
             typ = self.parse_type()
-        self.consume(T.EQUALS)
-        value = self.parse_expression()
+        value = None
+        if self.consume(T.EQUALS):
+            value = self.parse_expression()
         self.consume(T.SEMICOLON)
         return ast.VariableDeclr(name, typ, value)
 
