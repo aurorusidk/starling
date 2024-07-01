@@ -28,6 +28,11 @@ class Scope:
         self.name_map[name.value] = typ
 
 
+unary_op_preds = {
+        T.MINUS: types.is_numeric,
+        T.BANG: types.is_bool,
+}
+
 binary_op_preds = {
         T.PLUS: lambda t: types.is_numeric(t) or types.is_string(t),
         T.MINUS: types.is_numeric,
@@ -149,13 +154,22 @@ class TypeChecker:
                 self.check(target)
                 # TODO: there are no valid targets yet?
                 assert False, "Unimplemented: selector expressions"
-            case ast.UnaryExpr(op, rhs):
-                # TODO: this should be implemented similarly to binary exprs
-                assert False, "Unimplemented: unary expressions"
+            case ast.UnaryExpr():
+                self.check_unary(node)
             case ast.BinaryExpr():
                 self.check_binary(node)
             case _:
                 assert False, f"Unreachable: could not match expr {node}"
+
+    def check_unary(self, node):
+        self.check(node.rhs)
+
+        pred = unary_op_preds[node.op.typ]
+        if not pred(node.rhs.typ):
+            assert False, f"Unsupported op {node.op.typ} on {node.rhs.typ}"
+
+        # none of the operations change the type of the operand
+        node.typ = node.rhs.typ
 
     def check_binary(self, node):
         self.check(node.lhs)
@@ -167,9 +181,10 @@ class TypeChecker:
         if is_comparison_op(node.op):
             node.typ = builtin.types["bool"]
             # TODO: more specific comparison checking (e.g., ordered types)
-            self.check_comparison(node)
+            # self.check_comparison(node)
+            return
 
-        pred = binary_op_preds.get(node.op.typ)
+        pred = binary_op_preds[node.op.typ]
         if not pred(node.lhs.typ):
             assert False, f"Unsupported op {node.op.typ} on {node.lhs.typ}"
 

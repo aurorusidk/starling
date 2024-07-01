@@ -76,3 +76,7 @@ def is_numeric(typ):
 
 def is_string(typ):
     return is_basic(typ, BasicTypeFlag.STRING)
+
+def is_bool(typ):
+    return is_basic(typ, BasicTypeFlag.BOOLEAN)
+
