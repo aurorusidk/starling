@@ -137,7 +137,6 @@ class TypeChecker:
             case ast.IndexExpr(target, index):
                 self.check(target)
                 self.check(index)
-                # TODO: there are a few cases here: strings, arrays, vecs, maps]
                 if target.typ == builtin.types["str"]:
                     node.typ = target.typ
                 elif target.typ == ArrayType or target.typ == VectorType:
@@ -151,8 +150,8 @@ class TypeChecker:
                 # TODO: there are no valid targets yet?
                 assert False, "Unimplemented: selector expressions"
             case ast.UnaryExpr(op, rhs):
+                # TODO: this should be implemented similarly to binary exprs
                 assert False, "Unimplemented: unary expressions"
-                pass
             case ast.BinaryExpr():
                 self.check_binary(node)
             case _:
@@ -187,7 +186,8 @@ class TypeChecker:
             case ast.TypeName(value):
                 return builtin.types[value.value]
             case ast.ArrayType(length, elem_type):
-                pass
+                # TODO: check if length is a constant
+                return types.ArrayType(None, self.check_type(elem_type))
             case _:
                 assert False, f"Unreachable: could not match type {node}"
 
@@ -229,6 +229,7 @@ class TypeChecker:
                 self.check_expr(target)
                 self.check_expr(value)
                 # TODO: if both are numeric the target should be coerced
+                #       for explicitly typed targets probably not?
                 assert target.typ == value.typ, f"Cannot assign {value} to {target}"
 
             case _:
