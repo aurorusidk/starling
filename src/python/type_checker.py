@@ -50,6 +50,7 @@ def is_comparison_op(op):
 class TypeChecker:
     def __init__(self, root):
         self.scope = Scope(None)
+        self.scope.name_map = builtin.names
         self.root = root
         # used to infer return types
         self.function = None
@@ -202,6 +203,8 @@ class TypeChecker:
                 return builtin.types[value.value]
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
+                self.check_expr(length)
+                assert length.typ == builtin.types["int"], "Array length must be a integer"
                 return types.ArrayType(None, self.check_type(elem_type))
             case _:
                 assert False, f"Unreachable: could not match type {node}"
@@ -280,6 +283,7 @@ class TypeChecker:
                 self.check(block)
                 self.function = prev_function
                 self.exit_scope()
+                node.checked_type = ftype
 
             case ast.VariableDeclr(name, typ, value):
                 if value is not None:
@@ -291,11 +295,13 @@ class TypeChecker:
                         assert value.typ == typ, f"Cannot assign value with type {value.typ} " \
                             f"to variable {name.value} with type {typ}"
                     self.scope.declare(name, typ)
+                    node.checked_type = typ
                 else:
                     if value is None:
                         self.scope.declare(name, None)
                     else:
                         self.scope.declare(name, value.typ)
+                        node.checked_type = value.typ
 
             case _:
                 assert False, f"Unreachable: could not match declr {node}"

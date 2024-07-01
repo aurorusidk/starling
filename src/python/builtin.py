@@ -1,4 +1,4 @@
-from type_defs import BasicType, BasicTypeKind, BasicTypeFlag
+from type_defs import *
 
 
 types = {
@@ -10,4 +10,6 @@ types = {
 }
 
 # TODO: builtin name definitions (vars and funcs)
-
+names = {
+   "print": FunctionType(None, [types["str"]]),
+}

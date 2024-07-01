@@ -11,7 +11,8 @@ class Node:
 
 @dataclass
 class Declr(Node):
-    pass
+    # used by the type checker
+    checked_type: types.Type = field(init=False, default=None)
 
 
 @dataclass
@@ -95,7 +96,7 @@ class TypeName(Type):
 @dataclass
 class ArrayType(Type):
     length: Expr
-    elem_typ: Type
+    elem_type: Type
 
 
 @dataclass
