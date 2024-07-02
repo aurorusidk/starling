@@ -232,6 +232,24 @@ class Interpreter:
 
     def eval_div(self, left, right):
         return StaObject(left.typ, left.value / right.value)
+    
+    def eval_equal(self, left, right):
+        return StaObject(builtin.types["bool"], left.value == right.value)
+    
+    def eval_not_equal(self, left, right):
+        return StaObject(builtin.types["bool"], left.value != right.value)
+    
+    def eval_less_than(self, left, right):
+        return StaObject(builtin.types["bool"], left.value < right.value)
+    
+    def eval_greater_than(self, left, right):
+        return StaObject(builtin.types["bool"], left.value > right.value)
+    
+    def eval_less_than_equal(self, left, right):
+        return StaObject(builtin.types["bool"], left.value <= right.value)
+    
+    def eval_greater_than_equal(self, left, right):
+        return StaObject(builtin.types["bool"], left.value >= right.value)
 
     def eval_unary_expr(self, op, right):
         right = self.eval_node(right)
