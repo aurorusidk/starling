@@ -5,7 +5,17 @@ from src.python.lexer import tokenise, Token, TokenType as T
 class TestLexer(unittest.TestCase):
     #keyword testing
     def test_valid_kw(self):
-        pass
+        tests = {
+            "true": [Token(T.BOOL, "true")],
+            "false": [Token(T.BOOL, "false")],
+            "if": [Token(T.IF, "if")],
+            "else": [Token(T.ELSE, "else")],
+            "while": [Token(T.WHILE, "while")],
+            "return": [Token(T.RETURN, "return")],
+            "var": [Token(T.VAR, "var")],
+            "fn": [Token(T.FUNC, "fn")],
+            "struct": [Token(T.STRUCT, "struct")],
+        }
 
     def test_uppercase_kw(self):
         pass
