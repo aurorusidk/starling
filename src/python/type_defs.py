@@ -66,6 +66,17 @@ class FunctionType(Type):
     def string(self):
         format_ptypes = ", ".join(str(p) for p in self.param_types)
         return f"fn ({format_ptypes}) -> {self.return_type}"
+    
+
+@dataclass
+class StructType(Type):
+    name: str
+    fields: dict[str, Type]
+
+    @property
+    def string(self):
+        format_fields = ", ".join(str(f) for f in self.fields)
+        return f"struct {{{format_fields}}}"
 
 
 def is_basic(typ, flag=None):

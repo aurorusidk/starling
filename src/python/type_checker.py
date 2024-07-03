@@ -50,7 +50,7 @@ def is_comparison_op(op):
 class TypeChecker:
     def __init__(self, root):
         self.scope = Scope(None)
-        self.scope.name_map = builtin.names
+        self.scope.name_map = builtin.types | builtin.names
         self.root = root
         # used to infer return types
         self.function = None
@@ -131,14 +131,21 @@ class TypeChecker:
 
             case ast.CallExpr(target, args):
                 self.check(target)
-                for i, arg in enumerate(args):
-                    self.check_expr(arg)
-                    if target.typ.param_types[i] is None:
-                        target.typ.param_types[i] = arg.typ
-                    elif arg.typ != target.typ.param_types[i]:
-                        assert False, "Types do not match"
-                if target.typ.return_type is not None:
-                    node.typ = target.typ.return_type
+                if isinstance(target.typ, types.FunctionType):
+                    for i, arg in enumerate(args):
+                        self.check_expr(arg)
+                        if target.typ.param_types[i] is None:
+                            target.typ.param_types[i] = arg.typ
+                        elif arg.typ != target.typ.param_types[i]:
+                            assert False, "Types do not match"
+                    if target.typ.return_type is not None:
+                        node.typ = target.typ.return_type
+                elif isinstance(target.typ, types.StructType):
+                    assert len(target.typ.fields) == len(args), "Incorrect number of field arguments"
+                    for field_type, arg in zip(target.typ.fields.values(), args):
+                        self.check_expr(arg)
+                        assert arg.typ == field_type, "Argument type does not match field type"
+                    node.typ = target.typ
 
             case ast.IndexExpr(target, index):
                 self.check(target)
@@ -153,12 +160,15 @@ class TypeChecker:
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
-                # TODO: there are no valid targets yet?
-                assert False, "Unimplemented: selector expressions"
+                assert name.value in target.typ.fields, f"Name {name.value} not in {target}"
+                node.typ = target.typ.fields[name.value]
+
             case ast.UnaryExpr():
                 self.check_unary(node)
+
             case ast.BinaryExpr():
                 self.check_binary(node)
+
             case _:
                 assert False, f"Unreachable: could not match expr {node}"
 
@@ -200,12 +210,16 @@ class TypeChecker:
     def check_type(self, node):
         match node:
             case ast.TypeName(value):
-                return builtin.types[value.value]
+                typ = self.scope.lookup(value.value)
+                assert isinstance(typ, types.Type), f"{value.value} is not a valid type"
+                return typ
+            
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
                 self.check_expr(length)
                 assert length.typ == builtin.types["int"], "Array length must be a integer"
                 return types.ArrayType(None, self.check_type(elem_type))
+            
             case _:
                 assert False, f"Unreachable: could not match type {node}"
 
@@ -284,6 +298,14 @@ class TypeChecker:
                 self.function = prev_function
                 self.exit_scope()
                 node.checked_type = ftype
+
+            case ast.StructDeclr(name, fields):
+                members = {}
+                for field in fields:
+                    members[field.name.value] = self.check_type(field.typ)
+                struct = types.StructType(name.value, members)
+                self.scope.declare(name, struct)
+                node.checked_type = struct
 
             case ast.VariableDeclr(name, typ, value):
                 if value is not None:

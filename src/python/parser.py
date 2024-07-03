@@ -88,7 +88,7 @@ class Parser:
 
     def parse_struct(self):
         self.consume(T.STRUCT)
-        name = self.consume(T.IDENTIFIER)
+        name = self.parse_identifier()
         fields = []
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
@@ -240,7 +240,7 @@ class Parser:
 
     def parse_selector(self, target):
         self.consume(T.DOT)
-        name = self.consume(T.IDENTIFIER).lexeme
+        name = self.parse_identifier()
         return ast.SelectorExpr(target, name)
 
     def parse_index(self, target):

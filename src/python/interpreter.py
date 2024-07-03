@@ -46,6 +46,13 @@ class StaFunction:
     block: ast.Block
 
 
+@dataclass
+class StaStruct:
+    typ: types.StructType
+    name: str
+    fields: dict[str, StaVariable]
+
+
 class StaBuiltinFunction(StaFunction):
     pass
 
@@ -76,14 +83,14 @@ class StaValueError(StaException):
     pass
 
 
-def sta_print(obj):
-    print(sta_str(obj).value)
+def sta_print(string):
+    print(string.value)
 
 
 StaPrintFunc = StaBuiltinFunction(
-    "print",
     builtin.names["print"],
-    [StaParameter("string", builtin.types["str"])],
+    "print",
+    [StaParameter(builtin.types["str"], ast.Identifier("string"))],
     sta_print,
 )
 
@@ -140,10 +147,10 @@ class Interpreter:
 
             case ast.FunctionDeclr(name, return_type, params, block):
                 return self.eval_function_declr(name, node.checked_type, params, block)
+            case ast.StructDeclr(name, fields):
+                return self.eval_struct_declr(name, node.checked_type, fields)
             case ast.VariableDeclr(name, typ, value):
                 return self.eval_variable_declr(name, node.checked_type, value)
-            case ast.StructDeclr(name, fields):
-                return self.eval_struct_declr(name, fields)
 
             case ast.Program(declrs):
                 return self.eval_program(declrs)
@@ -165,6 +172,10 @@ class Interpreter:
             return_type = ftype.return_type
         func = StaFunction(ftype, name.value, params, block)
         self.scope.declare(name, func)
+
+    def eval_struct_declr(self, name, typ, members):
+        logging.debug(f"{name}, {members}")
+        self.scope.declare(name, typ)
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
@@ -203,7 +214,7 @@ class Interpreter:
     def eval_assignment_stmt(self, target, value):
         target = self.eval_node(target)
         value = self.eval_node(value)
-        target.value = value
+        target.value = value.value
 
     def eval_binary_expr(self, op, left, right):
         left = self.eval_node(left)
@@ -268,9 +279,9 @@ class Interpreter:
         return StaObject(right.typ, -right.value)
 
     def eval_selector_expr(self, target, name):
+        logging.debug(f"{target}.{name}")
         target = self.eval_node(target)
-        # access name in target
-        assert False, "Selectors not implemented"
+        return target.fields[name.value].value
 
     def eval_index_expr(self, target, index):
         target = self.eval_node(target)
@@ -281,20 +292,31 @@ class Interpreter:
 
     def eval_call_expr(self, callee, args):
         logging.debug("evaluating call")
-        func = self.eval_node(callee)
-        self.scope = Scope(self.scope)
-        for arg, param in zip(args, func.params):
-            logging.debug(f"{param.typ}")
-            value = self.eval_node(arg)
-            self.scope.declare(param.name, value)
-        logging.debug(f"{func.block}")
-        if isinstance(func, StaBuiltinFunction):
-            logging.debug(f"calling builtin {callee}")
-            func.block(**self.scope.name_map)
-        try:
-            self.eval_node(func.block)
-        except StaFunctionReturn as res:
-            return res.value
+        target = self.eval_node(callee)
+        if isinstance(target, StaFunction):
+            self.scope = Scope(self.scope)
+            for arg, param in zip(args, target.params):
+                logging.debug(f"{param.typ}")
+                value = self.eval_node(arg)
+                self.scope.declare(param.name, value)
+            logging.debug(f"{target.block}")
+            if isinstance(target, StaBuiltinFunction):
+                logging.debug(f"calling builtin {callee}")
+                value = target.block(**self.scope.name_map)
+                return value
+            try:
+                self.eval_node(target.block)
+            except StaFunctionReturn as res:
+                return res.value
+        elif isinstance(target, types.StructType):
+            fields = {}
+            for i, arg in enumerate(args):
+                value = self.eval_node(arg)
+                name = list(target.fields.keys())[i]
+                field = StaVariable(name, value)
+                fields[name] = field
+            return StaStruct(target, target.name, fields)
+
 
     def eval_literal(self, value, typ):
         if typ == builtin.types["int"]:
