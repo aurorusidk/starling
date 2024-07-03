@@ -1,3 +1,5 @@
+![Starling](https://github.com/aurorusidk/starling/assets/75564966/44fc3567-5188-4c5d-97ee-b724e3301b94)
+
 Starling is a high-level programming language designed for data processing.
 
 # Requirements
