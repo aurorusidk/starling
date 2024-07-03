@@ -15,7 +15,28 @@ class TestLexer(unittest.TestCase):
 
     #graph testing
     def test_valid_mg(self):
-        pass
+        tests = {
+            "<": [Token(T.LESS_THAN, "<")],
+            ">": [Token(T.GREATER_THAN, ">")],
+            "=": [Token(T.EQUALS, "=")],
+            "*": [Token(T.STAR, "*")],
+            "/": [Token(T.SLASH, "/")],
+            "+": [Token(T.PLUS, "+")],
+            "-": [Token(T.MINUS, "-")],
+            "!": [Token(T.BANG, "!")],
+            ";": [Token(T.SEMICOLON, ";")],
+            ":": [Token(T.COLON, ":")],
+            ",": [Token(T.COMMA, ",")],
+            ".": [Token(T.DOT, ".")],
+            "(": [Token(T.LEFT_BRACKET, "(")],
+            ")": [Token(T.RIGHT_BRACKET, ")")],
+            "{": [Token(T.LEFT_CURLY, "{")],
+            "}": [Token(T.RIGHT_CURLY, "}")],
+            "[": [Token(T.LEFT_SQUARE, "[")],
+            "]": [Token(T.RIGHT_SQUARE, "]")]
+        }
+        for test, expected in tests.items():
+            self.assertEqual(tokenise(test), expected)
 
     def test_invalid_mg(self):
         pass
