@@ -5,12 +5,12 @@ from fractions import Fraction
 import logging
 from typing import Union
 
-from lexer import TokenType as T, tokenise
-from parser import Parser, parse
-from type_checker import Scope, TypeChecker
-import ast_nodes as ast
-import type_defs as types
-import builtin
+from .lexer import TokenType as T, tokenise
+from .parser import Parser, parse
+from .type_checker import Scope, TypeChecker
+from . import ast_nodes as ast
+from . import type_defs as types
+from . import builtin
 
 
 @dataclass

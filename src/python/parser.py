@@ -2,8 +2,8 @@ from collections import namedtuple
 from enum import Enum, global_enum
 import logging
 
-from lexer import TokenType as T
-import ast_nodes as ast
+from .lexer import TokenType as T
+from . import ast_nodes as ast
 
 
 BINARY_OP_PRECEDENCE = {

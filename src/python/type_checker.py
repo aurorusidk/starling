@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 import logging
 
-from lexer import TokenType as T
-import ast_nodes as ast
-import builtin
-import type_defs as types
+from .lexer import TokenType as T
+from . import ast_nodes as ast
+from . import builtin
+from . import type_defs as types
 
 
 class Scope:

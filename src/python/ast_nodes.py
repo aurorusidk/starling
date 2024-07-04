@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from lexer import Token
-import type_defs as types
+from .lexer import Token
+from . import type_defs as types
 
 
 @dataclass
