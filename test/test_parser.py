@@ -83,7 +83,45 @@ class TestParser(unittest.TestCase):
             self.assertEqual(p.parse_statement(), expected)
 
     def test_valid_expr(self):
-        pass
+        tests = {
+            "1": ast.Literal(lexer.Token(lexer.INTEGER, "1")),
+            "test": ast.Identifier("test"),
+            "[x:y]": ast.RangeExpr(
+                ast.Identifier("x"),
+                ast.Identifier("y"),
+            ),
+            "(test)": ast.GroupExpr(ast.Identifier("test")),
+            "test(x, y)": ast.CallExpr(
+                ast.Identifier("test"),
+                [
+                    ast.Identifier("x"),
+                    ast.Identifier("y"),
+                ],
+            ),
+            "test[x]": ast.IndexExpr(
+                ast.Identifier("test"),
+                ast.Identifier("x"),
+            ),
+            "test.x": ast.SelectorExpr(
+                ast.Identifier("test"),
+                ast.Identifier("x"),
+            ),
+            "!test": ast.UnaryExpr(
+                lexer.Token(lexer.BANG, "!"),
+                ast.Identifier("test"),
+            ),
+            "x + y": ast.BinaryExpr(
+                lexer.Token(lexer.PLUS, "+"),
+                ast.Identifier("x"),
+                ast.Identifier("y"),
+            ),
+        }
+
+        p = Parser(None)
+        for test, expected in tests.items():
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertEqual(p.parse_expression(), expected)
 
     def test_binop_precs(self):
         # make sure that operator precedences are respected
