@@ -14,11 +14,23 @@ class TestLexer(unittest.TestCase):
             "return": [Token(T.RETURN, "return")],
             "var": [Token(T.VAR, "var")],
             "fn": [Token(T.FUNC, "fn")],
-            "struct": [Token(T.STRUCT, "struct")],
+            "struct": [Token(T.STRUCT, "struct")]
         }
 
+        for test, expected in tests.items():
+            self.assertEqual(tokenise(test), expected)
+
     def test_uppercase_kw(self):
-        pass
+        tests ={
+            "True": [Token(T.IDENTIFIER, "True")],
+            "False": [Token(T.IDENTIFIER, "False")],
+            "IF": [Token(T.IDENTIFIER, "IF")],
+            "fN": [Token(T.IDENTIFIER, "fN")],
+            "strUct": [Token(T.IDENTIFIER, "strUct")]
+        }
+
+        for test, expected in tests.items():
+            self.assertEqual(tokenise(test), expected)
 
     def test_identifier_kw(self):
         pass
@@ -45,11 +57,21 @@ class TestLexer(unittest.TestCase):
             "[": [Token(T.LEFT_SQUARE, "[")],
             "]": [Token(T.RIGHT_SQUARE, "]")]
         }
+
         for test, expected in tests.items():
             self.assertEqual(tokenise(test), expected)
 
     def test_invalid_mg(self):
-        pass
+        tests = [
+            "@",
+            "$",
+            "£",
+            "¬"
+        ]
+
+        for test in tests:
+            with self.assertRaises(AssertionError):
+                tokenise(test)
 
     def test_valid_dg(self):
         tests = {
@@ -58,6 +80,7 @@ class TestLexer(unittest.TestCase):
             "<=": [Token(T.LESS_EQUALS, "<=")],
             ">=": [Token(T.GREATER_EQUALS, ">=")]
         }
+        
         for test, expected in tests.items():
             self.assertEqual(tokenise(test), expected)
 

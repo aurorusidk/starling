@@ -68,6 +68,8 @@ def tokenise(src):
     cur = 0
     tokens = []
     while cur < len(src):
+        lexeme = None
+        typ = None
         char = src[cur]
         if char.isspace():
             cur += 1
