@@ -52,7 +52,35 @@ class TestParser(unittest.TestCase):
             self.assertEqual(p.parse_declaration(), expected)
 
     def test_valid_stmt(self):
-        pass
+        # skips declr and expr stmts; blocks are implicitly tested throughout
+        # TODO: should test more variations
+        tests = {
+            "if test {} else {}": ast.IfStmt(
+                ast.Identifier("test"),
+                ast.Block([]),
+                ast.Block([]),
+            ),
+
+            "while test {}": ast.WhileStmt(
+                ast.Identifier("test"),
+                ast.Block([]),
+            ),
+
+            "return test;": ast.ReturnStmt(
+                ast.Identifier("test"),
+            ),
+
+            "test = x;": ast.AssignmentStmt(
+                ast.Identifier("test"),
+                ast.Identifier("x"),
+            ),
+        }
+
+        p = Parser(None)
+        for test, expected in tests.items():
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertEqual(p.parse_statement(), expected)
 
     def test_valid_expr(self):
         pass

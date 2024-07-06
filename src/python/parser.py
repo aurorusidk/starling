@@ -160,7 +160,7 @@ class Parser:
             if_block = self.parse_block()
         else:
             if_block = self.parse_statement()
-        if self.check(T.ELSE):
+        if self.consume(T.ELSE):
             if self.check(T.LEFT_CURLY):
                 else_block = self.parse_block()
             else:
