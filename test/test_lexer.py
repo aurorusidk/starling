@@ -85,7 +85,17 @@ class TestLexer(unittest.TestCase):
             self.assertEqual(tokenise(test), expected)
 
     def test_invalid_dg(self):
-        pass
+        # no need to check for invalid chars
+        # only checking sequences of valid chars that don't form digraphs
+        tests = {
+            "<>": [Token(T.LESS_THAN, "<"), Token(T.GREATER_THAN, ">")],
+            "::": [Token(T.COLON, ":"), Token(T.COLON, ":")],
+            "++": [Token(T.PLUS, "+"), Token(T.PLUS, "+")],
+            "*=": [Token(T.STAR, "*"), Token(T.EQUALS, "=")]
+        }
+
+        for test, expected in tests.items():
+            self.assertEqual(tokenise(test), expected)
 
     def test_no_space_g(self):
         pass
