@@ -69,7 +69,7 @@ class TestParser(unittest.TestCase):
 
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
-        # TODO: should test more variations
+        # TODO: should test more variations (including "else if" when implemented)
         tests = {
             "if test {} else {}": ast.IfStmt(
                 ast.Identifier("test"),
@@ -98,8 +98,21 @@ class TestParser(unittest.TestCase):
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_statement(), expected)
 
+    @unittest.expectedFailure
     def test_invalid_stmt(self):
-        pass
+        #TODO: add more variations
+        tests = [
+            "if test () else ()",
+            "whiletest {}",
+            "return test",
+            "test == x;"
+        ]
+
+        p = Parser(None)
+        for test in tests:
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertRaises(AssertionError, p.parse_statement)
 
     def test_valid_expr(self):
         tests = {
