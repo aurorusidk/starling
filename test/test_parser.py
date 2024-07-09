@@ -51,8 +51,21 @@ class TestParser(unittest.TestCase):
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_declaration(), expected)
 
+    @unittest.expectedFailure
     def test_invalid_declr(self):
-        pass
+        #TODO: implement correct parser errors, so test works correctly
+        tests = [
+            "func test(x int, y int) int {}",
+            "struct test (x int, y int)",
+            "var test == x;",
+            "var test = x",
+        ]
+
+        p = Parser(None)
+        for test in tests:
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertRaises(AssertionError, p.parse_declaration)
 
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
