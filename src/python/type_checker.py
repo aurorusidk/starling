@@ -152,7 +152,7 @@ class TypeChecker:
                 self.check(index)
                 if target.typ == builtin.types["str"]:
                     node.typ = target.typ
-                elif target.typ == ArrayType or target.typ == VectorType:
+                elif isinstance(target.typ, (types.ArrayType, types.VectorType)):
                     node.typ = target.typ.elem_type
                 else:
                     assert False, "Item cannot be indexed"
