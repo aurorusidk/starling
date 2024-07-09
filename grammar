@@ -3,11 +3,16 @@
 
 program = declaration*
 declaration = function | variable_declr
-function = FUNC IDENTIFIER LEFT_BRACKET (type IDENTIFIER)* RIGHT_BRACKET type? block
+function = FUNC function_signature block
+function_signature = IDENTIFIER LEFT_BRACKET field_list? RIGHT_BRACKET type?
 struct = STRUCT IDENTIFIER struct_block
-struct_block = LEFT_CURLY field_declr ("," field_declr)* RIGHT_CURLY
+struct_block = LEFT_CURLY field_declr field_list RIGHT_CURLY
+interface = INTERFACE IDENTIFIER interface_block
+interface_block = LEFT_CURLY function_signature (COMMA function_signature)* RIGHT_CURLY 
 variable_declr = VAR IDENTIFIER type? EQUALS expression SEMICOLON
 field_declr = IDENTIFIER type?
+field_list = field_declr (COMMA field_declr)*
+
 type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type
 array_type = LEFT_SQUARE expression RIGHT_SQUARE type
 
@@ -85,3 +90,4 @@ RETURN = "return"
 VAR = "var"
 FUNC = "fn"
 STRUCT = "struct"
+INTERFACE = "interface"

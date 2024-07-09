@@ -137,20 +137,21 @@ class AssignmentStmt(Stmt):
     target: Expr
     value: Expr
 
-    
 @dataclass
-class Parameter(Node):
+class FieldDeclr(Declr):
     name: Identifier
-    typ: Type | None
+    typ: Type
 
+@dataclass
+class FunctionSignature(Declr):
+    name: Identifier
+    return_type: Type | None
+    params: list[FieldDeclr]
 
 @dataclass
 class FunctionDeclr(Declr):
-    name: Identifier
-    return_type: Type | None
-    params: list[Parameter]
+    signature: FunctionSignature
     block: Block
-
 
 @dataclass
 class VariableDeclr(Declr):
@@ -159,12 +160,11 @@ class VariableDeclr(Declr):
     value: Expr
 
 @dataclass
-class FieldDeclr(Declr):
-    name: Identifier
-    typ: Type
-
-@dataclass
 class StructDeclr(Declr):
     name: Identifier
     fields: list[FieldDeclr]
 
+@dataclass
+class InterfaceDeclr(Declr):
+    name: Identifier
+    methods: list[FunctionSignature]
