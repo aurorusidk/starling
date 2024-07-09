@@ -2,8 +2,7 @@ from collections import namedtuple
 from enum import Enum, global_enum
 
 TokenType = Enum("TokenType", [
-    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOL", "IDENTIFIER",
-    "INTEGER_TYPE", "FLOAT_TYPE", "RATIONAL_TYPE", "STRING_TYPE", "BOOL_TYPE",
+    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOLEAN", "IDENTIFIER",
     "EQUALS_EQUALS", "BANG_EQUALS",
     "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
     "EQUALS", "STAR", "SLASH", "PLUS", "MINUS", "BANG",
@@ -20,8 +19,8 @@ Token = namedtuple("Token", ["typ", "lexeme"])
 global_enum(TokenType)
 
 KEYWORDS = {
-    "true": BOOL,
-    "false": BOOL,
+    "true": BOOLEAN,
+    "false": BOOLEAN,
     "if": IF,
     "else": ELSE,
     "while": WHILE,

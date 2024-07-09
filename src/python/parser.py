@@ -272,7 +272,7 @@ class Parser:
             return self.parse_identifier()
         else:
             value = self.consume(
-                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOL, T.STRING,
+                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,
             )
             if not value:
                 assert False, "Failed to parse primary"
