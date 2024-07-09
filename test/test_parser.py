@@ -117,6 +117,7 @@ class TestParser(unittest.TestCase):
     def test_valid_expr(self):
         tests = {
             "1": ast.Literal(lexer.Token(lexer.INTEGER, "1")),
+            "true": ast.Literal(lexer.Token(lexer.BOOLEAN, "true")),
             "test": ast.Identifier("test"),
             "[x:y]": ast.RangeExpr(
                 ast.Identifier("x"),
@@ -155,8 +156,26 @@ class TestParser(unittest.TestCase):
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
 
+    @unittest.expectedFailure
     def test_invalid_expr(self):
-        pass
+        tests = [
+            ":",
+            "() + 1",
+            "while",
+            "[var:y]",
+            "(:)",
+            "test(x, var)",
+            "test[fn]",
+            "test.var",
+            "!if",
+            "var + x",
+        ]
+
+        p = Parser(None)
+        for test in tests:
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertRaises(AssertionError, p.parse_expression)
 
     def test_binop_precs(self):
         # make sure that operator precedences are respected
