@@ -51,6 +51,9 @@ class TestParser(unittest.TestCase):
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_declaration(), expected)
 
+    def test_invalid_declr(self):
+        pass
+
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
         # TODO: should test more variations
@@ -81,6 +84,9 @@ class TestParser(unittest.TestCase):
             p.cur = 0
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_statement(), expected)
+
+    def test_invalid_stmt(self):
+        pass
 
     def test_valid_expr(self):
         tests = {
@@ -122,6 +128,9 @@ class TestParser(unittest.TestCase):
             p.cur = 0
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
+
+    def test_invalid_expr(self):
+        pass
 
     def test_binop_precs(self):
         # make sure that operator precedences are respected
