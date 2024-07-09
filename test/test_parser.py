@@ -125,7 +125,44 @@ class TestParser(unittest.TestCase):
 
     def test_binop_precs(self):
         # make sure that operator precedences are respected
-        pass
+        tests = {
+            "a * b - c / d": ast.BinaryExpr(
+                lexer.Token(lexer.MINUS, "-"),
+                ast.BinaryExpr(
+                    lexer.Token(lexer.STAR, "*"),
+                    ast.Identifier("a"),
+                    ast.Identifier("b"),
+                ),
+                ast.BinaryExpr(
+                    lexer.Token(lexer.SLASH, "/"),
+                    ast.Identifier("c"),
+                    ast.Identifier("d"),
+                ),
+            ),
+            "a * b != c - d / e": ast.BinaryExpr(
+                lexer.Token(lexer.BANG_EQUALS, "!="),
+                ast.BinaryExpr(
+                    lexer.Token(lexer.STAR, "*"),
+                    ast.Identifier("a"),
+                    ast.Identifier("b"),
+                ),
+                ast.BinaryExpr(
+                    lexer.Token(lexer.MINUS, "-"),
+                    ast.Identifier("c"),
+                    ast.BinaryExpr(
+                        lexer.Token(lexer.SLASH, "/"),
+                        ast.Identifier("d"),
+                        ast.Identifier("e"),
+                    ),
+                ),
+            ),
+        }
+
+        p = Parser(None)
+        for test, expected in tests.items():
+            p.cur = 0
+            p.tokens = lexer.tokenise(test)
+            self.assertEqual(p.parse_expression(), expected)
 
     # testing for errors in parsing
     # ensure every error condition is tested for
