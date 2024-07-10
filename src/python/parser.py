@@ -63,6 +63,8 @@ class Parser:
             return self.parse_struct()
         elif self.check(T.INTERFACE):
             return self.parse_interface()
+        elif self.check(T.IMPL):
+            return self.parse_impl_declr()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
         else:
@@ -112,6 +114,18 @@ class Parser:
             methods.append(self.parse_function_signature(T.COMMA, T.RIGHT_CURLY))
             self.consume(T.COMMA)
         return ast.InterfaceDeclr(name, methods)
+
+    def parse_impl_declr(self):
+        self.consume(T.IMPL)
+        target = self.parse_identifier()
+        self.consume(T.LESS_THAN)
+        interface = self.parse_identifier()
+        self.consume(T.GREATER_THAN)
+        methods = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY):
+            methods.append(self.parse_function())
+        return ast.ImplDeclr(target, interface, methods)
 
     def parse_field_declr(self):
         name = self.parse_identifier()
