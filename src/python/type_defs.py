@@ -79,6 +79,12 @@ class StructType(Type):
         return f"struct {{{format_fields}}}"
 
 
+@dataclass
+class Interface(Type):
+    name: str
+    methods: dict[str, FunctionType]
+
+
 def is_basic(typ, flag=None):
     return isinstance(typ, BasicType) and typ.flags & flag if flag else True
 
