@@ -160,8 +160,18 @@ class TypeChecker:
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
-                assert name.value in target.typ.fields, f"Name {name.value} not in {target}"
-                node.typ = target.typ.fields[name.value]
+                method = target.typ.methods.get(name.value)
+                field = None
+                if isinstance(target.typ, types.StructType):
+                    field = target.typ.fields.get(name.value)
+
+                if method is not None:
+                    assert field is None, "Conflicting name between method and field"
+                    node.typ = method.checked_type
+                elif field is not None:
+                    node.typ = field
+                else:
+                    assert False, f"Could not resolve name {name.value} in {target.typ}"
 
             case ast.UnaryExpr():
                 self.check_unary(node)
@@ -317,6 +327,19 @@ class TypeChecker:
                 self.scope.declare(name, interface)
                 node.checked_type = interface
                 logging.debug(interface)
+
+            case ast.ImplDeclr(target, interface, methods):
+                target = self.check_type(target)
+                interface = self.scope.lookup(interface.value)
+                assert isinstance(interface, types.Interface), "Cannot implement non-interface"
+
+                self.new_scope()
+                self.scope.declare(ast.Identifier("self"), target)
+                for method in methods:
+                    # TODO: ensure that only methods from the interface can be defined
+                    self.check_declr(method)
+                    target.methods[method.signature.name.value] = method
+                self.exit_scope()
 
             case ast.VariableDeclr(name, typ, value):
                 if value is not None:

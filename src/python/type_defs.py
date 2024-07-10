@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
 
 
@@ -17,7 +17,10 @@ class BasicTypeFlag(Flag):
     NUMERIC = INTEGER | FLOAT | RATIONAL
 
 
+@dataclass
 class Type:
+    methods: dict = field(default_factory=dict, init=False)
+
     # base class for all types
     @property
     def string(self):
@@ -83,6 +86,11 @@ class StructType(Type):
 class Interface(Type):
     name: str
     methods: dict[str, FunctionType]
+
+    @property
+    def string(self):
+        format_methods = ", ".join(str(m) for m in self.methods)
+        return f"interface {self.name} {{{format_methods}}}"
 
 
 def is_basic(typ, flag=None):

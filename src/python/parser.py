@@ -117,7 +117,7 @@ class Parser:
 
     def parse_impl_declr(self):
         self.consume(T.IMPL)
-        target = self.parse_identifier()
+        target = self.parse_type()
         self.consume(T.LESS_THAN)
         interface = self.parse_identifier()
         self.consume(T.GREATER_THAN)

@@ -177,7 +177,7 @@ class InterfaceDeclr(Declr):
 
 
 @dataclass
-class ImplementDeclr(Declr):
+class ImplDeclr(Declr):
     target: Identifier
     interface: Identifier
     methods: list[FunctionDeclr]
