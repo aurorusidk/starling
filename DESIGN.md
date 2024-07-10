@@ -77,6 +77,45 @@ fn main(argv vec) int {
 
 The main entry point implicitly returns 0, unless an error occurs.
 
+## Struct declaration
+Structs, or structures, are declared with the `struct` keyword.
+
+```
+struct foo {
+    bar int,
+    ...
+}
+```
+
+A struct requires one or more fields, which are comma seperated, to be assigned to it - a field is simply an uninitialised variable.
+`field str`
+
+## Interface delaration
+Interfaces are declared with the `interface` keyword, and require one or more function signatures to be defined within it.
+
+```
+interface IO {
+    read() str,
+    write(value str)
+}
+```
+
+An interface can then be attached to an object, such as an instance of a struct, by using the `impl` keyword, followed by the object and the desired interface (the interface identifier should be contained within a pair of chevrons). The contents of the methods can then be designed for the object.
+
+```
+impl File<IO> {
+    fn read() {
+        return self.contents;
+    }
+
+    fn write(value) {
+        self.contents = value;
+    }
+}
+```
+*The above code uses an example object of `File`*
+
+
 ## Ranges
 Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
 
