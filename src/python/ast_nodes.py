@@ -158,13 +158,6 @@ class FunctionDeclr(Declr):
 
 
 @dataclass
-class VariableDeclr(Declr):
-    name: Identifier
-    typ: Type | None
-    value: Expr
-
-
-@dataclass
 class StructDeclr(Declr):
     name: Identifier
     fields: list[FieldDeclr]
@@ -179,5 +172,12 @@ class InterfaceDeclr(Declr):
 @dataclass
 class ImplDeclr(Declr):
     target: Identifier
-    interface: Identifier
+    interface: Identifier | None
     methods: list[FunctionDeclr]
+
+
+@dataclass
+class VariableDeclr(Declr):
+    name: Identifier
+    typ: Type | None
+    value: Expr

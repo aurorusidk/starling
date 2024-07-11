@@ -145,10 +145,14 @@ class Interpreter:
             case ast.AssignmentStmt(target, value):
                 return self.eval_assignment_stmt(target, value)
 
-            case ast.FunctionDeclr(name, return_type, params, block):
-                return self.eval_function_declr(name, node.checked_type, params, block)
+            case ast.FunctionDeclr(signature, block):
+                return self.eval_function_declr(signature, node.checked_type, block)
             case ast.StructDeclr(name, fields):
                 return self.eval_struct_declr(name, node.checked_type, fields)
+            case ast.InterfaceDeclr(name, methods):
+                return self.eval_interface_declr(name, node.checked_type, methods)
+            case ast.ImplDeclr(target, interface, methods):
+                return self.eval_impl_declr(target, interface, node.checked_type, methods)
             case ast.VariableDeclr(name, typ, value):
                 return self.eval_variable_declr(name, node.checked_type, value)
 
@@ -163,19 +167,28 @@ class Interpreter:
         for declr in declrs:
             self.eval_node(declr)
 
-    def eval_function_declr(self, name, ftype, params, block):
+    def eval_function_declr(self, signature, ftype, block):
         logging.debug(f"{ftype}")
-        params = [StaParameter(self.eval_node(p.typ), p.name) for p in params]
+        params = [StaParameter(self.eval_node(p.typ), p.name) for p in signature.params]
         if ftype is None:
             return_type = None
         else:
             return_type = ftype.return_type
-        func = StaFunction(ftype, name.value, params, block)
-        self.scope.declare(name, func)
+        # TODO: should we also be checking signature.return_type here?
+        func = StaFunction(ftype, signature.name.value, signature.params, block)
+        self.scope.declare(signature.name, func)
 
     def eval_struct_declr(self, name, typ, members):
         logging.debug(f"{name}, {members}")
         self.scope.declare(name, typ)
+
+    def eval_interface_declr(self, name, typ, methods):
+        logging.debug(f"{name}, {methods}")
+        self.scope.declare(name, typ)
+
+    def eval_impl_declr(self, target, interface, typ, methods):
+        logging.debug(f"{target}<{interface}>, {methods}")
+        # TODO: add full logic for impl declarations
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
