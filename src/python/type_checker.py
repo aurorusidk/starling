@@ -150,6 +150,7 @@ class TypeChecker:
             case ast.IndexExpr(target, index):
                 self.check(target)
                 self.check(index)
+                assert index.typ == builtin.types["int"]
                 if target.typ == builtin.types["str"]:
                     node.typ = target.typ
                 elif isinstance(target.typ, (types.ArrayType, types.VectorType)):
