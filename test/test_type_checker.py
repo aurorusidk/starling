@@ -129,6 +129,42 @@ class TestTypeChecker(unittest.TestCase):
             tc.function = names["test"]
             self.assertRaises(AssertionError, tc.check, tc.root)
 
+    def test_valid_declr_check(self):
+        tests = {
+            "fn test(x float) frac {}": types.FunctionType(
+                builtin.types["frac"],
+                [
+                    builtin.types["float"],
+                ]
+            ),
+            "struct test {x int, y str}": types.StructType(
+                "test",
+                {
+                    "x": builtin.types["int"],
+                    "y": builtin.types["str"],
+                }
+            ),
+            "var test int = 1;": builtin.types["int"],
+        }
+
+        for test, expected, in tests.items():
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_declaration()
+            tc = TypeChecker(ast)
+            tc.check(tc.root)
+            self.assertEqual(ast.checked_type, expected)
+
+    def test_invalid_declr_check(self):
+        tests = [
+            # TODO: are there any other possible errors here?
+            "var test str = 1.5;"
+        ]
+
+        for test in tests:
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_declaration()
+            tc = TypeChecker(ast)
+            self.assertRaises(AssertionError, tc.check, tc.root)
 
     def test_valid_inference(self):
         pass
