@@ -238,15 +238,15 @@ class TypeChecker:
                 # TODO: maybe skip this check to have 'truthy'/'falsy'
                 assert condition.typ == builtin.types["bool"]
 
-                self.check_block(if_block)
-                self.check_block(else_block)
+                self.check_stmt(if_block)
+                self.check_stmt(else_block)
 
             case ast.WhileStmt(condition, block):
                 self.check_expr(condition)
                 # TODO: maybe skip this check to have 'truthy'/'falsy'
                 assert condition.typ == builtin.types["bool"]
 
-                self.check_block(block)
+                self.check_stmt(block)
 
             case ast.ReturnStmt(value):
                 self.check(value)

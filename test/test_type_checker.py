@@ -73,6 +73,63 @@ class TestTypeChecker(unittest.TestCase):
             tc.scope.name_map |= names
             self.assertRaises(AssertionError, tc.check, tc.root)
 
+    def test_valid_stmt_check(self):
+        names = {
+            "x": builtin.types["int"],
+            "test": types.FunctionType(
+                builtin.types["frac"],
+                [
+                    builtin.types["float"],
+                ]
+            ),
+        }
+
+        tests = [
+            "if x == 1 {} else {}",
+            "while x > 0 {}",
+            "return 1//2;",
+            "x = 1;"
+        ]
+
+        for test in tests:
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_statement()
+            tc = TypeChecker(ast)
+            tc.scope.name_map |= names
+            tc.function = names["test"]
+            tc.check(tc.root)
+
+
+    def test_invalid_stmt_check(self):
+        names = {
+            "x": builtin.types["int"],
+            "test": types.FunctionType(
+                builtin.types["frac"],
+                [
+                    builtin.types["float"],
+                ]
+            ),
+        }
+
+        tests = [
+            "if x {} else {}",
+            "if 1 {}",
+            "while x {}",
+            "return 1.5;",
+            "return x;",
+            "x = 1//2",
+            "x = \"test\"",
+        ]
+
+        for test in tests:
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_statement()
+            tc = TypeChecker(ast)
+            tc.scope.name_map |= names
+            tc.function = names["test"]
+            self.assertRaises(AssertionError, tc.check, tc.root)
+
+
     def test_valid_inference(self):
         pass
 
