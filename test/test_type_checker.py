@@ -167,7 +167,45 @@ class TestTypeChecker(unittest.TestCase):
             self.assertRaises(AssertionError, tc.check, tc.root)
 
     def test_valid_inference(self):
-        pass
+        tests = {
+            "var test = 1;": builtin.types["int"],
+            "var test = 5/2;": builtin.types["float"],
+            "var test = 1 + 1.5;": builtin.types["float"],
+            "var test = \"a\";": builtin.types["str"],
+            "var test = true;": builtin.types["bool"],
+            "var test = \"true\";": builtin.types["str"],
+            "var test = 5//2;": builtin.types["frac"],
+            """fn test(x int) {
+                    return x + 1
+                }
+            """: types.FunctionType(
+                builtin.types["int"],
+                [
+                    builtin.types["int"],
+                ]
+            ),
+            """fn test(x int) {
+                    return x + 2.5
+                }
+            """: types.FunctionType(
+                builtin.types["float"],
+                [
+                    builtin.types["int"],
+                ]
+            ),
+            """fn test() {
+                    return "a"
+                }
+            """: types.FunctionType(
+                builtin.types["str"],[]),
+        }
+
+        for test, expected, in tests.items():
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_declaration()
+            tc = TypeChecker(ast)
+            tc.check(tc.root)
+            self.assertEqual(ast.checked_type, expected)
 
     def test_invalid_inference(self):
         pass
