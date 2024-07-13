@@ -58,6 +58,12 @@ MONOGRAPHS = {
     "]": RIGHT_SQUARE,
 }
 
+SEMICOLON_INSERT = [
+    INTEGER, FLOAT, RATIONAL, STRING, BOOL, IDENTIFIER,
+    RIGHT_BRACKET, RIGHT_CURLY, RIGHT_SQUARE,
+    RETURN,
+]
+
 def get(src, index, length=1):
     if index + length <= len(src):
         return src[index:index+length]
@@ -69,7 +75,15 @@ def tokenise(src):
     tokens = []
     while cur < len(src):
         char = src[cur]
-        if char.isspace():
+        if char == '\n':
+            cur += 1
+            # automatic semicolon insertion
+            if tokens[-1].typ in SEMICOLON_INSERT:
+                lexeme = ';'
+                typ = SEMICOLON
+            else:
+                continue
+        elif char.isspace():
             cur += 1
             continue
         elif char.isalpha() or char == '_':
