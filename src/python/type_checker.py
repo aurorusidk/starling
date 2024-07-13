@@ -239,7 +239,8 @@ class TypeChecker:
                 assert condition.typ == builtin.types["bool"]
 
                 self.check_stmt(if_block)
-                self.check_stmt(else_block)
+                if else_block is not None:
+                    self.check_stmt(else_block)
 
             case ast.WhileStmt(condition, block):
                 self.check_expr(condition)
