@@ -187,20 +187,26 @@ class Interpreter:
 
     def eval_interface_declr(self, name, typ, methods):
         logging.debug(f"{name}, {methods}")
-        self.scope.declare(name, typ)
+        self.scope.declare(name, methods)
 
     def eval_impl_declr(self, target, interface, typ, methods):
-        if interface is None:
-            logging.debug(f"{target}, {methods}")
+        logging.debug(f"{target}<{interface}>, {methods}")
 
-            target_type = self.scope.lookup(target.value.value)
-            assert isinstance(target_type, types.Type), f"No type with name {target.value} in scope"
+        target_type = self.scope.lookup(target.value.value)
+        assert isinstance(target_type, types.Type), f"No type with name {target.value} in scope"
+          
+        if interface is not None:
+            interface = self.scope.lookup(interface.value)
 
-            for method in methods:
-                target_type.methods[method.signature.name.value] = method
-        else:
-            logging.debug(f"{target}<{interface}>, {methods}")
-            # TODO: add interface logic for impl declarations
+            for signature in interface:
+                assert signature in [method.signature for method in methods], f"No definition for method {signature} on type {target}"
+
+        for method in methods:
+            if interface is not None:
+                assert method.signature in interface, f"No method {method.signature} on interface {interface}"
+
+            target_type.methods[method.signature.name.value] = method
+
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
@@ -310,7 +316,7 @@ class Interpreter:
             return target.fields[name.value].value
         if name.value in target.typ.methods.keys():
             method = target.typ.methods[name.value]
-            return self.eval_function_inst(method.signature, method.signature.return_type, method.block)
+            return self.eval_function_inst(method.signature, None if method.signature.return_type is None else method.signature, method.block)
         assert False, f"No valid selector {name} for {target}"
 
     def eval_index_expr(self, target, index):

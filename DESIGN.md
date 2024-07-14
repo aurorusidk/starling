@@ -115,11 +115,11 @@ impl Foo {
 
 Note the use of the `self` keyword to denote the instance of type `Foo` that the method is being called on.
 
-Only one `impl` block may be created for each bare type per program. It must have the same scope as, and be in the same file as, the type definition (usually a `struct`).
+Only one `impl` block may be created for each bare type per program. It must have the same scope as, and be in the same file as, the type definition (which is usually a `struct`).
 
 The `impl` keyword can also be used in conjunction with an interface. The interface's identifier is given inside a pair of angle brackets `< >`.
 
-The below example demonstrates the type `File` having `IO` methods implemented for it.  (See the interface declaration heading, above, for the `IO` interface declaration.)
+The below example demonstrates the type `File` having `IO` methods implemented for it. (See the interface declaration heading, above, for the `IO` interface declaration.)
 
 ```
 struct File {
