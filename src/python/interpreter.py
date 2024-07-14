@@ -229,6 +229,18 @@ class Interpreter:
                 return self.eval_mul(left, right)
             case T.SLASH:
                 return self.eval_div(left, right)
+            case T.EQUALS_EQUALS:
+                return self.eval_equal(left, right)
+            case T.BANG_EQUALS:
+                return self.eval_not_equal(left, right)
+            case T.LESS_THAN:
+                return self.eval_less_than(left, right)
+            case T.GREATER_THAN:
+                return self.eval_greater_than(left, right)
+            case T.LESS_EQUALS:
+                return self.eval_less_than_equal(left, right)
+            case T.GREATER_EQUALS:
+                return self.eval_greater_than_equal(left, right)
             case _:
                 assert False, f"Unimplemented operator: {op.typ}"
 
