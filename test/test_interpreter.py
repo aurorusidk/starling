@@ -1,13 +1,13 @@
 import unittest
 from fractions import Fraction
 
-from src.python.lexer import tokenise
+from src.python.lexer import tokenise, Token, TokenType as T
 from src.python.parser import parse
 from src.python.type_checker import TypeChecker
 from src.python.interpreter import (
     Interpreter,
     StaObject, StaVariable, StaArray,
-    StaFunction, StaFunctionReturn,
+    StaStruct, StaParameter, StaFunction, StaFunctionReturn,
 )
 from src.python import ast_nodes as ast
 from src.python import builtin
@@ -16,6 +16,50 @@ from src.python import type_defs as types
 
 class TestInterpreter(unittest.TestCase):
     def test_expr_eval(self):
+        tc_names = {
+            "test_struct": types.StructType(
+                "test_struct",
+                {
+                    "x": builtin.types["int"],
+                    "y": builtin.types["str"],
+                },
+            ),
+            "test_func": types.FunctionType(
+                builtin.types["float"],
+                [
+                    builtin.types["int"],
+                ],
+            ),
+        }
+        names = {
+            "test_struct": StaStruct(
+                tc_names["test_struct"],
+                "test_struct",
+                {
+                    "x": StaVariable("x", StaObject(builtin.types["int"], 5)),
+                    "y": StaVariable("y", StaObject(builtin.types["str"], "test")),
+                },
+            ),
+            # this is pretty awful since we have to manually specify the ast for the block and add types
+            "test_func": StaFunction(
+                tc_names["test_func"],
+                "test_func",
+                [
+                    StaParameter(builtin.types["int"], ast.Identifier("x")),
+                ],
+                ast.Block([
+                    ast.ReturnStmt(
+                        ast.BinaryExpr(
+                            Token(T.SLASH, "/"),
+                            ast.Identifier("x", typ=builtin.types["int"]),
+                            ast.Literal(Token(T.INTEGER, "2"), typ=builtin.types["int"]),
+                            typ=builtin.types["float"],
+                        ),
+                    ),
+                ]),
+            ),
+        }
+
         tests = {
             "true": StaObject(builtin.types["bool"], True),
             "false": StaObject(builtin.types["bool"], False),
@@ -41,17 +85,21 @@ class TestInterpreter(unittest.TestCase):
                 3
             ),
             "[1:10][5]": StaObject(builtin.types["int"], 6),
-            # TODO: add selector and call exprs
+            "test_struct.x": StaObject(builtin.types["int"], 5),
+            "test_struct.y": StaObject(builtin.types["str"], "test"),
+            "test_func(5)": StaObject(builtin.types["float"], 2.5),
         }
 
         for test, expected in tests.items():
             test = "fn test() {return " + test + ";}"
             tokens = tokenise(test)
-            ast = parse(tokens)
-            tc = TypeChecker(ast)
-            tc.check(ast)
+            tree = parse(tokens)
+            tc = TypeChecker(tree)
+            tc.scope.name_map |= tc_names
+            tc.check(tree)
             interpreter = Interpreter()
-            interpreter.eval_node(ast)
+            interpreter.scope.name_map |= names
+            interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")
                 interpreter.eval_node(f.block)
@@ -78,13 +126,13 @@ class TestInterpreter(unittest.TestCase):
         for test, expected in tests.items():
             test = "fn test() {" + test + "}"
             tokens = tokenise(test)
-            ast = parse(tokens)
-            tc = TypeChecker(ast)
+            tree = parse(tokens)
+            tc = TypeChecker(tree)
             tc.scope.name_map |= tc_names
-            tc.check(ast)
+            tc.check(tree)
             interpreter = Interpreter()
             interpreter.scope.name_map |= names
-            interpreter.eval_node(ast)
+            interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")
                 interpreter.eval_node(f.block)
