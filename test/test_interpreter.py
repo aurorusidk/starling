@@ -4,7 +4,11 @@ from fractions import Fraction
 from src.python.lexer import tokenise
 from src.python.parser import parse
 from src.python.type_checker import TypeChecker
-from src.python.interpreter import Interpreter, StaObject, StaVariable, StaArray, StaFunction, StaFunctionReturn
+from src.python.interpreter import (
+    Interpreter,
+    StaObject, StaVariable, StaArray,
+    StaFunction, StaFunctionReturn,
+)
 from src.python import ast_nodes as ast
 from src.python import builtin
 from src.python import type_defs as types
@@ -96,6 +100,17 @@ class TestInterpreter(unittest.TestCase):
                 "test",
                 [],
                 ast.Block([]),
+            ),
+            "struct test {x int, y str}": types.StructType(
+                "test",
+                {
+                    "x": builtin.types["int"],
+                    "y": builtin.types["str"],
+                },
+            ),
+            "var test float = 3.14": StaVariable(
+                "test",
+                StaObject(builtin.types["float"], 3.14),
             ),
         }
 

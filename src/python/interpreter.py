@@ -180,7 +180,7 @@ class Interpreter:
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
             value = self.eval_node(value)
-        var = StaVariable(name, value)
+        var = StaVariable(name.value, value)
         self.scope.declare(name, var)
 
     def eval_type(self, name):
