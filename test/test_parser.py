@@ -5,7 +5,6 @@ import src.python.ast_nodes as ast
 
 
 class TestParser(unittest.TestCase):
-    # basic testing for each node
     def test_valid_declr(self):
         tests = {
             "fn test(x int, y int) int {}": ast.FunctionDeclr(
@@ -178,7 +177,6 @@ class TestParser(unittest.TestCase):
             self.assertRaises(AssertionError, p.parse_expression)
 
     def test_binop_precs(self):
-        # make sure that operator precedences are respected
         tests = {
             "a * b - c / d": ast.BinaryExpr(
                 lexer.Token(lexer.MINUS, "-"),
@@ -217,7 +215,3 @@ class TestParser(unittest.TestCase):
             p.cur = 0
             p.tokens = lexer.tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
-
-    # testing for errors in parsing
-    # ensure every error condition is tested for
-    

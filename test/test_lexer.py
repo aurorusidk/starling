@@ -1,9 +1,8 @@
 import unittest
 from src.python.lexer import *
-#run with: python -m unittest .\test\test_lexer.py
+
 
 class TestLexer(unittest.TestCase):
-    #keyword testing
     def test_valid_kw(self):
         tests = {
             "true": [Token(BOOLEAN, "true")],
@@ -46,7 +45,6 @@ class TestLexer(unittest.TestCase):
         for test, expected in tests.items():
             self.assertEqual(tokenise(test), expected)
 
-    #graph testing
     def test_valid_mg(self):
         tests = {
             "<": [Token(LESS_THAN, "<")],
@@ -101,8 +99,6 @@ class TestLexer(unittest.TestCase):
             self.assertIn(digraph, tests)
 
     def test_invalid_dg(self):
-        # no need to check for invalid chars
-        # only checking sequences of valid chars that don't form digraphs
         tests = {
             "<>": [Token(LESS_THAN, "<"), Token(GREATER_THAN, ">")],
             "::": [Token(COLON, ":"), Token(COLON, ":")],
@@ -123,7 +119,6 @@ class TestLexer(unittest.TestCase):
         for test, expected in tests.items():
             self.assertEqual(tokenise(test), expected)
 
-    #misc
     def test_ignore_whitespace(self):
         tests = {
             "1       +  2      ": [Token(INTEGER, "1"), Token(PLUS, "+"), Token(INTEGER, "2")],
