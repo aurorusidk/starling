@@ -167,7 +167,7 @@ class Interpreter:
         for declr in declrs:
             self.eval_node(declr)
 
-    def eval_function_declr(self, signature, ftype, block):
+    def eval_function_inst(self, signature, ftype, block):
         logging.debug(f"{ftype}")
         params = [StaParameter(self.eval_node(p.typ), p.name) for p in signature.params]
         if ftype is None:
@@ -175,7 +175,10 @@ class Interpreter:
         else:
             return_type = ftype.return_type
         # TODO: should we also be checking signature.return_type here?
-        func = StaFunction(ftype, signature.name.value, signature.params, block)
+        return StaFunction(ftype, signature.name.value, signature.params, block)
+
+    def eval_function_declr(self, signature, ftype, block):
+        func = self.eval_function_inst(signature, ftype, block)
         self.scope.declare(signature.name, func)
 
     def eval_struct_declr(self, name, typ, members):
@@ -187,8 +190,17 @@ class Interpreter:
         self.scope.declare(name, typ)
 
     def eval_impl_declr(self, target, interface, typ, methods):
-        logging.debug(f"{target}<{interface}>, {methods}")
-        # TODO: add full logic for impl declarations
+        if interface is None:
+            logging.debug(f"{target}, {methods}")
+
+            target_type = self.scope.lookup(target.value.value)
+            assert isinstance(target_type, types.Type), f"No type with name {target.value} in scope"
+
+            for method in methods:
+                target_type.methods[method.signature.name.value] = method
+        else:
+            logging.debug(f"{target}<{interface}>, {methods}")
+            # TODO: add interface logic for impl declarations
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
@@ -294,7 +306,12 @@ class Interpreter:
     def eval_selector_expr(self, target, name):
         logging.debug(f"{target}.{name}")
         target = self.eval_node(target)
-        return target.fields[name.value].value
+        if name.value in target.fields.keys():
+            return target.fields[name.value].value
+        if name.value in target.typ.methods.keys():
+            method = target.typ.methods[name.value]
+            return self.eval_function_inst(method.signature, method.signature.return_type, method.block)
+        assert False, f"No valid selector {name} for {target}"
 
     def eval_index_expr(self, target, index):
         target = self.eval_node(target)

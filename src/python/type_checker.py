@@ -330,8 +330,9 @@ class TypeChecker:
 
             case ast.ImplDeclr(target, interface, methods):
                 target = self.check_type(target)
-                interface = self.scope.lookup(interface.value)
-                assert isinstance(interface, types.Interface), "Cannot implement non-interface"
+                if interface is not None:
+                    interface = self.scope.lookup(interface.value)
+                    assert isinstance(interface, types.Interface), "Cannot implement non-interface"
 
                 self.new_scope()
                 self.scope.declare(ast.Identifier("self"), target)
