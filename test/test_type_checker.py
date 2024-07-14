@@ -198,6 +198,7 @@ class TestTypeChecker(unittest.TestCase):
                 }
             """: types.FunctionType(
                 builtin.types["str"],[]),
+        #TODO: add type inference between numeric types for a single var (i.e. like the first tests for invalid, but for int to float)
         }
 
         for test, expected, in tests.items():
@@ -208,4 +209,56 @@ class TestTypeChecker(unittest.TestCase):
             self.assertEqual(ast.checked_type, expected)
 
     def test_invalid_inference(self):
-        pass
+        tests = [
+            """fn test() {
+            var x; 
+            x = 1; 
+            x="a";
+            }
+            """,
+            """fn test() {
+            var x; 
+            x = true; 
+            x="true";
+            }
+            """,
+            """fn test() {
+            var x; 
+            x = 1.5; 
+            x= "1.5";
+            }
+            """,
+            """fn test(x int) {
+                if x == 1 {
+                return 1
+                }
+                else {
+                return 1.5
+                }
+            }
+            """,
+            """fn test(x int) {
+                if x == 1 {
+                return 1
+                }
+                else {
+                return "a"
+                }
+            }
+            """,
+            """fn test(x int) {
+                if x == 1 {
+                return true
+                }
+                else {
+                return "true"
+                }
+            }
+            """,
+        ]
+
+        for test in tests:
+            tokens = tokenise(test)
+            ast = Parser(tokens).parse_declaration()
+            tc = TypeChecker(ast)
+            self.assertRaises(AssertionError, tc.check, tc.root)
