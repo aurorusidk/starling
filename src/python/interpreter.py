@@ -242,7 +242,7 @@ class Interpreter:
         return StaObject(left.typ, left.value * right.value)
 
     def eval_div(self, left, right):
-        return StaObject(left.typ, left.value / right.value)
+        return StaObject(builtin.types["float"], left.value / right.value)
     
     def eval_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value == right.value)
@@ -320,15 +320,15 @@ class Interpreter:
 
     def eval_literal(self, value, typ):
         if typ == builtin.types["int"]:
-                value = int(value.lexeme)
+            value = int(value.lexeme)
         elif typ == builtin.types["float"]:
-                value = float(value.lexeme)
+            value = float(value.lexeme)
         elif typ == builtin.types["frac"]:
-                value = Fraction(value.lexeme.replace('//', '/'))
+            value = Fraction(value.lexeme.replace('//', '/'))
         elif typ == builtin.types["str"]:
-                value = str(value.lexeme)
+            value = str(value.lexeme[1:-1])
         elif typ == builtin.types["bool"]:
-                value = value == "true"
+            value = value.lexeme == "true"
         else:
             assert False, f"Unreachable: {typ}"
         return StaObject(typ, value)
@@ -347,7 +347,7 @@ class Interpreter:
         end = self.eval_node(end)
         length = end.value - start.value
         return StaArray(
-            StaArrayType(builtin.types["int"], length),
+            types.ArrayType(builtin.types["int"], length),
             [
                 StaObject(builtin.types["int"], i)
                 for i in range(start.value, end.value)
