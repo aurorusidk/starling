@@ -67,7 +67,7 @@ class TypeChecker:
         if types.is_basic(lhs):
             return lhs == rhs or types.is_numeric(lhs) and types.is_numeric(rhs)
         else:
-            assert False, f"Unimplemented: cannot match types {type1}, {type2}"
+            assert False, f"Unimplemented: cannot match types {lhs}, {rhs}"
 
     def get_binary_numeric(self, lhs, rhs):
         if builtin.types["float"] in (lhs.typ, rhs.typ):
@@ -188,7 +188,7 @@ class TypeChecker:
         self.check(node.rhs)
 
         # for now all ops require matching types
-        assert self.match_types(node.lhs.typ, node.rhs.typ)
+        assert self.match_types(node.lhs.typ, node.rhs.typ), f"Mismatched types {node.lhs.typ} and {node.rhs.typ}"
 
         if is_comparison_op(node.op):
             node.typ = builtin.types["bool"]

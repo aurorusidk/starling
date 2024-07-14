@@ -198,13 +198,13 @@ class Interpreter:
             self.eval_node(stmt)
 
     def eval_if_stmt(self, condition, if_block, else_block):
-        if self.eval_node(condition):
+        if self.eval_node(condition).value:
             self.eval_node(if_block)
         elif else_block is not None:
             self.eval_node(else_block)
 
     def eval_while_stmt(self, condition, while_block):
-        while self.eval_node(condition):
+        while self.eval_node(condition).value:
             self.eval_node(while_block)
 
     def eval_return_stmt(self, value):

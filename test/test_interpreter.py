@@ -4,7 +4,7 @@ from fractions import Fraction
 from src.python.lexer import tokenise
 from src.python.parser import parse
 from src.python.type_checker import TypeChecker
-from src.python.interpreter import Interpreter, StaObject, StaArray, StaFunction, StaFunctionReturn
+from src.python.interpreter import Interpreter, StaObject, StaVariable, StaArray, StaFunction, StaFunctionReturn
 from src.python import ast_nodes as ast
 from src.python import builtin
 from src.python import type_defs as types
@@ -57,8 +57,18 @@ class TestInterpreter(unittest.TestCase):
                 assert False
 
     def test_stmt_eval(self):
+        tc_names = {
+            "x": builtin.types["int"],
+        }
+        names = {
+            "x": StaVariable("x", StaObject(builtin.types["int"], 1)),
+        }
+
         tests = {
-            "if true {return 1;}": StaObject(builtin.types["int"], 1),
+            "if true {return 1;} else {return 0;}": StaObject(builtin.types["int"], 1),
+            "if false {return 1;} else {return 0;}": StaObject(builtin.types["int"], 0),
+            "while x < 10 {x = x * 2} return x;": StaObject(builtin.types["int"], 16),
+            "x = 10; return x;": StaObject(builtin.types["int"], 10),
         }
 
         for test, expected in tests.items():
@@ -66,8 +76,10 @@ class TestInterpreter(unittest.TestCase):
             tokens = tokenise(test)
             ast = parse(tokens)
             tc = TypeChecker(ast)
+            tc.scope.name_map |= tc_names
             tc.check(ast)
             interpreter = Interpreter()
+            interpreter.scope.name_map |= names
             interpreter.eval_node(ast)
             try:
                 f = interpreter.scope.lookup("test")
