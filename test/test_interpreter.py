@@ -36,11 +36,16 @@ class TestInterpreter(unittest.TestCase):
                 tc_names["test_struct"],
                 "test_struct",
                 {
-                    "x": StaVariable("x", StaObject(builtin.types["int"], 5)),
-                    "y": StaVariable("y", StaObject(builtin.types["str"], "test")),
+                    "x": StaVariable(
+                        "x", StaObject(builtin.types["int"], 5)
+                    ),
+                    "y": StaVariable(
+                        "y", StaObject(builtin.types["str"], "test")
+                    ),
                 },
             ),
-            # this is pretty awful since we have to manually specify the ast for the block and add types
+            # this is pretty awful since we have to manually specify the ast
+            # and add the type information
             "test_func": StaFunction(
                 tc_names["test_func"],
                 "test_func",
@@ -52,7 +57,10 @@ class TestInterpreter(unittest.TestCase):
                         ast.BinaryExpr(
                             Token(T.SLASH, "/"),
                             ast.Identifier("x", typ=builtin.types["int"]),
-                            ast.Literal(Token(T.INTEGER, "2"), typ=builtin.types["int"]),
+                            ast.Literal(
+                                Token(T.INTEGER, "2"),
+                                typ=builtin.types["int"]
+                            ),
                             typ=builtin.types["float"],
                         ),
                     ),
@@ -117,10 +125,18 @@ class TestInterpreter(unittest.TestCase):
         }
 
         tests = {
-            "if true {return 1;} else {return 0;}": StaObject(builtin.types["int"], 1),
-            "if false {return 1;} else {return 0;}": StaObject(builtin.types["int"], 0),
-            "while x < 10 {x = x * 2} return x;": StaObject(builtin.types["int"], 16),
-            "x = 10; return x;": StaObject(builtin.types["int"], 10),
+            "if true {return 1;} else {return 0;}": StaObject(
+                builtin.types["int"], 1
+            ),
+            "if false {return 1;} else {return 0;}": StaObject(
+                builtin.types["int"], 0
+            ),
+            "while x < 10 {x = x * 2} return x;": StaObject(
+                builtin.types["int"], 16
+            ),
+            "x = 10; return x;": StaObject(
+                builtin.types["int"], 10
+            ),
         }
 
         for test, expected in tests.items():
