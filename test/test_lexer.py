@@ -13,7 +13,7 @@ class TestLexer(unittest.TestCase):
             "return": [Token(RETURN, "return")],
             "var": [Token(VAR, "var")],
             "fn": [Token(FUNC, "fn")],
-            "struct": [Token(STRUCT, "struct")]
+            "struct": [Token(STRUCT, "struct")],
         }
 
         for test, expected in tests.items():
@@ -28,7 +28,7 @@ class TestLexer(unittest.TestCase):
             "False": [Token(IDENTIFIER, "False")],
             "IF": [Token(IDENTIFIER, "IF")],
             "fN": [Token(IDENTIFIER, "fN")],
-            "strUct": [Token(IDENTIFIER, "strUct")]
+            "strUct": [Token(IDENTIFIER, "strUct")],
         }
 
         for test, expected in tests.items():
@@ -39,7 +39,7 @@ class TestLexer(unittest.TestCase):
             "structure": [Token(IDENTIFIER, "structure")],
             "string": [Token(IDENTIFIER, "string")],
             "func": [Token(IDENTIFIER, "func")],
-            "variable": [Token(IDENTIFIER, "variable")]
+            "variable": [Token(IDENTIFIER, "variable")],
         }
 
         for test, expected in tests.items():
@@ -64,7 +64,7 @@ class TestLexer(unittest.TestCase):
             "{": [Token(LEFT_CURLY, "{")],
             "}": [Token(RIGHT_CURLY, "}")],
             "[": [Token(LEFT_SQUARE, "[")],
-            "]": [Token(RIGHT_SQUARE, "]")]
+            "]": [Token(RIGHT_SQUARE, "]")],
         }
 
         for test, expected in tests.items():
@@ -78,7 +78,7 @@ class TestLexer(unittest.TestCase):
             "@",
             "$",
             "£",
-            "¬"
+            "¬",
         ]
 
         for test in tests:
@@ -89,7 +89,7 @@ class TestLexer(unittest.TestCase):
             "==": [Token(EQUALS_EQUALS, "==")],
             "!=": [Token(BANG_EQUALS, "!=")],
             "<=": [Token(LESS_EQUALS, "<=")],
-            ">=": [Token(GREATER_EQUALS, ">=")]
+            ">=": [Token(GREATER_EQUALS, ">=")],
         }
         
         for test, expected in tests.items():
@@ -103,7 +103,7 @@ class TestLexer(unittest.TestCase):
             "<>": [Token(LESS_THAN, "<"), Token(GREATER_THAN, ">")],
             "::": [Token(COLON, ":"), Token(COLON, ":")],
             "++": [Token(PLUS, "+"), Token(PLUS, "+")],
-            "*=": [Token(STAR, "*"), Token(EQUALS, "=")]
+            "*=": [Token(STAR, "*"), Token(EQUALS, "=")],
         }
 
         for test, expected in tests.items():
@@ -113,7 +113,7 @@ class TestLexer(unittest.TestCase):
         tests = {
             "1+2": [Token(INTEGER, "1"), Token(PLUS, "+"), Token(INTEGER, "2")],
             "x=9": [Token(IDENTIFIER, "x"), Token(EQUALS, "="), Token(INTEGER, "9")],
-            "test==true": [Token(IDENTIFIER, "test"), Token(EQUALS_EQUALS, "=="), Token(BOOLEAN, "true")]
+            "test==true": [Token(IDENTIFIER, "test"), Token(EQUALS_EQUALS, "=="), Token(BOOLEAN, "true")],
         }
 
         for test, expected in tests.items():
@@ -125,7 +125,7 @@ class TestLexer(unittest.TestCase):
             "    x   =9    ": [Token(IDENTIFIER, "x"), Token(EQUALS, "="), Token(INTEGER, "9")],
             "   test     ==     true    ": [Token(IDENTIFIER, "test"), Token(EQUALS_EQUALS, "=="), Token(BOOLEAN, "true")],
             "\t \t \t \t \t \t \t \t \t \t \t \t": [],
-            "\t       \t x\t \t =\t     \n        \t 25.7\t      \t": [Token(IDENTIFIER, "x"), Token(EQUALS, "="), Token(FLOAT, "25.7")]
+            "\t       \t x\t \t =\t     \n        \t 25.7\t      \t": [Token(IDENTIFIER, "x"), Token(EQUALS, "="), Token(FLOAT, "25.7")],
         }
 
         for test, expected in tests.items():

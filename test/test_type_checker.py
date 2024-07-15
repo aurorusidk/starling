@@ -88,7 +88,7 @@ class TestTypeChecker(unittest.TestCase):
             "if x == 1 {} else {}",
             "while x > 0 {}",
             "return 1//2;",
-            "x = 1;"
+            "x = 1;",
         ]
 
         for test in tests:
@@ -157,7 +157,7 @@ class TestTypeChecker(unittest.TestCase):
     def test_invalid_declr_check(self):
         tests = [
             # TODO: are there any other possible errors here?
-            "var test str = 1.5;"
+            "var test str = 1.5;",
         ]
 
         for test in tests:
