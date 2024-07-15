@@ -1,5 +1,5 @@
 import unittest
-from src.python import lexer
+from src.python.lexer import tokenise, Token, TokenType as T
 from src.python.parser import Parser
 import src.python.ast_nodes as ast
 
@@ -47,7 +47,7 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test, expected in tests.items():
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertEqual(p.parse_declaration(), expected)
 
     @unittest.expectedFailure
@@ -63,7 +63,7 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test in tests:
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertRaises(AssertionError, p.parse_declaration)
 
     def test_valid_stmt(self):
@@ -94,7 +94,7 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test, expected in tests.items():
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertEqual(p.parse_statement(), expected)
 
     @unittest.expectedFailure
@@ -110,13 +110,13 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test in tests:
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertRaises(AssertionError, p.parse_statement)
 
     def test_valid_expr(self):
         tests = {
-            "1": ast.Literal(lexer.Token(lexer.INTEGER, "1")),
-            "true": ast.Literal(lexer.Token(lexer.BOOLEAN, "true")),
+            "1": ast.Literal(Token(T.INTEGER, "1")),
+            "true": ast.Literal(Token(T.BOOLEAN, "true")),
             "test": ast.Identifier("test"),
             "[x:y]": ast.RangeExpr(
                 ast.Identifier("x"),
@@ -139,11 +139,11 @@ class TestParser(unittest.TestCase):
                 ast.Identifier("x"),
             ),
             "!test": ast.UnaryExpr(
-                lexer.Token(lexer.BANG, "!"),
+                Token(T.BANG, "!"),
                 ast.Identifier("test"),
             ),
             "x + y": ast.BinaryExpr(
-                lexer.Token(lexer.PLUS, "+"),
+                Token(T.PLUS, "+"),
                 ast.Identifier("x"),
                 ast.Identifier("y"),
             ),
@@ -152,7 +152,7 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test, expected in tests.items():
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
 
     @unittest.expectedFailure
@@ -173,36 +173,36 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test in tests:
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertRaises(AssertionError, p.parse_expression)
 
     def test_binop_precs(self):
         tests = {
             "a * b - c / d": ast.BinaryExpr(
-                lexer.Token(lexer.MINUS, "-"),
+                Token(T.MINUS, "-"),
                 ast.BinaryExpr(
-                    lexer.Token(lexer.STAR, "*"),
+                    Token(T.STAR, "*"),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    lexer.Token(lexer.SLASH, "/"),
+                    Token(T.SLASH, "/"),
                     ast.Identifier("c"),
                     ast.Identifier("d"),
                 ),
             ),
             "a * b != c - d / e": ast.BinaryExpr(
-                lexer.Token(lexer.BANG_EQUALS, "!="),
+                Token(T.BANG_EQUALS, "!="),
                 ast.BinaryExpr(
-                    lexer.Token(lexer.STAR, "*"),
+                    Token(T.STAR, "*"),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    lexer.Token(lexer.MINUS, "-"),
+                    Token(T.MINUS, "-"),
                     ast.Identifier("c"),
                     ast.BinaryExpr(
-                        lexer.Token(lexer.SLASH, "/"),
+                        Token(T.SLASH, "/"),
                         ast.Identifier("d"),
                         ast.Identifier("e"),
                     ),
@@ -213,5 +213,5 @@ class TestParser(unittest.TestCase):
         p = Parser(None)
         for test, expected in tests.items():
             p.cur = 0
-            p.tokens = lexer.tokenise(test)
+            p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
