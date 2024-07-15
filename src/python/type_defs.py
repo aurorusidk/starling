@@ -13,7 +13,7 @@ class BasicTypeFlag(Flag):
     RATIONAL = auto()
     STRING = auto()
     BOOLEAN = auto()
-    
+
     NUMERIC = INTEGER | FLOAT | RATIONAL
 
 
@@ -66,7 +66,7 @@ class FunctionType(Type):
     def string(self):
         format_ptypes = ", ".join(str(p) for p in self.param_types)
         return f"fn ({format_ptypes}) -> {self.return_type}"
-    
+
 
 @dataclass
 class StructType(Type):
@@ -82,12 +82,18 @@ class StructType(Type):
 def is_basic(typ, flag=None):
     return isinstance(typ, BasicType) and typ.flags & flag if flag else True
 
+
 def is_numeric(typ):
     return is_basic(typ, BasicTypeFlag.NUMERIC)
+
 
 def is_string(typ):
     return is_basic(typ, BasicTypeFlag.STRING)
 
+
 def is_bool(typ):
     return is_basic(typ, BasicTypeFlag.BOOLEAN)
 
+
+def is_iterable(typ):
+    return isinstance(typ, (ArrayType, VectorType))

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from lexer import Token
-import type_defs as types
+from .lexer import Token
+from . import type_defs as types
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Stmt(Node):
 @dataclass
 class Expr(Node):
     # used by the type checker
-    typ: types.Type = field(init=False, default=None)
+    typ: types.Type = field(kw_only=True, default=None)
 
 
 @dataclass
@@ -137,7 +137,7 @@ class AssignmentStmt(Stmt):
     target: Expr
     value: Expr
 
-    
+
 @dataclass
 class Parameter(Node):
     name: Identifier
@@ -158,13 +158,14 @@ class VariableDeclr(Declr):
     typ: Type | None
     value: Expr
 
+
 @dataclass
 class FieldDeclr(Declr):
     name: Identifier
     typ: Type
 
+
 @dataclass
 class StructDeclr(Declr):
     name: Identifier
     fields: list[FieldDeclr]
-
