@@ -5,12 +5,12 @@ from fractions import Fraction
 import logging
 from typing import Union
 
-from lexer import TokenType as T, tokenise
-from parser import Parser, parse
-from type_checker import Scope, TypeChecker
-import ast_nodes as ast
-import type_defs as types
-import builtin
+from .lexer import TokenType as T, tokenise
+from .parser import Parser, parse
+from .type_checker import Scope, TypeChecker
+from . import ast_nodes as ast
+from . import type_defs as types
+from . import builtin
 
 
 @dataclass
@@ -180,7 +180,7 @@ class Interpreter:
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
             value = self.eval_node(value)
-        var = StaVariable(name, value)
+        var = StaVariable(name.value, value)
         self.scope.declare(name, var)
 
     def eval_type(self, name):
@@ -198,13 +198,13 @@ class Interpreter:
             self.eval_node(stmt)
 
     def eval_if_stmt(self, condition, if_block, else_block):
-        if self.eval_node(condition):
+        if self.eval_node(condition).value:
             self.eval_node(if_block)
         elif else_block is not None:
             self.eval_node(else_block)
 
     def eval_while_stmt(self, condition, while_block):
-        while self.eval_node(condition):
+        while self.eval_node(condition).value:
             self.eval_node(while_block)
 
     def eval_return_stmt(self, value):
@@ -229,6 +229,18 @@ class Interpreter:
                 return self.eval_mul(left, right)
             case T.SLASH:
                 return self.eval_div(left, right)
+            case T.EQUALS_EQUALS:
+                return self.eval_equal(left, right)
+            case T.BANG_EQUALS:
+                return self.eval_not_equal(left, right)
+            case T.LESS_THAN:
+                return self.eval_less_than(left, right)
+            case T.GREATER_THAN:
+                return self.eval_greater_than(left, right)
+            case T.LESS_EQUALS:
+                return self.eval_less_than_equal(left, right)
+            case T.GREATER_EQUALS:
+                return self.eval_greater_than_equal(left, right)
             case _:
                 assert False, f"Unimplemented operator: {op.typ}"
 
@@ -242,7 +254,7 @@ class Interpreter:
         return StaObject(left.typ, left.value * right.value)
 
     def eval_div(self, left, right):
-        return StaObject(left.typ, left.value / right.value)
+        return StaObject(builtin.types["float"], left.value / right.value)
     
     def eval_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value == right.value)
@@ -320,15 +332,15 @@ class Interpreter:
 
     def eval_literal(self, value, typ):
         if typ == builtin.types["int"]:
-                value = int(value.lexeme)
+            value = int(value.lexeme)
         elif typ == builtin.types["float"]:
-                value = float(value.lexeme)
+            value = float(value.lexeme)
         elif typ == builtin.types["frac"]:
-                value = Fraction(value.lexeme.replace('//', '/'))
+            value = Fraction(value.lexeme.replace('//', '/'))
         elif typ == builtin.types["str"]:
-                value = str(value.lexeme)
+            value = str(value.lexeme[1:-1])
         elif typ == builtin.types["bool"]:
-                value = value == "true"
+            value = value.lexeme == "true"
         else:
             assert False, f"Unreachable: {typ}"
         return StaObject(typ, value)
@@ -347,7 +359,7 @@ class Interpreter:
         end = self.eval_node(end)
         length = end.value - start.value
         return StaArray(
-            StaArrayType(builtin.types["int"], length),
+            types.ArrayType(builtin.types["int"], length),
             [
                 StaObject(builtin.types["int"], i)
                 for i in range(start.value, end.value)

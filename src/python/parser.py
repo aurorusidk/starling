@@ -2,8 +2,8 @@ from collections import namedtuple
 from enum import Enum, global_enum
 import logging
 
-from lexer import TokenType as T
-import ast_nodes as ast
+from .lexer import TokenType as T
+from . import ast_nodes as ast
 
 
 BINARY_OP_PRECEDENCE = {
@@ -160,7 +160,7 @@ class Parser:
             if_block = self.parse_block()
         else:
             if_block = self.parse_statement()
-        if self.check(T.ELSE):
+        if self.consume(T.ELSE):
             if self.check(T.LEFT_CURLY):
                 else_block = self.parse_block()
             else:
@@ -272,7 +272,7 @@ class Parser:
             return self.parse_identifier()
         else:
             value = self.consume(
-                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOL, T.STRING,
+                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,
             )
             if not value:
                 assert False, "Failed to parse primary"

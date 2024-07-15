@@ -1,4 +1,4 @@
-from type_defs import *
+from .type_defs import *
 
 
 types = {

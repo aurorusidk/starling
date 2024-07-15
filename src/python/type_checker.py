@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 import logging
 
-from lexer import TokenType as T
-import ast_nodes as ast
-import builtin
-import type_defs as types
+from .lexer import TokenType as T
+from . import ast_nodes as ast
+from . import builtin
+from . import type_defs as types
 
 
 class Scope:
@@ -67,7 +67,7 @@ class TypeChecker:
         if types.is_basic(lhs):
             return lhs == rhs or types.is_numeric(lhs) and types.is_numeric(rhs)
         else:
-            assert False, f"Unimplemented: cannot match types {type1}, {type2}"
+            assert False, f"Unimplemented: cannot match types {lhs}, {rhs}"
 
     def get_binary_numeric(self, lhs, rhs):
         if builtin.types["float"] in (lhs.typ, rhs.typ):
@@ -150,9 +150,10 @@ class TypeChecker:
             case ast.IndexExpr(target, index):
                 self.check(target)
                 self.check(index)
+                assert index.typ == builtin.types["int"]
                 if target.typ == builtin.types["str"]:
                     node.typ = target.typ
-                elif target.typ == ArrayType or target.typ == VectorType:
+                elif isinstance(target.typ, (types.ArrayType, types.VectorType)):
                     node.typ = target.typ.elem_type
                 else:
                     assert False, "Item cannot be indexed"
@@ -187,7 +188,7 @@ class TypeChecker:
         self.check(node.rhs)
 
         # for now all ops require matching types
-        assert self.match_types(node.lhs.typ, node.rhs.typ)
+        assert self.match_types(node.lhs.typ, node.rhs.typ), f"Mismatched types {node.lhs.typ} and {node.rhs.typ}"
 
         if is_comparison_op(node.op):
             node.typ = builtin.types["bool"]
@@ -237,15 +238,16 @@ class TypeChecker:
                 # TODO: maybe skip this check to have 'truthy'/'falsy'
                 assert condition.typ == builtin.types["bool"]
 
-                self.check_block(if_block)
-                self.check_block(else_block)
+                self.check_stmt(if_block)
+                if else_block is not None:
+                    self.check_stmt(else_block)
 
             case ast.WhileStmt(condition, block):
                 self.check_expr(condition)
                 # TODO: maybe skip this check to have 'truthy'/'falsy'
                 assert condition.typ == builtin.types["bool"]
 
-                self.check_block(block)
+                self.check_stmt(block)
 
             case ast.ReturnStmt(value):
                 self.check(value)
