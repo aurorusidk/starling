@@ -137,7 +137,7 @@ class AssignmentStmt(Stmt):
     target: Expr
     value: Expr
 
-    
+
 @dataclass
 class Parameter(Node):
     name: Identifier
@@ -158,13 +158,14 @@ class VariableDeclr(Declr):
     typ: Type | None
     value: Expr
 
+
 @dataclass
 class FieldDeclr(Declr):
     name: Identifier
     typ: Type
 
+
 @dataclass
 class StructDeclr(Declr):
     name: Identifier
     fields: list[FieldDeclr]
-
