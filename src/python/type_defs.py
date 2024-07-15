@@ -91,3 +91,5 @@ def is_string(typ):
 def is_bool(typ):
     return is_basic(typ, BasicTypeFlag.BOOLEAN)
 
+def is_iterable(typ):
+    return isinstance(typ, (ArrayType, VectorType))

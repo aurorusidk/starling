@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import logging
 
 from .lexer import TokenType as T
@@ -29,21 +28,22 @@ class Scope:
 
 
 unary_op_preds = {
-        T.MINUS: types.is_numeric,
-        T.BANG: types.is_bool,
+    T.MINUS: types.is_numeric,
+    T.BANG: types.is_bool,
 }
 
 binary_op_preds = {
-        T.PLUS: lambda t: types.is_numeric(t) or types.is_string(t),
-        T.MINUS: types.is_numeric,
-        T.STAR: types.is_numeric,
-        T.SLASH: types.is_numeric,
+    T.PLUS: lambda t: types.is_numeric(t) or types.is_string(t),
+    T.MINUS: types.is_numeric,
+    T.STAR: types.is_numeric,
+    T.SLASH: types.is_numeric,
 }
+
 
 def is_comparison_op(op):
     return op.typ in (
-            T.GREATER_THAN, T.LESS_THAN, T.GREATER_EQUALS, T.LESS_EQUALS,
-            T.EQUALS_EQUALS, T.BANG_EQUALS,
+        T.GREATER_THAN, T.LESS_THAN, T.GREATER_EQUALS, T.LESS_EQUALS,
+        T.EQUALS_EQUALS, T.BANG_EQUALS,
     )
 
 
@@ -65,7 +65,8 @@ class TypeChecker:
 
     def match_types(self, lhs, rhs):
         if types.is_basic(lhs):
-            return lhs == rhs or types.is_numeric(lhs) and types.is_numeric(rhs)
+            return lhs == rhs \
+                or types.is_numeric(lhs) and types.is_numeric(rhs)
         else:
             assert False, f"Unimplemented: cannot match types {lhs}, {rhs}"
 
@@ -77,7 +78,8 @@ class TypeChecker:
         elif builtin.types["int"] in (lhs.typ, rhs.typ):
             return builtin.types["int"]
         else:
-            assert False, f"Unimplemented: cannot get numeric from {lhs.typ}, {rhs.typ}"
+            assert False, f"Unimplemented: cannot get numeric" \
+                f"from {lhs.typ}, {rhs.typ}"
 
     def check(self, node):
         match node:
@@ -141,10 +143,12 @@ class TypeChecker:
                     if target.typ.return_type is not None:
                         node.typ = target.typ.return_type
                 elif isinstance(target.typ, types.StructType):
-                    assert len(target.typ.fields) == len(args), "Incorrect number of field arguments"
-                    for field_type, arg in zip(target.typ.fields.values(), args):
+                    assert len(target.typ.fields) == len(args), \
+                        "Incorrect number of field arguments"
+                    for ftype, arg in zip(target.typ.fields.values(), args):
                         self.check_expr(arg)
-                        assert arg.typ == field_type, "Argument type does not match field type"
+                        assert arg.typ == ftype, \
+                            "Argument type does not match field type"
                     node.typ = target.typ
 
             case ast.IndexExpr(target, index):
@@ -153,7 +157,7 @@ class TypeChecker:
                 assert index.typ == builtin.types["int"]
                 if target.typ == builtin.types["str"]:
                     node.typ = target.typ
-                elif isinstance(target.typ, (types.ArrayType, types.VectorType)):
+                elif types.is_iterable(target.typ):
                     node.typ = target.typ.elem_type
                 else:
                     assert False, "Item cannot be indexed"
@@ -161,7 +165,8 @@ class TypeChecker:
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
-                assert name.value in target.typ.fields, f"Name {name.value} not in {target}"
+                assert name.value in target.typ.fields, \
+                    f"Name {name.value} not in {target}"
                 node.typ = target.typ.fields[name.value]
 
             case ast.UnaryExpr():
@@ -188,7 +193,8 @@ class TypeChecker:
         self.check(node.rhs)
 
         # for now all ops require matching types
-        assert self.match_types(node.lhs.typ, node.rhs.typ), f"Mismatched types {node.lhs.typ} and {node.rhs.typ}"
+        assert self.match_types(node.lhs.typ, node.rhs.typ), \
+            f"Mismatched types {node.lhs.typ} and {node.rhs.typ}"
 
         if is_comparison_op(node.op):
             node.typ = builtin.types["bool"]
@@ -212,15 +218,17 @@ class TypeChecker:
         match node:
             case ast.TypeName(value):
                 typ = self.scope.lookup(value.value)
-                assert isinstance(typ, types.Type), f"{value.value} is not a valid type"
+                assert isinstance(typ, types.Type), \
+                    f"{value.value} is not a valid type"
                 return typ
-            
+
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
                 self.check_expr(length)
-                assert length.typ == builtin.types["int"], "Array length must be a integer"
+                assert length.typ == builtin.types["int"], \
+                    "Array length must be a integer"
                 return types.ArrayType(None, self.check_type(elem_type))
-            
+
             case _:
                 assert False, f"Unreachable: could not match type {node}"
 
@@ -251,20 +259,25 @@ class TypeChecker:
 
             case ast.ReturnStmt(value):
                 self.check(value)
-                assert self.function is not None, "Return statement outside a function"
+                assert self.function is not None, \
+                    "Return statement outside a function"
                 if self.function.return_type is None:
                     self.function.return_type = value.typ
                 else:
-                    assert self.function.return_type == value.typ, f"Return value with type {value.typ} " \
-                            f"does not match function return type {self.function.return_type}"
-                # TODO: log the return statements to check if a value is ever returned
+                    assert self.function.return_type == value.typ, \
+                        f"Return value with type {value.typ} " \
+                        f"does not match function return type " \
+                        f"{self.function.return_type}"
+                # TODO: log the return statements
+                #       to check if a value is ever returned
 
             case ast.AssignmentStmt(target, value):
                 self.check_expr(target)
                 self.check_expr(value)
                 # TODO: if both are numeric the target should be coerced
                 #       for explicitly typed targets probably not?
-                assert target.typ == value.typ, f"Cannot assign {value} to {target}"
+                assert target.typ == value.typ, \
+                    f"Cannot assign {value} to {target}"
 
             case _:
                 assert False, f"Unreachable: could not match stmt {node}"
@@ -273,7 +286,7 @@ class TypeChecker:
         match node:
             case ast.FunctionDeclr(name, return_type, params, block):
                 # TODO: inference on parameters needs to be done from CallExprs
-                #       maybe we need a way to defer checking until the type is concrete
+                #       we need to defer checking until the type is concrete
                 param_types = []
                 for param in params:
                     typ = None
@@ -289,8 +302,8 @@ class TypeChecker:
                 logging.debug(ftype)
                 self.scope.declare(name, ftype)
 
-                # TODO: defer this seciton until all global declarations are checked
-                #       this allows for functions to be used before they are declared
+                # TODO: defer this section until all declarations are checked
+                #       so functions can be used before they are declared
                 self.new_scope()
                 for param, ptype in zip(params, param_types):
                     self.scope.declare(param.name, ptype)
@@ -316,7 +329,8 @@ class TypeChecker:
                 if typ is not None:
                     typ = self.check_type(typ)
                     if value is not None:
-                        assert value.typ == typ, f"Cannot assign value with type {value.typ} " \
+                        assert value.typ == typ, \
+                            f"Cannot assign value with type {value.typ} " \
                             f"to variable {name.value} with type {typ}"
                     self.scope.declare(name, typ)
                     node.checked_type = typ
@@ -332,7 +346,8 @@ class TypeChecker:
 
 
 if __name__ == "__main__":
-    import lexer, parser
+    import lexer
+    import parser
 
     logging.basicConfig(format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.DEBUG)
