@@ -1,15 +1,16 @@
-from .type_defs import *
+from .type_defs import BasicType, BasicTypeKind, BasicTypeFlag
+from . import type_defs
 
 
 types = {
-        "int": BasicType(BasicTypeKind.INT, BasicTypeFlag.INTEGER, "int"),
-        "float": BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
-        "frac": BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
-        "str": BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str"),
-        "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
+    "int": BasicType(BasicTypeKind.INT, BasicTypeFlag.INTEGER, "int"),
+    "float": BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
+    "frac": BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
+    "str": BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str"),
+    "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
 }
 
 # TODO: builtin name definitions (vars and funcs)
 names = {
-   "print": FunctionType(None, [types["str"]]),
+    "print": type_defs.FunctionType(None, [types["str"]]),
 }
