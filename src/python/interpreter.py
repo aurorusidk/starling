@@ -1,9 +1,6 @@
-from collections import namedtuple
 from dataclasses import dataclass
-from enum import Enum
 from fractions import Fraction
 import logging
-from typing import Union
 
 from .lexer import TokenType as T, tokenise
 from .parser import Parser, parse
@@ -145,11 +142,13 @@ class Interpreter:
             case ast.AssignmentStmt(target, value):
                 return self.eval_assignment_stmt(target, value)
 
-            case ast.FunctionDeclr(name, return_type, params, block):
-                return self.eval_function_declr(name, node.checked_type, params, block)
+            case ast.FunctionDeclr(name, _, params, block):
+                return self.eval_function_declr(
+                    name, node.checked_type, params, block
+                )
             case ast.StructDeclr(name, fields):
                 return self.eval_struct_declr(name, node.checked_type, fields)
-            case ast.VariableDeclr(name, typ, value):
+            case ast.VariableDeclr(name, _, value):
                 return self.eval_variable_declr(name, node.checked_type, value)
 
             case ast.Program(declrs):
@@ -166,10 +165,6 @@ class Interpreter:
     def eval_function_declr(self, name, ftype, params, block):
         logging.debug(f"{ftype}")
         params = [StaParameter(self.eval_node(p.typ), p.name) for p in params]
-        if ftype is None:
-            return_type = None
-        else:
-            return_type = ftype.return_type
         func = StaFunction(ftype, name.value, params, block)
         self.scope.declare(name, func)
 
@@ -185,12 +180,12 @@ class Interpreter:
 
     def eval_type(self, name):
         typ = builtin.types.get(name.value)
-        assert typ is not None, f"Unimplemented type: {value.typ}"
+        assert typ is not None, f"Unimplemented type: {name.value}"
         return typ
 
     def eval_array_type(self, length, elem_type):
         length = self.eval_node(length)
-        typ = self.eval_node(typ)
+        typ = self.eval_node(elem_type)
         return types.ArrayType(typ, length.value)
 
     def eval_block(self, stmts):
@@ -219,7 +214,7 @@ class Interpreter:
     def eval_binary_expr(self, op, left, right):
         left = self.eval_node(left)
         right = self.eval_node(right)
-        assert type(left) == type(right), "Type coercion not implemented"
+        assert left.typ == right.typ, "Type coercion not implemented"
         match op.typ:
             case T.PLUS:
                 return self.eval_add(left, right)
@@ -255,22 +250,22 @@ class Interpreter:
 
     def eval_div(self, left, right):
         return StaObject(builtin.types["float"], left.value / right.value)
-    
+
     def eval_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value == right.value)
-    
+
     def eval_not_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value != right.value)
-    
+
     def eval_less_than(self, left, right):
         return StaObject(builtin.types["bool"], left.value < right.value)
-    
+
     def eval_greater_than(self, left, right):
         return StaObject(builtin.types["bool"], left.value > right.value)
-    
+
     def eval_less_than_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value <= right.value)
-    
+
     def eval_greater_than_equal(self, left, right):
         return StaObject(builtin.types["bool"], left.value >= right.value)
 
@@ -329,7 +324,6 @@ class Interpreter:
                 fields[name] = field
             return StaStruct(target, target.name, fields)
 
-
     def eval_literal(self, value, typ):
         if typ == builtin.types["int"]:
             value = int(value.lexeme)
@@ -367,6 +361,7 @@ class Interpreter:
             length
         )
 
+
 def repl(interpreter=None):
     if interpreter is None:
         interpreter = Interpreter()
@@ -380,6 +375,7 @@ def repl(interpreter=None):
         if result:
             sta_print(result)
 
+
 def main(src_file=None):
     interpreter = Interpreter()
     if src_file is not None:
@@ -388,7 +384,6 @@ def main(src_file=None):
         tokens = tokenise(src)
         print(tokens)
         ast = parse(tokens)
-        #print(repr_ast(ast))
         tc = TypeChecker(ast)
         tc.check(ast)
         interpreter.eval_node(ast)
@@ -403,7 +398,6 @@ def main(src_file=None):
 
 if __name__ == "__main__":
     import sys
-    from parser import repr_ast
 
     logging.basicConfig(format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.DEBUG)
