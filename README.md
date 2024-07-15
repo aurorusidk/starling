@@ -26,8 +26,33 @@ This will likely be done only in Python as a simple starting point.
 ## Initial Design
 - [x] Create language design goals
 - [x] Determine necessary features and main focuses
-- [ ] Begin language grammar
-- [ ] Implement new grammar features into lexer and parser
+- [x] Begin language grammar
+- [x] Implement new grammar features into lexer and parser
 - [ ] Codegen framework and support for different backends (compiled/interpreted)
+    - [x] Interpreter
+    - [ ] Compiler
 - [ ] Testing suite
+    - [x] Lexer Tests
+    - [x] Parser Tests
+    - [x] Type Checker Tests
+    - [x] Interpreter Tests
+    - [ ] Compiler Tests
 - [ ] Zig implementation
+- [ ] Feature Implementation
+
+## Built-in and Plug-in Features
+- [ ] Data Set Handling
+    - [ ] CSV
+    - [ ] Spreadsheet
+    - [ ] XML/YAML
+    - [ ] JSON
+    - [ ] Database
+- [ ] Mathematical Functionality
+    - [ ] Trignometric Functions
+    - [ ] Statistical Functions
+    - [ ] Rational Number Handling
+    - [ ] Complex Number Handling
+- [ ] Visualisation Tools
+    - [ ] Graphing
+        - [ ] ...
+- [ ] Data Structures (?)
