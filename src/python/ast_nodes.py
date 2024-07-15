@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from lexer import Token
-import type_defs as types
+from .lexer import Token
+from . import type_defs as types
 
 
 @dataclass
@@ -23,7 +23,7 @@ class Stmt(Node):
 @dataclass
 class Expr(Node):
     # used by the type checker
-    typ: types.Type = field(init=False, default=None)
+    typ: types.Type = field(kw_only=True, default=None)
 
 
 @dataclass

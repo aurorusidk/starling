@@ -1,9 +1,7 @@
-from collections import namedtuple
-from enum import Enum, global_enum
 import logging
 
-from lexer import TokenType as T
-import ast_nodes as ast
+from .lexer import TokenType as T
+from . import ast_nodes as ast
 
 
 BINARY_OP_PRECEDENCE = {
@@ -111,7 +109,8 @@ class Parser:
         methods = []
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
-            methods.append(self.parse_function_signature(T.COMMA, T.RIGHT_CURLY))
+            signature = self.parse_function_signature(T.COMMA, T.RIGHT_CURLY)
+            methods.append(signature)
             self.consume(T.COMMA)
         return ast.InterfaceDeclr(name, methods)
 
@@ -185,7 +184,6 @@ class Parser:
         else:
             assert False, "Failed to parse statement"
 
-
     def parse_if(self):
         self.consume(T.IF)
         condition = self.parse_expression()
@@ -193,7 +191,7 @@ class Parser:
             if_block = self.parse_block()
         else:
             if_block = self.parse_statement()
-        if self.check(T.ELSE):
+        if self.consume(T.ELSE):
             if self.check(T.LEFT_CURLY):
                 else_block = self.parse_block()
             else:
@@ -234,7 +232,6 @@ class Parser:
             if node == left:
                 break
             left = node
-        #logging.debug(f"{repr_ast(left)}")
         return left
 
     def parse_binop_increasing_prec(self, left, precedence):
@@ -305,7 +302,7 @@ class Parser:
             return self.parse_identifier()
         else:
             value = self.consume(
-                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOL, T.STRING,
+                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,
             )
             if not value:
                 assert False, "Failed to parse primary"
@@ -319,6 +316,7 @@ class Parser:
 def parse(tokens):
     # helper that hides the class behaviour
     return Parser(tokens).parse_program()
+
 
 def repr_children(children, indent=1):
     # recursive string representation for the node's children
@@ -335,6 +333,7 @@ def repr_children(children, indent=1):
         out += "\n"
     out += "|   " * (indent - 1) + "]"
     return out
+
 
 def repr_ast(ast):
     # more readable representation of the nodes
@@ -357,6 +356,5 @@ if __name__ == "__main__":
         src = f.read()
     tokens = tokenise(src)
     print(tokens)
-    ast = parse(tokens)
-    print(ast)
-    #print(repr_ast(ast))
+    tree = parse(tokens)
+    print(tree)
