@@ -1,6 +1,6 @@
 import unittest
 from src.python import lexer
-from src.python.parser import parse, Parser
+from src.python.parser import Parser
 import src.python.ast_nodes as ast
 
 
@@ -52,7 +52,7 @@ class TestParser(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_invalid_declr(self):
-        #TODO: implement correct parser errors, so test works correctly
+        # TODO: implement correct parser errors, so test works correctly
         tests = [
             "func test(x int, y int) int {}",
             "struct test (x int, y int)",
@@ -68,7 +68,7 @@ class TestParser(unittest.TestCase):
 
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
-        # TODO: should test more variations (including "else if" when implemented)
+        # TODO: should test more variations
         tests = {
             "if test {} else {}": ast.IfStmt(
                 ast.Identifier("test"),
@@ -99,7 +99,7 @@ class TestParser(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_invalid_stmt(self):
-        #TODO: add more variations
+        # TODO: add more variations
         tests = [
             "if test () else ()",
             "whiletest {}",
