@@ -142,9 +142,9 @@ class Interpreter:
             case ast.AssignmentStmt(target, value):
                 return self.eval_assignment_stmt(target, value)
 
-            case ast.FunctionDeclr(signature, block):
+            case ast.FunctionDeclr(_, block):
                 return self.eval_function_declr(
-                    signature, node.checked_type, block
+                    node.checked_type, block
                 )
             case ast.StructDeclr(name, fields):
                 return self.eval_struct_declr(name, node.checked_type, fields)
@@ -170,15 +170,15 @@ class Interpreter:
         for declr in declrs:
             self.eval_node(declr)
 
-    def eval_function_inst(self, signature, ftype, block):
-        logging.debug(f"{ftype}")
+    def eval_function_inst(self, signature, block):
+        logging.debug(f"{signature}")
         # TODO: should we also be checking signature.return_type here?
         return StaFunction(
-            ftype, signature.name.value, signature.params, block
+            signature, signature.name.value, signature.params, block
         )
 
-    def eval_function_declr(self, signature, ftype, block):
-        func = self.eval_function_inst(signature, ftype, block)
+    def eval_function_declr(self, signature, block):
+        func = self.eval_function_inst(signature, block)
         self.scope.declare(signature.name, func)
 
     def eval_struct_declr(self, name, typ, members):
@@ -331,7 +331,7 @@ class Interpreter:
         if name.value in target.typ.methods.keys():
             method = target.typ.methods[name.value]
             return self.eval_function_inst(
-                method.signature, method.signature, method.block
+                method.signature, method.block
             )
         assert False, f"No valid selector {name} for {target}"
 
