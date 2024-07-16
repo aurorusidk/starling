@@ -81,12 +81,12 @@ def tokenise(src):
         typ = None
         char = src[cur]
         if char == '\n':
-            cur += 1
             # automatic semicolon insertion
             if tokens[-1].typ in SEMICOLON_INSERT:
                 lexeme = ';'
                 typ = T.SEMICOLON
             else:
+                cur += 1
                 continue
         elif char.isspace():
             cur += 1

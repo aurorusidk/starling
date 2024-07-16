@@ -100,7 +100,7 @@ class Parser:
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
             fields.append(self.parse_field_declr())
-            self.consume(T.COMMA)
+            self.consume(T.SEMICOLON)
         return ast.StructDeclr(name, fields)
 
     def parse_interface(self):
@@ -109,9 +109,9 @@ class Parser:
         methods = []
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
-            signature = self.parse_function_signature(T.COMMA, T.RIGHT_CURLY)
+            signature = self.parse_function_signature(T.SEMICOLON)
             methods.append(signature)
-            self.consume(T.COMMA)
+            self.consume(T.SEMICOLON)
         return ast.InterfaceDeclr(name, methods)
 
     def parse_impl_declr(self):

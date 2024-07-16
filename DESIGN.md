@@ -48,6 +48,9 @@ Starling aims to provide a variety of external libraries for use with the core l
 
 # Syntax
 
+## Line termination
+Lines of Starling code can be implicitly terminated with a newline character, but may also be explicitly terminated with a semicolon `;`.
+
 ## Code blocks
 Blocks will use curly brackets `{ }`.
 
@@ -82,7 +85,7 @@ Structs, or structures, are declared with the `struct` keyword.
 
 ```
 struct Foo {
-    bar int,
+    bar int
     ...
 }
 ```
@@ -95,7 +98,7 @@ Interfaces are declared with the `interface` keyword. An interface requires one 
 
 ```
 interface IO {
-    read() str,
+    read() str
     write(value str)
 }
 ```
