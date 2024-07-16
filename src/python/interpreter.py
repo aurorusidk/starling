@@ -147,9 +147,9 @@ class Interpreter:
             case ast.AssignmentStmt(target, value):
                 return self.eval_assignment_stmt(target, value)
 
-            case ast.FunctionDeclr(_, block):
+            case ast.FunctionDeclr(signature, block):
                 return self.eval_function_declr(
-                    node.checked_type, block
+                    signature, node.checked_type, block
                 )
             case ast.StructDeclr(name, fields):
                 return self.eval_struct_declr(name, node.checked_type, fields)
@@ -188,8 +188,14 @@ class Interpreter:
                 signature, signature.name.value, signature.params, block
             )
 
-    def eval_function_declr(self, signature, block):
-        func = self.eval_function_inst(signature, block)
+    def eval_function_declr(self, signature, ftype, block):
+        # Use the given signature and the checked type to assemble a "checked signature"
+        checked_signature = signature
+        checked_signature.return_type = ftype.return_type
+        for param, typ in zip(checked_signature.params, ftype.param_types):
+            param.typ = typ
+
+        func = self.eval_function_inst(checked_signature, block)
         self.scope.declare(signature.name, func)
 
     def eval_struct_declr(self, name, typ, members):
