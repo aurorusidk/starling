@@ -44,6 +44,11 @@ class StaFunction:
 
 
 @dataclass
+class StaMethod(StaFunction):
+    target: StaObject
+
+
+@dataclass
 class StaStruct:
     typ: types.StructType
     name: str
@@ -170,12 +175,18 @@ class Interpreter:
         for declr in declrs:
             self.eval_node(declr)
 
-    def eval_function_inst(self, signature, block):
+    def eval_function_inst(self, signature, block, is_method=False):
         logging.debug(f"{signature}")
-        # TODO: should we also be checking signature.return_type here?
-        return StaFunction(
-            signature, signature.name.value, signature.params, block
-        )
+
+        if is_method:
+            return StaMethod(
+                signature, signature.name.value, signature.params, block,
+                None # target will be set later
+            )
+        else:
+            return StaFunction(
+                signature, signature.name.value, signature.params, block
+            )
 
     def eval_function_declr(self, signature, block):
         func = self.eval_function_inst(signature, block)
@@ -208,7 +219,10 @@ class Interpreter:
                 assert method.signature in interface, \
                     f"No method {method.signature} on interface {interface}"
 
-            target_type.methods[method.signature.name.value] = method
+            method_obj = self.eval_function_inst(
+                method.signature, method.block, is_method=True
+            )
+            target_type.methods[method.signature.name.value] = method_obj
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:
@@ -330,9 +344,8 @@ class Interpreter:
             return target.fields[name.value].value
         if name.value in target.typ.methods.keys():
             method = target.typ.methods[name.value]
-            return self.eval_function_inst(
-                method.signature, method.block
-            )
+            method.target = target
+            return method
         assert False, f"No valid selector {name} for {target}"
 
     def eval_index_expr(self, target, index):
@@ -347,6 +360,8 @@ class Interpreter:
         target = self.eval_node(callee)
         if isinstance(target, StaFunction):
             self.scope = Scope(self.scope)
+            if isinstance(target, StaMethod):
+                self.scope.declare(ast.Identifier("self"), target.target)
             for arg, param in zip(args, target.params):
                 logging.debug(f"{param.typ}")
                 value = self.eval_node(arg)
