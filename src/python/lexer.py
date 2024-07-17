@@ -82,7 +82,7 @@ def get(src, index, length=1):
         return ""
 
 
-def tokenise(src):
+def tokenise(src, error_handler=None):
     cur = 0
     pos = Pos(1, 1)
     tokens = []
@@ -154,7 +154,11 @@ def tokenise(src):
 
         if not lexeme:
             # syntax error (unexpected char)
-            assert False, "Tokenisation: Syntax Error"
+            msg = f"Syntax error: unexpected character '{char}'"
+            if error_handler is None:
+                assert False, msg
+            else:
+                error_handler(msg)
         tokens.append(Token(typ, lexeme, cur_pos))
         pos += len(lexeme)
         cur += len(lexeme)
