@@ -19,10 +19,19 @@ BINARY_OP_PRECEDENCE = {
 
 
 class Parser:
-    def __init__(self, tokens):
+    def __init__(self, tokens, error_handler=None):
         self.cur = 0
         self.tokens = tokens
         self.root = None
+        self.error_handler = error_handler
+
+    def error(self, msg):
+        # add position info
+        msg = f"Syntax error: {msg}"
+        if self.error_handler is None:
+            assert False, msg
+
+        self.error_handler(msg)
 
     def check(self, *token_types, lookahead=0):
         cur = self.cur + lookahead
@@ -39,6 +48,11 @@ class Parser:
         if result is not None:
             self.cur += 1
         return result
+
+    def advance(self, *token_types):
+        # synchronise at the given tokens
+        while not self.check(*token_types):
+            self.cur += 1
 
     def parse(self, tokens):
         # reinit
@@ -62,7 +76,8 @@ class Parser:
         elif self.check(T.VAR):
             return self.parse_variable_declr()
         else:
-            assert False, "Failed to parse declaration"
+            self.error("Failed to parse declaration")
+            self.advance(T.FUNC, T.STRUCT, T.VAR)
 
     def parse_function(self):
         self.consume(T.FUNC)
@@ -116,7 +131,7 @@ class Parser:
             return ast.TypeName(self.parse_identifier())
         elif self.check(T.LEFT_SQUARE):
             return self.parse_array_type()
-        assert False, "Failed to parse type"
+        self.error("Failed to parse type")
 
     def parse_array_type(self):
         self.consume(T.LEFT_SQUARE)
@@ -148,7 +163,8 @@ class Parser:
         elif self.check(T.EQUALS):
             return self.parse_assignment(expr)
         else:
-            assert False, "Failed to parse statement"
+            # should we allow empty statements?
+            self.error("Failed to parse statement")
 
     def parse_if(self):
         self.consume(T.IF)
@@ -271,7 +287,7 @@ class Parser:
                 T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,
             )
             if not value:
-                assert False, "Failed to parse primary"
+                self.error("Failed to parse primary")
             return ast.Literal(value)
 
     def parse_identifier(self):
