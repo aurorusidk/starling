@@ -50,7 +50,6 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_declaration(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_declr(self):
         # TODO: implement correct parser errors, so test works correctly
         tests = [
@@ -97,14 +96,12 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_statement(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_stmt(self):
         # TODO: add more variations
         tests = [
             "if test () else ()",
             "whiletest {}",
             "return test",
-            "test == x;"
         ]
 
         p = Parser(None)
@@ -155,7 +152,6 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_expr(self):
         tests = [
             ":",

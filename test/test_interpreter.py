@@ -131,7 +131,7 @@ class TestInterpreter(unittest.TestCase):
             "if false {return 1;} else {return 0;}": StaObject(
                 builtin.types["int"], 0
             ),
-            "while x < 10 {x = x * 2} return x;": StaObject(
+            "while x < 10 {x = x * 2;} return x;": StaObject(
                 builtin.types["int"], 16
             ),
             "x = 10; return x;": StaObject(
@@ -172,7 +172,7 @@ class TestInterpreter(unittest.TestCase):
                     "y": builtin.types["str"],
                 },
             ),
-            "var test float = 3.14": StaVariable(
+            "var test float = 3.14;": StaVariable(
                 "test",
                 StaObject(builtin.types["float"], 3.14),
             ),
