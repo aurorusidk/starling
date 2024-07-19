@@ -48,12 +48,19 @@ def is_comparison_op(op):
 
 
 class TypeChecker:
-    def __init__(self, root):
+    def __init__(self, root, error_handler=None):
         self.scope = Scope(None)
         self.scope.name_map = builtin.types | builtin.names
         self.root = root
         # used to infer return types
         self.function = None
+        self.error_handler = error_handler
+
+    def error(self, msg):
+        if self.error_handler is None:
+            assert False, msg
+
+        self.error_handler(msg)
 
     def new_scope(self):
         new_scope = Scope(self.scope)
@@ -117,13 +124,14 @@ class TypeChecker:
             case ast.Identifier(name):
                 # lookup the name
                 node.typ = self.scope.lookup(name)
-                assert node.typ is not None, f"Undefined name {name}"
+                if node.typ is None:
+                    self.error(f"Undefined name {name}")
 
             case ast.RangeExpr(start, end):
                 self.check_expr(start)
                 self.check_expr(end)
                 if start.typ != end.typ != builtin.types["int"]:
-                    assert False, "Invalid range expr"
+                    self.error("Invalid range expr")
                 node.typ = types.ArrayType(builtin.types["int"], None)
                 # TODO: add length eval for consts
 
@@ -139,16 +147,18 @@ class TypeChecker:
                         if target.typ.param_types[i] is None:
                             target.typ.param_types[i] = arg.typ
                         elif arg.typ != target.typ.param_types[i]:
-                            assert False, "Types do not match"
+                            self.error("Types do not match")
                     if target.typ.return_type is not None:
                         node.typ = target.typ.return_type
                 elif isinstance(target.typ, types.StructType):
-                    assert len(target.typ.fields) == len(args), \
-                        "Incorrect number of field arguments"
+                    if len(target.typ.fields) != len(args):
+                        self.error("Incorrect number of field arguments")
                     for ftype, arg in zip(target.typ.fields.values(), args):
                         self.check_expr(arg)
-                        assert arg.typ == ftype, \
-                            "Argument type does not match field type"
+                        if arg.typ != ftype:
+                            self.error(
+                                "Argument type does not match field type"
+                            )
                     node.typ = target.typ
 
             case ast.IndexExpr(target, index):
@@ -160,13 +170,13 @@ class TypeChecker:
                 elif types.is_iterable(target.typ):
                     node.typ = target.typ.elem_type
                 else:
-                    assert False, "Item cannot be indexed"
+                    self.error("Item cannot be indexed")
                 # TODO: add map case once implemented
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
-                assert name.value in target.typ.fields, \
-                    f"Name {name.value} not in {target}"
+                if name.value not in target.typ.fields:
+                    self.error(f"Name {name.value} not in {target}")
                 node.typ = target.typ.fields[name.value]
 
             case ast.UnaryExpr():
@@ -176,14 +186,14 @@ class TypeChecker:
                 self.check_binary(node)
 
             case _:
-                assert False, f"Unreachable: could not match expr {node}"
+                self.error(f"Unreachable: could not match expr {node}")
 
     def check_unary(self, node):
         self.check(node.rhs)
 
         pred = unary_op_preds[node.op.typ]
         if not pred(node.rhs.typ):
-            assert False, f"Unsupported op {node.op.typ} on {node.rhs.typ}"
+            self.error(f"Unsupported op {node.op.typ} on {node.rhs.typ}")
 
         # none of the operations change the type of the operand
         node.typ = node.rhs.typ
@@ -193,8 +203,8 @@ class TypeChecker:
         self.check(node.rhs)
 
         # for now all ops require matching types
-        assert self.match_types(node.lhs.typ, node.rhs.typ), \
-            f"Mismatched types {node.lhs.typ} and {node.rhs.typ}"
+        if not self.match_types(node.lhs.typ, node.rhs.typ):
+            self.error(f"Mismatched types {node.lhs.typ} and {node.rhs.typ}")
 
         if is_comparison_op(node.op):
             node.typ = builtin.types["bool"]
@@ -204,7 +214,7 @@ class TypeChecker:
 
         pred = binary_op_preds[node.op.typ]
         if not pred(node.lhs.typ):
-            assert False, f"Unsupported op {node.op.typ} on {node.lhs.typ}"
+            self.error(f"Unsupported op {node.op.typ} on {node.lhs.typ}")
 
         if node.op.typ == T.SLASH:
             node.typ = builtin.types["float"]
@@ -218,15 +228,15 @@ class TypeChecker:
         match node:
             case ast.TypeName(value):
                 typ = self.scope.lookup(value.value)
-                assert isinstance(typ, types.Type), \
-                    f"{value.value} is not a valid type"
+                if not isinstance(typ, types.Type):
+                    self.error(f"{value.value} is not a valid type")
                 return typ
 
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
                 self.check_expr(length)
-                assert length.typ == builtin.types["int"], \
-                    "Array length must be a integer"
+                if length.typ != builtin.types["int"]:
+                    self.error("Array length must be a integer")
                 return types.ArrayType(None, self.check_type(elem_type))
 
             case _:
@@ -259,15 +269,16 @@ class TypeChecker:
 
             case ast.ReturnStmt(value):
                 self.check(value)
-                assert self.function is not None, \
-                    "Return statement outside a function"
+                if self.function is None:
+                    self.error("Return statement outside a function")
                 if self.function.return_type is None:
                     self.function.return_type = value.typ
-                else:
-                    assert self.function.return_type == value.typ, \
-                        f"Return value with type {value.typ} " \
-                        f"does not match function return type " \
+                elif self.function.return_type != value.typ:
+                    self.error(
+                        f"Return value with type {value.typ} "
+                        f"does not match function return type "
                         f"{self.function.return_type}"
+                    )
                 # TODO: log the return statements
                 #       to check if a value is ever returned
 
@@ -276,8 +287,8 @@ class TypeChecker:
                 self.check_expr(value)
                 # TODO: if both are numeric the target should be coerced
                 #       for explicitly typed targets probably not?
-                assert target.typ == value.typ, \
-                    f"Cannot assign {value} to {target}"
+                if target.typ != value.typ:
+                    self.error(f"Cannot assign {value} to {target}")
 
             case _:
                 assert False, f"Unreachable: could not match stmt {node}"
@@ -329,9 +340,11 @@ class TypeChecker:
                 if typ is not None:
                     typ = self.check_type(typ)
                     if value is not None:
-                        assert value.typ == typ, \
-                            f"Cannot assign value with type {value.typ} " \
-                            f"to variable {name.value} with type {typ}"
+                        if value.typ != typ:
+                            self.error(
+                                f"Cannot assign value with type {value.typ} "
+                                f"to variable {name.value} with type {typ}"
+                            )
                     self.scope.declare(name, typ)
                     node.checked_type = typ
                 else:
