@@ -49,6 +49,13 @@ class Parser:
             self.cur += 1
         return result
 
+    def expect(self, *token_types):
+        result = self.consume(*token_types)
+        if not result:
+            # TODO: convert tokens to strings
+            self.error(f"expected {token_types}")
+        return result
+
     def advance(self, *token_types):
         # synchronise at the given tokens
         while not self.check(*token_types):
@@ -80,9 +87,9 @@ class Parser:
             self.advance(T.FUNC, T.STRUCT, T.VAR)
 
     def parse_function(self):
-        self.consume(T.FUNC)
+        self.expect(T.FUNC)
         fname = self.parse_identifier()
-        self.consume(T.LEFT_BRACKET)
+        self.expect(T.LEFT_BRACKET)
 
         params = []
         while not self.consume(T.RIGHT_BRACKET):
@@ -100,10 +107,10 @@ class Parser:
         return ast.FunctionDeclr(fname, ftype, params, contents)
 
     def parse_struct(self):
-        self.consume(T.STRUCT)
+        self.expect(T.STRUCT)
         name = self.parse_identifier()
         fields = []
-        self.consume(T.LEFT_CURLY)
+        self.expect(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
             fields.append(self.parse_field_declr())
             self.consume(T.COMMA)
@@ -115,7 +122,7 @@ class Parser:
         return ast.FieldDeclr(name, typ)
 
     def parse_variable_declr(self):
-        self.consume(T.VAR)
+        self.expect(T.VAR)
         name = self.parse_identifier()
         typ = None
         if not self.check(T.EQUALS, T.SEMICOLON):
@@ -123,7 +130,7 @@ class Parser:
         value = None
         if self.consume(T.EQUALS):
             value = self.parse_expression()
-        self.consume(T.SEMICOLON)
+        self.expect(T.SEMICOLON)
         return ast.VariableDeclr(name, typ, value)
 
     def parse_type(self):
@@ -134,15 +141,15 @@ class Parser:
         self.error("Failed to parse type")
 
     def parse_array_type(self):
-        self.consume(T.LEFT_SQUARE)
+        self.expect(T.LEFT_SQUARE)
         length = self.parse_expression()
-        self.consume(T.RIGHT_SQUARE)
+        self.expect(T.RIGHT_SQUARE)
         typ = self.parse_type()
         return ast.ArrayType(length, typ)
 
     def parse_block(self):
         statements = []
-        self.consume(T.LEFT_CURLY)
+        self.expect(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY) and self.cur < len(self.tokens):
             statements.append(self.parse_statement())
         return ast.Block(statements)
@@ -167,7 +174,7 @@ class Parser:
             self.error("Failed to parse statement")
 
     def parse_if(self):
-        self.consume(T.IF)
+        self.expect(T.IF)
         condition = self.parse_expression()
         if self.check(T.LEFT_CURLY):
             if_block = self.parse_block()
@@ -183,23 +190,23 @@ class Parser:
         return ast.IfStmt(condition, if_block, else_block)
 
     def parse_while(self):
-        self.consume(T.WHILE)
+        self.expect(T.WHILE)
         condition = self.parse_expression()
         while_block = self.parse_block()
         return ast.WhileStmt(condition, while_block)
 
     def parse_return(self):
-        self.consume(T.RETURN)
+        self.expect(T.RETURN)
         value = None
         if not self.check(T.SEMICOLON):
             value = self.parse_expression()
-        self.consume(T.SEMICOLON)
+        self.expect(T.SEMICOLON)
         return ast.ReturnStmt(value)
 
     def parse_assignment(self, target):
-        self.consume(T.EQUALS)
+        self.expect(T.EQUALS)
         value = self.parse_expression()
-        self.consume(T.SEMICOLON)
+        self.expect(T.SEMICOLON)
         return ast.AssignmentStmt(target, value)
 
     def parse_expression(self):
@@ -251,18 +258,18 @@ class Parser:
         return expr
 
     def parse_selector(self, target):
-        self.consume(T.DOT)
+        self.expect(T.DOT)
         name = self.parse_identifier()
         return ast.SelectorExpr(target, name)
 
     def parse_index(self, target):
-        self.consume(T.LEFT_SQUARE)
+        self.expect(T.LEFT_SQUARE)
         value = self.parse_expression()
-        self.consume(T.RIGHT_SQUARE)
+        self.expect(T.RIGHT_SQUARE)
         return ast.IndexExpr(target, value)
 
     def parse_call_arguments(self, target):
-        self.consume(T.LEFT_BRACKET)
+        self.expect(T.LEFT_BRACKET)
         args = []
         while not self.consume(T.RIGHT_BRACKET):
             args.append(self.parse_expression())
@@ -272,13 +279,13 @@ class Parser:
     def parse_primary(self):
         if self.consume(T.LEFT_BRACKET):
             expr = self.parse_expression()
-            self.consume(T.RIGHT_BRACKET)
+            self.expect(T.RIGHT_BRACKET)
             return ast.GroupExpr(expr)
         elif self.consume(T.LEFT_SQUARE):
             start = self.parse_expression()
-            self.consume(T.COLON)
+            self.expect(T.COLON)
             end = self.parse_expression()
-            self.consume(T.RIGHT_SQUARE)
+            self.expect(T.RIGHT_SQUARE)
             return ast.RangeExpr(start, end)
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
@@ -291,7 +298,7 @@ class Parser:
             return ast.Literal(value)
 
     def parse_identifier(self):
-        tok = self.consume(T.IDENTIFIER)
+        tok = self.expect(T.IDENTIFIER)
         return ast.Identifier(tok.lexeme)
 
 
