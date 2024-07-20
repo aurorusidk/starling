@@ -333,7 +333,7 @@ def repr_ast(ast):
 
 if __name__ == "__main__":
     import sys
-    from lexer import tokenise
+    from .lexer import tokenise
 
     logging.basicConfig(format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.DEBUG)

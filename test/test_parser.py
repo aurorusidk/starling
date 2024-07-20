@@ -1,3 +1,4 @@
+import logging
 import unittest
 from src.python.lexer import tokenise, Token, TokenType as T, Pos
 from src.python.parser import Parser
@@ -211,3 +212,21 @@ class TestParser(unittest.TestCase):
             p.cur = 0
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
+
+    def test_error_reporting(self):
+        tests = [
+            # Tests given as a string-int tuple, where the int is the number of expected errors logged
+            ("""fn test() {
+                    var a int = 1;
+                    var b int == 2;
+                    var c str = 3;
+                }""", 2)
+        ]
+
+        p = Parser(None, (lambda err: logging.error(err)))
+        for test in tests:
+            p.cur = 0
+            p.tokens = tokenise(test[0])
+            with self.assertLogs(level=logging.ERROR) as cm:
+                p.parse_program()
+                self.assertEqual(len(cm.output), test[1])
