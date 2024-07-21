@@ -215,12 +215,20 @@ class TestParser(unittest.TestCase):
 
     def test_error_reporting(self):
         tests = [
-            # Tests given as a string-int tuple, where the int is the number of expected errors logged
+            # Tests given as a tuple:
+                # A string for the code
+                # A tuple for the expected logs, as regexes
+                
             ("""fn test() {
                     var a int = 1;
                     var b int == 2;
                     var c str = 3;
-                }""", 2)
+                }""",
+                (
+                    "expected(.+)TokenType.SEMICOLON",
+                    "Failed to parse primary"
+                )
+            )
         ]
 
         p = Parser(None, (lambda err: logging.error(err)))
@@ -229,4 +237,9 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test[0])
             with self.assertLogs(level=logging.ERROR) as cm:
                 p.parse_program()
-                self.assertEqual(len(cm.output), test[1])
+
+                # Check that the right number of errors were logged
+                self.assertEqual(len(cm.output), len(test[1]))
+
+                for log, expected in zip(cm.output, test[1]):
+                    self.assertRegex(log, expected)
