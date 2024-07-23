@@ -223,11 +223,8 @@ class Interpreter:
                 assert method.signature in interface, \
                     f"No method {method.signature} on interface {interface}"
 
-            # create a FunctionType based on the method signature
-            ftype = types.FunctionType(
-                        method.signature.return_type,
-                        [param.typ for param in method.signature.params]
-                    )
+            # use the checked type from the type checker to build the method object
+            ftype = target_type.methods[method.signature.name.value].checked_type
             method_obj = self.eval_function_inst(
                 method.signature, ftype, method.block, is_method=True
             )

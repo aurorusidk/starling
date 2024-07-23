@@ -15,6 +15,8 @@ class TestLexer(unittest.TestCase):
             "var": [Token(T.VAR, "var")],
             "fn": [Token(T.FUNC, "fn")],
             "struct": [Token(T.STRUCT, "struct")],
+            "interface": [Token(T.INTERFACE, "interface")],
+            "impl": [Token(T.IMPL, "impl")]
         }
 
         for test, expected in tests.items():
@@ -41,6 +43,7 @@ class TestLexer(unittest.TestCase):
             "string": [Token(T.IDENTIFIER, "string")],
             "func": [Token(T.IDENTIFIER, "func")],
             "variable": [Token(T.IDENTIFIER, "variable")],
+            "implement": [Token(T.IDENTIFIER, "implement")]
         }
 
         for test, expected in tests.items():

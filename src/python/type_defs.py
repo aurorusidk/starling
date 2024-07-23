@@ -19,7 +19,7 @@ class BasicTypeFlag(Flag):
 
 @dataclass
 class Type:
-    methods: dict = field(default_factory=dict, init=False)
+    methods: dict = field(default_factory=dict, kw_only=True)
 
     # base class for all types
     @property

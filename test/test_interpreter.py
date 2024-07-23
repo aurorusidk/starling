@@ -7,7 +7,7 @@ from src.python.type_checker import TypeChecker
 from src.python.interpreter import (
     Interpreter,
     StaObject, StaVariable, StaArray,
-    StaStruct, StaParameter, StaFunction, StaFunctionReturn,
+    StaStruct, StaParameter, StaFunction, StaFunctionReturn, StaMethod
 )
 from src.python import ast_nodes as ast
 from src.python import builtin
@@ -175,6 +175,40 @@ class TestInterpreter(unittest.TestCase):
             "var test float = 3.14": StaVariable(
                 "test",
                 StaObject(builtin.types["float"], 3.14),
+            ),
+            "interface test {x() int; y(z str) str;}": types.Interface(
+                "test",
+                {
+                    "x": types.FunctionType(
+                        builtin.types["int"],
+                        [],
+                    ),
+                    "y": types.FunctionType(
+                        builtin.types["str"],
+                        [
+                            builtin.types["str"]
+                        ],
+                    ),
+                },
+            ),
+            """struct test {x int;}
+               impl test {fn foo() int {}}""": types.StructType(
+                "test",
+                {
+                    "x": builtin.types["int"]
+                },
+                methods={
+                    "foo": StaMethod(
+                        types.FunctionType(
+                            builtin.types["int"],
+                            []
+                        ),
+                        "foo",
+                        [],
+                        ast.Block([]),
+                        None
+                    ),
+                },
             ),
         }
 
