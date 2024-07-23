@@ -165,7 +165,7 @@ class TestInterpreter(unittest.TestCase):
                 [],
                 ast.Block([]),
             ),
-            "struct test {x int, y str}": types.StructType(
+            "struct test {x int; y str;}": types.StructType(
                 "test",
                 {
                     "x": builtin.types["int"],
