@@ -41,6 +41,23 @@ Variables in Starling will be statically typed. Types will be strictly enforced 
 
 Variables must be explicitly converted to the same type before operations can be performed on them, with the exception of Numeric types (`int`, `frac`, `float`) which will be converted implicitly.
 
+### Optional values
+Starling will make use of an `Optional` generic type, akin to that found in Rust.
+
+The value held in an Optional must be specifically retrieved before use, including handling if that value is `None`.
+
+### Errors & Results
+Starling will also have a `Result` generic type, which will make use of `Optional`s to provide error information.
+
+The `Result` type will be defined as follows:
+
+```
+struct Result<T> {
+    ok Optional<T>
+    err Optional<Error>
+}
+```
+
 ### Libraries and Plugins
 Starling aims to provide a variety of external libraries for use with the core language. These may include:
 * Data visualisation tools
@@ -65,6 +82,8 @@ For assignment expressions, the `:=` operator will be used.
 ## Function declaration
 Functions are declared using the `fn` keyword. The language will infer the return type of a function if one is not given.
 
+The `void` type is used for functions that have no return value.
+
 Parameters of functions are formatted similarly to variable declarations. It's possible to provide a type to be enforced, as well as a default value, though neither are mandatory.
 `fn foo(arg type = default) {}`
 
@@ -76,6 +95,32 @@ fn main(argv vec) int {
 ```
 
 The main entry point implicitly returns 0, unless an error occurs.
+
+## Optionals
+The below example function returns 1 if `true` is passed in, and returns no value if `false` is passed in.
+
+```
+fn optional_func(x bool) Optional<int> {
+    if (x) {
+        return some(1)
+    } else {
+        return nil
+    }
+}
+```
+
+The value of a `some()` return must match the type specified in the `Optional<>`. So you can't put a rat in a headphone box.
+
+The return value of an optional can be handled as follows:
+
+```
+var ret_val Optional<int> = optional_func(true)
+if (ret_val.is_some()) {
+    print(ret_val.unbox())
+} 
+```
+
+`unbox()` will error if the value is `nil`.
 
 ## Ranges
 Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
@@ -92,9 +137,3 @@ We need to research the best approximations to use for the various standard math
 The default maths library should have a reasonable degree of precision (3/4 sf?) to ensure that they are efficient.
 
 We may also decide to support another set of maths functions that sacrifice performance in exchange for much higher accuracy, if we believe that it would be beneficial.
-
-## No nulls
-
-We need to research how languages such as R and Rust are able to have no `null` value, and decide whether we want to implement one in Starling.
-
-We then also need to decide what the names should be for the null value and type.
