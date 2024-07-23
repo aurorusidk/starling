@@ -175,27 +175,25 @@ class Interpreter:
         for declr in declrs:
             self.eval_node(declr)
 
-    def eval_function_inst(self, signature, block, is_method=False):
+    def eval_function_inst(self, signature, ftype, block, is_method=False):
         logging.debug(f"{signature}")
 
         if is_method:
             return StaMethod(
-                signature, signature.name.value, signature.params, block,
-                None # target will be set later
+                ftype, signature.name.value, signature.params, block,
+                target=None # target will be set later
             )
         else:
             return StaFunction(
-                signature, signature.name.value, signature.params, block
+                ftype, signature.name.value, signature.params, block
             )
 
     def eval_function_declr(self, signature, ftype, block):
-        # Use the given signature and the checked type to assemble a "checked signature"
-        checked_signature = signature
-        checked_signature.return_type = ftype.return_type
-        for param, typ in zip(checked_signature.params, ftype.param_types):
+        # Verify that the signature's param types are correct based on the FunctionType
+        for param, typ in zip(signature.params, ftype.param_types):
             param.typ = typ
 
-        func = self.eval_function_inst(checked_signature, block)
+        func = self.eval_function_inst(signature, ftype, block)
         self.scope.declare(signature.name, func)
 
     def eval_struct_declr(self, name, typ, members):
@@ -204,7 +202,7 @@ class Interpreter:
 
     def eval_interface_declr(self, name, typ, methods):
         logging.debug(f"{name}, {methods}")
-        self.scope.declare(name, methods)
+        self.scope.declare(name, typ)
 
     def eval_impl_declr(self, target, interface, typ, methods):
         logging.debug(f"{target}<{interface}>, {methods}")
@@ -225,8 +223,13 @@ class Interpreter:
                 assert method.signature in interface, \
                     f"No method {method.signature} on interface {interface}"
 
+            # create a FunctionType based on the method signature
+            ftype = types.FunctionType(
+                        method.signature.return_type,
+                        [param.typ for param in method.signature.params]
+                    )
             method_obj = self.eval_function_inst(
-                method.signature, method.block, is_method=True
+                method.signature, ftype, method.block, is_method=True
             )
             target_type.methods[method.signature.name.value] = method_obj
 
