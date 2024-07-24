@@ -30,6 +30,37 @@ class TestInterpreter(unittest.TestCase):
                     builtin.types["int"],
                 ],
             ),
+            "test_impl_struct": types.StructType(
+                "test_impl_struct",
+                {
+                    "x": builtin.types["int"],
+                },
+                methods={
+                    "foo": StaMethod(
+                        types.FunctionType(
+                            builtin.types["int"],
+                            [],
+                        ),
+                        "foo",
+                        [],
+                        ast.Block([
+                            ast.ReturnStmt(
+                                ast.BinaryExpr(
+                                    Token(T.PLUS, "+"),
+                                    ast.SelectorExpr(
+                                        ast.Identifier("self"),
+                                        ast.Identifier("x"),
+                                    ),
+                                    ast.Literal(
+                                        ast.Token(T.INTEGER, "5"),
+                                        typ=builtin.types["int"],
+                                    ),
+                                ),
+                            ),
+                        ]),
+                    ),
+                },
+            ),
         }
         names = {
             "test_struct": StaStruct(
@@ -66,6 +97,15 @@ class TestInterpreter(unittest.TestCase):
                     ),
                 ]),
             ),
+            "test_impl_struct": StaStruct(
+                tc_names["test_impl_struct"],
+                "test_impl_struct",
+                {
+                    "x": StaVariable(
+                        "x", StaObject(builtin.types["int"], 5)
+                    ),
+                }
+            ),  
         }
 
         tests = {
@@ -96,6 +136,8 @@ class TestInterpreter(unittest.TestCase):
             "test_struct.x": StaObject(builtin.types["int"], 5),
             "test_struct.y": StaObject(builtin.types["str"], "test"),
             "test_func(5)": StaObject(builtin.types["float"], 2.5),
+            "test_impl_struct.x": StaObject(builtin.types["int"], 5),
+            "test_impl_struct.foo()": StaObject(builtin.types["int"], 10),
         }
 
         for test, expected in tests.items():

@@ -45,7 +45,8 @@ class StaFunction:
 
 @dataclass
 class StaMethod(StaFunction):
-    target: StaObject
+    target: StaObject = None
+    # target will be set when the method is called
 
 
 @dataclass
@@ -180,8 +181,7 @@ class Interpreter:
 
         if is_method:
             return StaMethod(
-                ftype, signature.name.value, signature.params, block,
-                target=None # target will be set later
+                ftype, signature.name.value, signature.params, block
             )
         else:
             return StaFunction(

@@ -173,7 +173,8 @@ class TypeChecker:
                 if method is not None:
                     assert field is None, \
                         "Conflicting name between method and field"
-                    node.typ = method.checked_type
+                    # During testing, method can be something other than a FunctionDeclr (normally a StaMethod)
+                    node.typ = method.checked_type if isinstance(method, ast.FunctionDeclr) else method.typ
                 elif field is not None:
                     node.typ = field
                 else:
