@@ -39,10 +39,14 @@ class TestInterpreter(unittest.TestCase):
                     "foo": StaMethod(
                         types.FunctionType(
                             builtin.types["int"],
-                            [],
+                            [
+                                builtin.types["int"],
+                            ],
                         ),
                         "foo",
-                        [],
+                        [
+                            StaParameter(builtin.types["int"], ast.Identifier("x")),
+                        ],
                         ast.Block([
                             ast.ReturnStmt(
                                 ast.BinaryExpr(
@@ -51,10 +55,8 @@ class TestInterpreter(unittest.TestCase):
                                         ast.Identifier("self"),
                                         ast.Identifier("x"),
                                     ),
-                                    ast.Literal(
-                                        ast.Token(T.INTEGER, "5"),
-                                        typ=builtin.types["int"],
-                                    ),
+                                    ast.Identifier("x", typ=builtin.types["int"]),
+                                    typ=builtin.types["int"],
                                 ),
                             ),
                         ]),
@@ -137,7 +139,7 @@ class TestInterpreter(unittest.TestCase):
             "test_struct.y": StaObject(builtin.types["str"], "test"),
             "test_func(5)": StaObject(builtin.types["float"], 2.5),
             "test_impl_struct.x": StaObject(builtin.types["int"], 5),
-            "test_impl_struct.foo()": StaObject(builtin.types["int"], 10),
+            "test_impl_struct.foo(1)": StaObject(builtin.types["int"], 6),
         }
 
         for test, expected in tests.items():
