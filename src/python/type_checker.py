@@ -165,9 +165,21 @@ class TypeChecker:
 
             case ast.SelectorExpr(target, name):
                 self.check(target)
-                assert name.value in target.typ.fields, \
-                    f"Name {name.value} not in {target}"
-                node.typ = target.typ.fields[name.value]
+                method = target.typ.methods.get(name.value)
+                field = None
+                if isinstance(target.typ, types.StructType):
+                    field = target.typ.fields.get(name.value)
+
+                if method is not None:
+                    assert field is None, \
+                        "Conflicting name between method and field"
+                    # During testing, method can be something other than a FunctionDeclr (normally a StaMethod)
+                    node.typ = method.checked_type if isinstance(method, ast.FunctionDeclr) else method.typ
+                elif field is not None:
+                    node.typ = field
+                else:
+                    assert False, \
+                        f"Could not resolve name {name.value} in {target.typ}"
 
             case ast.UnaryExpr():
                 self.check_unary(node)
@@ -282,30 +294,32 @@ class TypeChecker:
             case _:
                 assert False, f"Unreachable: could not match stmt {node}"
 
+    def check_function_signature(self, node):
+        param_types = []
+        for param in node.params:
+            typ = None
+            logging.debug(param)
+            if param.typ is not None:
+                typ = self.check_type(param.typ)
+                param_types.append(typ)
+
+        return_type = None
+        if node.return_type is not None:
+            return_type = self.check_type(node.return_type)
+        return types.FunctionType(return_type, param_types)
+
     def check_declr(self, node):
         match node:
-            case ast.FunctionDeclr(name, return_type, params, block):
+            case ast.FunctionDeclr(signature, block):
                 # TODO: inference on parameters needs to be done from CallExprs
                 #       we need to defer checking until the type is concrete
-                param_types = []
-                for param in params:
-                    typ = None
-                    logging.debug(param)
-                    if param.typ is not None:
-                        typ = self.check_type(param.typ)
-                    param_types.append(typ)
-
-                if return_type is not None:
-                    return_type = self.check_type(return_type)
-                ftype = types.FunctionType(return_type, param_types)
-
-                logging.debug(ftype)
-                self.scope.declare(name, ftype)
+                ftype = self.check_function_signature(signature)
+                self.scope.declare(signature.name, ftype)
 
                 # TODO: defer this section until all declarations are checked
                 #       so functions can be used before they are declared
                 self.new_scope()
-                for param, ptype in zip(params, param_types):
+                for param, ptype in zip(signature.params, ftype.param_types):
                     self.scope.declare(param.name, ptype)
                 prev_function = self.function
                 self.function = ftype
@@ -321,6 +335,31 @@ class TypeChecker:
                 struct = types.StructType(name.value, members)
                 self.scope.declare(name, struct)
                 node.checked_type = struct
+
+            case ast.InterfaceDeclr(name, methods):
+                members = {}
+                for method in methods:
+                    mname = method.name.value
+                    members[mname] = self.check_function_signature(method)
+                interface = types.Interface(name.value, members)
+                self.scope.declare(name, interface)
+                node.checked_type = interface
+                logging.debug(interface)
+
+            case ast.ImplDeclr(target, interface, methods):
+                target = self.check_type(target)
+                if interface is not None:
+                    interface = self.scope.lookup(interface.value)
+                    assert isinstance(interface, types.Interface), \
+                        "Cannot implement non-interface"
+
+                self.new_scope()
+                self.scope.declare(ast.Identifier("self"), target)
+                for method in methods:
+                    # TODO: ensure only interface methods can be defined
+                    self.check_declr(method)
+                    target.methods[method.signature.name.value] = method
+                self.exit_scope()
 
             case ast.VariableDeclr(name, typ, value):
                 if value is not None:

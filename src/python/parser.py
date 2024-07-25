@@ -59,13 +59,16 @@ class Parser:
             return self.parse_function()
         elif self.check(T.STRUCT):
             return self.parse_struct()
+        elif self.check(T.INTERFACE):
+            return self.parse_interface()
+        elif self.check(T.IMPL):
+            return self.parse_impl_declr()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
         else:
             assert False, "Failed to parse declaration"
 
-    def parse_function(self):
-        self.consume(T.FUNC)
+    def parse_function_signature(self, *terminators):
         fname = self.parse_identifier()
         self.consume(T.LEFT_BRACKET)
 
@@ -75,14 +78,20 @@ class Parser:
             ptype = None
             if not self.check(T.COMMA, T.RIGHT_BRACKET):
                 ptype = self.parse_type()
-            params.append(ast.Parameter(pname, ptype))
+            params.append(ast.FieldDeclr(pname, ptype))
             self.consume(T.COMMA)
 
         ftype = None
-        if not self.check(T.LEFT_CURLY):
+        if not self.check(*terminators):
             ftype = self.parse_type()
+
+        return ast.FunctionSignature(fname, ftype, params)
+
+    def parse_function(self):
+        self.consume(T.FUNC)
+        signature = self.parse_function_signature(T.LEFT_CURLY)
         contents = self.parse_block()
-        return ast.FunctionDeclr(fname, ftype, params, contents)
+        return ast.FunctionDeclr(signature, contents)
 
     def parse_struct(self):
         self.consume(T.STRUCT)
@@ -91,8 +100,33 @@ class Parser:
         self.consume(T.LEFT_CURLY)
         while not self.consume(T.RIGHT_CURLY):
             fields.append(self.parse_field_declr())
-            self.consume(T.COMMA)
+            self.consume(T.SEMICOLON)
         return ast.StructDeclr(name, fields)
+
+    def parse_interface(self):
+        self.consume(T.INTERFACE)
+        name = self.parse_identifier()
+        methods = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY):
+            signature = self.parse_function_signature(T.SEMICOLON)
+            methods.append(signature)
+            self.consume(T.SEMICOLON)
+        return ast.InterfaceDeclr(name, methods)
+
+    def parse_impl_declr(self):
+        self.consume(T.IMPL)
+        target = self.parse_type()
+        if self.consume(T.LESS_THAN):
+            interface = self.parse_identifier()
+            self.consume(T.GREATER_THAN)
+        else:
+            interface = None
+        methods = []
+        self.consume(T.LEFT_CURLY)
+        while not self.consume(T.RIGHT_CURLY):
+            methods.append(self.parse_function())
+        return ast.ImplDeclr(target, interface, methods)
 
     def parse_field_declr(self):
         name = self.parse_identifier()

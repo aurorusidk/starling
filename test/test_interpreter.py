@@ -7,7 +7,7 @@ from src.python.type_checker import TypeChecker
 from src.python.interpreter import (
     Interpreter,
     StaObject, StaVariable, StaArray,
-    StaStruct, StaParameter, StaFunction, StaFunctionReturn,
+    StaStruct, StaParameter, StaFunction, StaFunctionReturn, StaMethod
 )
 from src.python import ast_nodes as ast
 from src.python import builtin
@@ -29,6 +29,39 @@ class TestInterpreter(unittest.TestCase):
                 [
                     builtin.types["int"],
                 ],
+            ),
+            "test_impl_struct": types.StructType(
+                "test_impl_struct",
+                {
+                    "x": builtin.types["int"],
+                },
+                methods={
+                    "foo": StaMethod(
+                        types.FunctionType(
+                            builtin.types["int"],
+                            [
+                                builtin.types["int"],
+                            ],
+                        ),
+                        "foo",
+                        [
+                            StaParameter(builtin.types["int"], ast.Identifier("x")),
+                        ],
+                        ast.Block([
+                            ast.ReturnStmt(
+                                ast.BinaryExpr(
+                                    Token(T.PLUS, "+"),
+                                    ast.SelectorExpr(
+                                        ast.Identifier("self"),
+                                        ast.Identifier("x"),
+                                    ),
+                                    ast.Identifier("x", typ=builtin.types["int"]),
+                                    typ=builtin.types["int"],
+                                ),
+                            ),
+                        ]),
+                    ),
+                },
             ),
         }
         names = {
@@ -66,6 +99,15 @@ class TestInterpreter(unittest.TestCase):
                     ),
                 ]),
             ),
+            "test_impl_struct": StaStruct(
+                tc_names["test_impl_struct"],
+                "test_impl_struct",
+                {
+                    "x": StaVariable(
+                        "x", StaObject(builtin.types["int"], 5)
+                    ),
+                }
+            ),  
         }
 
         tests = {
@@ -96,6 +138,8 @@ class TestInterpreter(unittest.TestCase):
             "test_struct.x": StaObject(builtin.types["int"], 5),
             "test_struct.y": StaObject(builtin.types["str"], "test"),
             "test_func(5)": StaObject(builtin.types["float"], 2.5),
+            "test_impl_struct.x": StaObject(builtin.types["int"], 5),
+            "test_impl_struct.foo(1)": StaObject(builtin.types["int"], 6),
         }
 
         for test, expected in tests.items():
@@ -165,7 +209,7 @@ class TestInterpreter(unittest.TestCase):
                 [],
                 ast.Block([]),
             ),
-            "struct test {x int, y str}": types.StructType(
+            "struct test {x int; y str;}": types.StructType(
                 "test",
                 {
                     "x": builtin.types["int"],
@@ -175,6 +219,40 @@ class TestInterpreter(unittest.TestCase):
             "var test float = 3.14": StaVariable(
                 "test",
                 StaObject(builtin.types["float"], 3.14),
+            ),
+            "interface test {x() int; y(z str) str;}": types.Interface(
+                "test",
+                {
+                    "x": types.FunctionType(
+                        builtin.types["int"],
+                        [],
+                    ),
+                    "y": types.FunctionType(
+                        builtin.types["str"],
+                        [
+                            builtin.types["str"]
+                        ],
+                    ),
+                },
+            ),
+            """struct test {x int;}
+               impl test {fn foo() int {}}""": types.StructType(
+                "test",
+                {
+                    "x": builtin.types["int"]
+                },
+                methods={
+                    "foo": StaMethod(
+                        types.FunctionType(
+                            builtin.types["int"],
+                            []
+                        ),
+                        "foo",
+                        [],
+                        ast.Block([]),
+                        None
+                    ),
+                },
             ),
         }
 

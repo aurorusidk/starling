@@ -8,22 +8,24 @@ class TestParser(unittest.TestCase):
     def test_valid_declr(self):
         tests = {
             "fn test(x int, y int) int {}": ast.FunctionDeclr(
-                ast.Identifier("test"),
-                ast.TypeName(ast.Identifier("int")),
-                [
-                    ast.Parameter(
-                        ast.Identifier("x"),
-                        ast.TypeName(ast.Identifier("int")),
-                    ),
-                    ast.Parameter(
-                        ast.Identifier("y"),
-                        ast.TypeName(ast.Identifier("int")),
-                    ),
-                ],
+                ast.FunctionSignature(
+                    ast.Identifier("test"),
+                    ast.TypeName(ast.Identifier("int")),
+                    [
+                        ast.FieldDeclr(
+                            ast.Identifier("x"),
+                            ast.TypeName(ast.Identifier("int")),
+                        ),
+                        ast.FieldDeclr(
+                            ast.Identifier("y"),
+                            ast.TypeName(ast.Identifier("int")),
+                        ),
+                    ],
+                ),
                 ast.Block([]),
             ),
 
-            "struct test {x int, y int}": ast.StructDeclr(
+            "struct test {x int; y int;}": ast.StructDeclr(
                 ast.Identifier("test"),
                 [
                     ast.FieldDeclr(
@@ -55,7 +57,8 @@ class TestParser(unittest.TestCase):
         # TODO: implement correct parser errors, so test works correctly
         tests = [
             "func test(x int, y int) int {}",
-            "struct test (x int, y int)",
+            "struct test {x int, y int}"
+            "struct test (x int; y int;)",
             "var test == x;",
             "var test = x",
         ]

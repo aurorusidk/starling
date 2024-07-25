@@ -11,7 +11,7 @@ TokenType = Enum("TokenType", [
     "LEFT_BRACKET", "RIGHT_BRACKET",
     "LEFT_CURLY", "RIGHT_CURLY", "LEFT_SQUARE", "RIGHT_SQUARE",
     "IF", "ELSE", "WHILE", "RETURN",
-    "VAR", "FUNC", "STRUCT",
+    "VAR", "FUNC", "STRUCT", "INTERFACE", "IMPL",
 ])
 Token = namedtuple("Token", ["typ", "lexeme"])
 
@@ -27,7 +27,9 @@ KEYWORDS = {
     "return": T.RETURN,
     "var": T.VAR,
     "fn": T.FUNC,
-    "struct": T.STRUCT
+    "struct": T.STRUCT,
+    "interface": T.INTERFACE,
+    "impl": T.IMPL,
 }
 
 DIGRAPHS = {
@@ -79,12 +81,12 @@ def tokenise(src):
         typ = None
         char = src[cur]
         if char == '\n':
-            cur += 1
             # automatic semicolon insertion
             if tokens[-1].typ in SEMICOLON_INSERT:
                 lexeme = ';'
                 typ = T.SEMICOLON
             else:
+                cur += 1
                 continue
         elif char.isspace():
             cur += 1
