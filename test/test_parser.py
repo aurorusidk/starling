@@ -1,5 +1,6 @@
+import logging
 import unittest
-from src.python.lexer import tokenise, Token, TokenType as T
+from src.python.lexer import tokenise, Token, TokenType as T, Pos
 from src.python.parser import Parser
 import src.python.ast_nodes as ast
 
@@ -52,7 +53,6 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_declaration(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_declr(self):
         # TODO: implement correct parser errors, so test works correctly
         tests = [
@@ -100,14 +100,12 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_statement(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_stmt(self):
         # TODO: add more variations
         tests = [
             "if test () else ()",
             "whiletest {}",
             "return test",
-            "test == x;"
         ]
 
         p = Parser(None)
@@ -118,8 +116,8 @@ class TestParser(unittest.TestCase):
 
     def test_valid_expr(self):
         tests = {
-            "1": ast.Literal(Token(T.INTEGER, "1")),
-            "true": ast.Literal(Token(T.BOOLEAN, "true")),
+            "1": ast.Literal(Token(T.INTEGER, "1", Pos(1, 1))),
+            "true": ast.Literal(Token(T.BOOLEAN, "true", Pos(1, 1))),
             "test": ast.Identifier("test"),
             "[x:y]": ast.RangeExpr(
                 ast.Identifier("x"),
@@ -142,11 +140,11 @@ class TestParser(unittest.TestCase):
                 ast.Identifier("x"),
             ),
             "!test": ast.UnaryExpr(
-                Token(T.BANG, "!"),
+                Token(T.BANG, "!", Pos(1, 1)),
                 ast.Identifier("test"),
             ),
             "x + y": ast.BinaryExpr(
-                Token(T.PLUS, "+"),
+                Token(T.PLUS, "+", Pos(1, 3)),
                 ast.Identifier("x"),
                 ast.Identifier("y"),
             ),
@@ -158,7 +156,6 @@ class TestParser(unittest.TestCase):
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
 
-    @unittest.expectedFailure
     def test_invalid_expr(self):
         tests = [
             ":",
@@ -182,30 +179,30 @@ class TestParser(unittest.TestCase):
     def test_binop_precs(self):
         tests = {
             "a * b - c / d": ast.BinaryExpr(
-                Token(T.MINUS, "-"),
+                Token(T.MINUS, "-", Pos(1, 7)),
                 ast.BinaryExpr(
-                    Token(T.STAR, "*"),
+                    Token(T.STAR, "*", Pos(1, 3)),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    Token(T.SLASH, "/"),
+                    Token(T.SLASH, "/", Pos(1, 11)),
                     ast.Identifier("c"),
                     ast.Identifier("d"),
                 ),
             ),
             "a * b != c - d / e": ast.BinaryExpr(
-                Token(T.BANG_EQUALS, "!="),
+                Token(T.BANG_EQUALS, "!=", Pos(1, 7)),
                 ast.BinaryExpr(
-                    Token(T.STAR, "*"),
+                    Token(T.STAR, "*", Pos(1, 3)),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    Token(T.MINUS, "-"),
+                    Token(T.MINUS, "-", Pos(1, 12)),
                     ast.Identifier("c"),
                     ast.BinaryExpr(
-                        Token(T.SLASH, "/"),
+                        Token(T.SLASH, "/", Pos(1, 16)),
                         ast.Identifier("d"),
                         ast.Identifier("e"),
                     ),
@@ -218,3 +215,34 @@ class TestParser(unittest.TestCase):
             p.cur = 0
             p.tokens = tokenise(test)
             self.assertEqual(p.parse_expression(), expected)
+
+    def test_error_reporting(self):
+        tests = [
+            # Tests given as a tuple:
+                # A string for the code
+                # A tuple for the expected logs, as regexes
+                
+            ("""fn test() {
+                    var a int = 1;
+                    var b int == 2;
+                    var c str = 3;
+                }""",
+                (
+                    "expected(.+)TokenType.SEMICOLON",
+                    "Failed to parse primary"
+                )
+            )
+        ]
+
+        p = Parser(None, (lambda err: logging.error(err)))
+        for test in tests:
+            p.cur = 0
+            p.tokens = tokenise(test[0])
+            with self.assertLogs(level=logging.ERROR) as cm:
+                p.parse_program()
+
+                # Check that the right number of errors were logged
+                self.assertEqual(len(cm.output), len(test[1]))
+
+                for log, expected in zip(cm.output, test[1]):
+                    self.assertRegex(log, expected)

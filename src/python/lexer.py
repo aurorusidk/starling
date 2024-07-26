@@ -1,4 +1,5 @@
 from collections import namedtuple
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -13,7 +14,17 @@ TokenType = Enum("TokenType", [
     "IF", "ELSE", "WHILE", "RETURN",
     "VAR", "FUNC", "STRUCT", "INTERFACE", "IMPL",
 ])
-Token = namedtuple("Token", ["typ", "lexeme"])
+Token = namedtuple("Token", ["typ", "lexeme", "pos"])
+
+
+@dataclass
+class Pos:
+    line: int
+    col: int
+
+    def __iadd__(self, other):
+        return Pos(self.line, self.col + other)
+
 
 T = TokenType
 
@@ -73,14 +84,17 @@ def get(src, index, length=1):
         return ""
 
 
-def tokenise(src):
+def tokenise(src, error_handler=None):
     cur = 0
+    pos = Pos(1, 1)
     tokens = []
     while cur < len(src):
+        cur_pos = pos
         lexeme = None
         typ = None
         char = src[cur]
         if char == '\n':
+            pos = Pos(pos.line + 1, 1)
             # automatic semicolon insertion
             if tokens[-1].typ in SEMICOLON_INSERT:
                 lexeme = ';'
@@ -89,6 +103,7 @@ def tokenise(src):
                 cur += 1
                 continue
         elif char.isspace():
+            pos += 1
             cur += 1
             continue
         elif char.isalpha() or char == '_':
@@ -141,8 +156,13 @@ def tokenise(src):
 
         if not lexeme:
             # syntax error (unexpected char)
-            assert False, "Tokenisation: Syntax Error"
-        tokens.append(Token(typ, lexeme))
+            msg = f"Syntax error: unexpected character '{char}'"
+            if error_handler is None:
+                assert False, msg
+            else:
+                error_handler(msg)
+        tokens.append(Token(typ, lexeme, cur_pos))
+        pos += len(lexeme)
         cur += len(lexeme)
     return tokens
 

@@ -115,8 +115,8 @@ class TestTypeChecker(unittest.TestCase):
             "while x {}",
             "return 1.5;",
             "return x;",
-            "x = 1//2",
-            "x = \"test\"",
+            "x = 1//2;",
+            "x = \"test\";",
         ]
 
         for test in tests:
