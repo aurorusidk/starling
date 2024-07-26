@@ -107,7 +107,7 @@ class TestInterpreter(unittest.TestCase):
                         "x", StaObject(builtin.types["int"], 5)
                     ),
                 }
-            ),  
+            ),
         }
 
         tests = {

@@ -219,10 +219,11 @@ class TestParser(unittest.TestCase):
     def test_error_reporting(self):
         tests = [
             # Tests given as a tuple:
-                # A string for the code
-                # A tuple for the expected logs, as regexes
-                
-            ("""fn test() {
+            #   A string for the code
+            #   A tuple for the expected logs, as regexes
+
+            (
+                """fn test() {
                     var a int = 1;
                     var b int == 2;
                     var c str = 3;

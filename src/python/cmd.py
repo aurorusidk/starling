@@ -20,4 +20,3 @@ def exec_file(path):
             interpreter.eval_node(fn.block)
         except StaFunctionReturn as res:
             print(f"program returned with value {res.value}")
-
