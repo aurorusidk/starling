@@ -7,17 +7,21 @@ from src.python import type_defs as types
 
 
 class TestTypeChecker(unittest.TestCase):
-    def test_valid_expr_check(self):
-        names = {
-            "x": builtin.types["int"],
-            "test": types.FunctionType(
-                builtin.types["frac"],
-                [
-                    builtin.types["float"],
-                ]
-            ),
-        }
+    global_declrs = [
+        "var x int;",
+        "fn test(n float) frac {}",
+    ]
 
+    def testing_prerequisites(self, tc=None):
+        for declr in self.global_declrs:
+            tokens = tokenise(declr)
+            ast = Parser(tokens).parse(tokens)
+            if tc is None:
+                # for when this is run as a test
+                tc = TypeChecker(ast)
+            tc.check(ast)
+
+    def test_valid_expr_check(self):
         tests = {
             "1 + 1": builtin.types["int"],
             "1 + 1//2": builtin.types["frac"],
@@ -37,21 +41,11 @@ class TestTypeChecker(unittest.TestCase):
             tokens = tokenise(test)
             ast = Parser(tokens).parse_expression()
             tc = TypeChecker(ast)
-            tc.scope.name_map |= names
+            self.testing_prerequisites(tc)
             tc.check(tc.root)
             self.assertEqual(tc.root.typ, expected)
 
     def test_invalid_expr_check(self):
-        names = {
-            "x": builtin.types["int"],
-            "test": types.FunctionType(
-                builtin.types["frac"],
-                [
-                    builtin.types["float"],
-                ]
-            ),
-        }
-
         tests = [
             "1 + \"a\"",
             "\"a\" * \"b\"",
@@ -69,20 +63,10 @@ class TestTypeChecker(unittest.TestCase):
             tokens = tokenise(test)
             ast = Parser(tokens).parse_expression()
             tc = TypeChecker(ast)
-            tc.scope.name_map |= names
+            self.testing_prerequisites(tc)
             self.assertRaises(AssertionError, tc.check, tc.root)
 
     def test_valid_stmt_check(self):
-        names = {
-            "x": builtin.types["int"],
-            "test": types.FunctionType(
-                builtin.types["frac"],
-                [
-                    builtin.types["float"],
-                ]
-            ),
-        }
-
         tests = [
             "if x == 1 {} else {}",
             "while x > 0 {}",
@@ -94,21 +78,11 @@ class TestTypeChecker(unittest.TestCase):
             tokens = tokenise(test)
             ast = Parser(tokens).parse_statement()
             tc = TypeChecker(ast)
-            tc.scope.name_map |= names
-            tc.function = names["test"]
+            self.testing_prerequisites(tc)
+            tc.function = tc.scope.lookup("test")
             tc.check(tc.root)
 
     def test_invalid_stmt_check(self):
-        names = {
-            "x": builtin.types["int"],
-            "test": types.FunctionType(
-                builtin.types["frac"],
-                [
-                    builtin.types["float"],
-                ]
-            ),
-        }
-
         tests = [
             "if x {} else {}",
             "if 1 {}",
@@ -123,8 +97,8 @@ class TestTypeChecker(unittest.TestCase):
             tokens = tokenise(test)
             ast = Parser(tokens).parse_statement()
             tc = TypeChecker(ast)
-            tc.scope.name_map |= names
-            tc.function = names["test"]
+            self.testing_prerequisites(tc)
+            tc.function = tc.scope.lookup("test")
             self.assertRaises(AssertionError, tc.check, tc.root)
 
     def test_valid_declr_check(self):
