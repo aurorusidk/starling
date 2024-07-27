@@ -52,6 +52,8 @@ class TestTypeChecker(unittest.TestCase):
             "true / false",
             "x - \"a\"",
             "test(x)",
+            "test(1, 2)",
+            "test(\"foo\")",
             "test(1.5)[x]",
             "[1:10][1.5]",
             "[0:4.5]",
