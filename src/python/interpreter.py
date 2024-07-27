@@ -189,7 +189,7 @@ class Interpreter:
             )
 
     def eval_function_declr(self, signature, ftype, block):
-        # Verify that the signature's param types are correct based on the FunctionType
+        # Verify that the signature's param types are correct
         for param, typ in zip(signature.params, ftype.param_types):
             param.typ = typ
 
@@ -223,12 +223,13 @@ class Interpreter:
                 assert method.signature in interface, \
                     f"No method {method.signature} on interface {interface}"
 
-            # use the checked type from the type checker to build the method object
-            ftype = target_type.methods[method.signature.name.value].checked_type
+            method_name = method.signature.name.value
+            # use the checked type to build the method object
+            ftype = target_type.methods[method_name].checked_type
             method_obj = self.eval_function_inst(
                 method.signature, ftype, method.block, is_method=True
             )
-            target_type.methods[method.signature.name.value] = method_obj
+            target_type.methods[method_name] = method_obj
 
     def eval_variable_declr(self, name, typ, value):
         if value is not None:

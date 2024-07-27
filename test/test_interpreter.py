@@ -7,7 +7,7 @@ from src.python.type_checker import TypeChecker
 from src.python.interpreter import (
     Interpreter,
     StaObject, StaVariable, StaArray,
-    StaFunction, StaFunctionReturn, StaMethod
+    StaStruct, StaFunction, StaFunctionReturn, StaMethod
 )
 from src.python import ast_nodes as ast
 from src.python import builtin
@@ -20,7 +20,6 @@ class TestInterpreter(unittest.TestCase):
         "var test_struct = test_struct_def(5, \"test\");",
         "fn test_func(x int) {return x / 2;}",
         """
-        var test_impl_struct = test_struct_def(5, \"test\");
         impl test_struct_def {
             fn foo(x int) int {
                 return self.x + x;
@@ -81,8 +80,7 @@ class TestInterpreter(unittest.TestCase):
             "test_struct.x": StaObject(builtin.types["int"], 5),
             "test_struct.y": StaObject(builtin.types["str"], "test"),
             "test_func(5)": StaObject(builtin.types["float"], 2.5),
-            "test_impl_struct.x": StaObject(builtin.types["int"], 5),
-            "test_impl_struct.foo(1)": StaObject(builtin.types["int"], 6),
+            "test_struct.foo(1)": StaObject(builtin.types["int"], 6),
         }
 
         for test, expected in tests.items():
@@ -189,6 +187,30 @@ class TestInterpreter(unittest.TestCase):
                         None
                     ),
                 },
+            ),
+            """struct foo {x int; y str;}
+               var test = foo(5, "test");""": StaVariable(
+                "test",
+                StaStruct(
+                    types.StructType(
+                        "foo",
+                        {
+                            "x": builtin.types["int"],
+                            "y": builtin.types["str"],
+                        }
+                    ),
+                    "foo",
+                    {
+                        "x": StaVariable(
+                            "x",
+                            StaObject(builtin.types["int"], 5)
+                        ),
+                        "y": StaVariable(
+                            "y",
+                            StaObject(builtin.types["str"], "test")
+                        ),
+                    }
+                ),
             ),
         }
 
