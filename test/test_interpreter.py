@@ -1,13 +1,13 @@
 import unittest
 from fractions import Fraction
 
-from src.python.lexer import tokenise, Token, TokenType as T
+from src.python.lexer import tokenise
 from src.python.parser import parse
 from src.python.type_checker import TypeChecker
 from src.python.interpreter import (
     Interpreter,
     StaObject, StaVariable, StaArray,
-    StaStruct, StaParameter, StaFunction, StaFunctionReturn, StaMethod
+    StaFunction, StaFunctionReturn, StaMethod
 )
 from src.python import ast_nodes as ast
 from src.python import builtin
@@ -15,101 +15,35 @@ from src.python import type_defs as types
 
 
 class TestInterpreter(unittest.TestCase):
-    def test_expr_eval(self):
-        tc_names = {
-            "test_struct": types.StructType(
-                "test_struct",
-                {
-                    "x": builtin.types["int"],
-                    "y": builtin.types["str"],
-                },
-            ),
-            "test_func": types.FunctionType(
-                builtin.types["float"],
-                [
-                    builtin.types["int"],
-                ],
-            ),
-            "test_impl_struct": types.StructType(
-                "test_impl_struct",
-                {
-                    "x": builtin.types["int"],
-                },
-                methods={
-                    "foo": StaMethod(
-                        types.FunctionType(
-                            builtin.types["int"],
-                            [
-                                builtin.types["int"],
-                            ],
-                        ),
-                        "foo",
-                        [
-                            StaParameter(builtin.types["int"], ast.Identifier("x")),
-                        ],
-                        ast.Block([
-                            ast.ReturnStmt(
-                                ast.BinaryExpr(
-                                    Token(T.PLUS, "+", None),
-                                    ast.SelectorExpr(
-                                        ast.Identifier("self"),
-                                        ast.Identifier("x"),
-                                    ),
-                                    ast.Identifier("x", typ=builtin.types["int"]),
-                                    typ=builtin.types["int"],
-                                ),
-                            ),
-                        ]),
-                    ),
-                },
-            ),
+    global_declrs = [
+        "struct test_struct_def {x int; y str;}",
+        "var test_struct = test_struct_def(5, \"test\");",
+        "fn test_func(x int) {return x / 2;}",
+        """
+        var test_impl_struct = test_struct_def(5, \"test\");
+        impl test_struct_def {
+            fn foo(x int) int {
+                return self.x + x;
+            }
         }
-        names = {
-            "test_struct": StaStruct(
-                tc_names["test_struct"],
-                "test_struct",
-                {
-                    "x": StaVariable(
-                        "x", StaObject(builtin.types["int"], 5)
-                    ),
-                    "y": StaVariable(
-                        "y", StaObject(builtin.types["str"], "test")
-                    ),
-                },
-            ),
-            # this is pretty awful since we have to manually specify the ast
-            # and add the type information
-            "test_func": StaFunction(
-                tc_names["test_func"],
-                "test_func",
-                [
-                    StaParameter(builtin.types["int"], ast.Identifier("x")),
-                ],
-                ast.Block([
-                    ast.ReturnStmt(
-                        ast.BinaryExpr(
-                            Token(T.SLASH, "/", None),
-                            ast.Identifier("x", typ=builtin.types["int"]),
-                            ast.Literal(
-                                Token(T.INTEGER, "2", None),
-                                typ=builtin.types["int"]
-                            ),
-                            typ=builtin.types["float"],
-                        ),
-                    ),
-                ]),
-            ),
-            "test_impl_struct": StaStruct(
-                tc_names["test_impl_struct"],
-                "test_impl_struct",
-                {
-                    "x": StaVariable(
-                        "x", StaObject(builtin.types["int"], 5)
-                    ),
-                }
-            ),
-        }
+        """,
+        "var x int = 1;",
+    ]
 
+    def testing_prerequisites(self, tc=None, interpreter=None):
+        for declr in self.global_declrs:
+            tokens = tokenise(declr)
+            tree = parse(tokens)
+            if tc is None:
+                # for when this is run as a test
+                tc = TypeChecker(tree)
+            tc.check(tree)
+            if interpreter is None:
+                # for when this is run as a test
+                interpreter = Interpreter()
+            interpreter.eval_node(tree)
+
+    def test_expr_eval(self):
         tests = {
             "true": StaObject(builtin.types["bool"], True),
             "false": StaObject(builtin.types["bool"], False),
@@ -147,10 +81,9 @@ class TestInterpreter(unittest.TestCase):
             tokens = tokenise(test)
             tree = parse(tokens)
             tc = TypeChecker(tree)
-            tc.scope.name_map |= tc_names
-            tc.check(tree)
             interpreter = Interpreter()
-            interpreter.scope.name_map |= names
+            self.testing_prerequisites(tc, interpreter)
+            tc.check(tree)
             interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")
@@ -161,13 +94,6 @@ class TestInterpreter(unittest.TestCase):
                 assert False
 
     def test_stmt_eval(self):
-        tc_names = {
-            "x": builtin.types["int"],
-        }
-        names = {
-            "x": StaVariable("x", StaObject(builtin.types["int"], 1)),
-        }
-
         tests = {
             "if true {return 1;} else {return 0;}": StaObject(
                 builtin.types["int"], 1
@@ -188,10 +114,9 @@ class TestInterpreter(unittest.TestCase):
             tokens = tokenise(test)
             tree = parse(tokens)
             tc = TypeChecker(tree)
-            tc.scope.name_map |= tc_names
-            tc.check(tree)
             interpreter = Interpreter()
-            interpreter.scope.name_map |= names
+            self.testing_prerequisites(tc, interpreter)
+            tc.check(tree)
             interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")

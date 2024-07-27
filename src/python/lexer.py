@@ -96,7 +96,7 @@ def tokenise(src, error_handler=None):
         if char == '\n':
             pos = Pos(pos.line + 1, 1)
             # automatic semicolon insertion
-            if tokens[-1].typ in SEMICOLON_INSERT:
+            if tokens and tokens[-1].typ in SEMICOLON_INSERT:
                 lexeme = ';'
                 typ = T.SEMICOLON
             else:
