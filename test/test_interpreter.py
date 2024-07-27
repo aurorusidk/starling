@@ -43,6 +43,15 @@ class TestInterpreter(unittest.TestCase):
                 interpreter = Interpreter()
             interpreter.eval_node(tree)
 
+    def testing_tc_prerequisites(self, tc=None):
+        for declr in self.global_declrs:
+            tokens = tokenise(declr)
+            tree = parse(tokens)
+            if tc is None:
+                # for when this is run as a test
+                tc = TypeChecker(tree)
+            tc.check(tree)
+
     def test_expr_eval(self):
         tests = {
             "true": StaObject(builtin.types["bool"], True),
@@ -81,9 +90,10 @@ class TestInterpreter(unittest.TestCase):
             tokens = tokenise(test)
             tree = parse(tokens)
             tc = TypeChecker(tree)
+            self.testing_tc_prerequisites(tc)
+            tc.check(tree)
             interpreter = Interpreter()
             self.testing_prerequisites(tc, interpreter)
-            tc.check(tree)
             interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")
@@ -114,9 +124,10 @@ class TestInterpreter(unittest.TestCase):
             tokens = tokenise(test)
             tree = parse(tokens)
             tc = TypeChecker(tree)
+            self.testing_tc_prerequisites(tc)
+            tc.check(tree)
             interpreter = Interpreter()
             self.testing_prerequisites(tc, interpreter)
-            tc.check(tree)
             interpreter.eval_node(tree)
             try:
                 f = interpreter.scope.lookup("test")
