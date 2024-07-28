@@ -200,6 +200,12 @@ TBD - Starling will not feature traditional `for` loops.
 
 # Further research required
 
+## Integer precision
+
+The `int` type in Python has infinite precision. It would be good to also implement this in Starling.
+
+We need to research how infinite precision/bit-length integers can be achieved.
+
 ## Mathematics
 
 We need to research the best approximations to use for the various standard maths functions that we plan to implement.
