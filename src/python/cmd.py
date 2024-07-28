@@ -22,6 +22,7 @@ def exec_file(path):
         except StaFunctionReturn as res:
             print(f"program returned with value {res.value}")
 
+
 def compile_file(path):
     with open(path) as f:
         src = f.read()
