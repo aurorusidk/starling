@@ -3,6 +3,8 @@ import logging
 from .lexer import TokenType as T
 from .type_checker import Scope
 from . import ast_nodes as ast
+from . import builtin
+from llvmlite import ir
 
 
 class Compiler:
@@ -207,7 +209,12 @@ class Compiler:
         raise NotImplementedError
 
     def build_literal(self, value, typ):
-        raise NotImplementedError
+        if typ == builtin.types["int"]:
+            return ir.Constant(ir.IntType(32), int(value.lexeme))
+        elif typ == builtin.types["float"]:
+            return ir.Constant(ir.DoubleType, float(value.lexeme))
+        else:
+            raise NotImplementedError
 
     def build_identifier(self, name):
         raise NotImplementedError
