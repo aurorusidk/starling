@@ -9,7 +9,8 @@ from llvmlite import ir
 
 type_map = {
     builtin.types["int"]: ir.IntType(32),
-    builtin.types["float"]: ir.DoubleType()
+    builtin.types["float"]: ir.DoubleType(),
+    builtin.types["bool"]: ir.IntType(1),
 }
 
 
@@ -252,6 +253,8 @@ class Compiler:
             return ir.Constant(ir.IntType(32), int(value.lexeme))
         elif typ == builtin.types["float"]:
             return ir.Constant(ir.DoubleType(), float(value.lexeme))
+        elif typ == builtin.types["bool"]:
+            return ir.Constant(ir.IntType(1), value.lexeme == "true")
         else:
             raise NotImplementedError
 
