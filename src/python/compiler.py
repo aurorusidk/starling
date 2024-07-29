@@ -139,7 +139,18 @@ class Compiler:
             self.build_node(stmt)
 
     def build_if_stmt(self, condition, if_block, else_block):
-        raise NotImplementedError
+        # TODO: Fully implement expression building
+        condition = self.build_node(condition)
+
+        if else_block is None:
+            with self.builder.if_then(condition):
+                self.build_node(if_block)
+        else:
+            with self.builder.if_else(condition) as (then, otherwise):
+                with then:
+                    self.build_node(if_block)
+                with otherwise:
+                    self.build_node(else_block)
 
     def build_while_stmt(self, condition, while_block):
         raise NotImplementedError
