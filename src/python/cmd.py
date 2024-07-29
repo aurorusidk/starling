@@ -1,3 +1,6 @@
+import llvmlite.binding as llvm
+from ctypes import CFUNCTYPE, c_int
+
 # this shadows a python module name but it hopefully doesn't matter
 from .lexer import tokenise
 from .parser import parse
@@ -31,5 +34,23 @@ def compile_file(path):
     tc = TypeChecker(ast)
     tc.check(tc.root)
     compiler = Compiler()
-    compiler.compile(ast)
-    # TODO: build the ir
+    compiler.build_node(ast)
+
+    llvm.initialize()
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+    target = llvm.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_mod = llvm.parse_assembly("")
+    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
+
+    mod = llvm.parse_assembly(compiler.module)
+    mod.verify()
+    engine.add_module(mod)
+    engine.finalize_object()
+    engine.run_static_constructors()
+
+    func_ptr = engine.get_function_address("main")
+    cfunc = CFUNCTYPE(c_int)(func_ptr)
+    res = cfunc()
+    print(res)
