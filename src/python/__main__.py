@@ -1,5 +1,4 @@
 import argparse
-import sys
 
 from .cmd import exec_file, compile_file
 

@@ -7,9 +7,17 @@ from . import builtin
 from llvmlite import ir
 
 
+type_map = {
+    builtin.types["int"]: ir.IntType(32),
+    builtin.types["float"]: ir.DoubleType()
+}
+
+
 class Compiler:
     def __init__(self):
         self.scope = Scope(None)
+        self.module = ir.Module()
+        self.builder = None
         # TODO: builtins
 
     def build_node(self, node):
@@ -78,14 +86,32 @@ class Compiler:
 
     def build_program(self, declrs):
         logging.debug(f"{declrs}")
-        raise NotImplementedError
+        for declr in declrs:
+            self.build_node(declr)
 
     def build_function_inst(self, signature, ftype, block, is_method=False):
         logging.debug(f"{signature}")
-        raise NotImplementedError
+        if is_method:
+            raise NotImplementedError
+        else:
+            return_type = type_map[ftype.return_type]
+            param_types = (type_map[p] for p in ftype.param_types)
+
+            ftype = ir.FunctionType(return_type, param_types)
+            func = ir.Function(self.module, ftype, name=signature.name.value)
+            return func
 
     def build_function_declr(self, signature, ftype, block):
-        raise NotImplementedError
+        func = self.build_function_inst(signature, ftype, block)
+        fblock = func.append_basic_block("entry")
+        prev_builder = self.builder
+        self.builder = ir.IRBuilder(fblock)
+
+        for arg, param in zip(func.args, signature.params):
+            self.scope.declare(param.name, arg)
+        self.build_node(block)
+
+        self.builder = prev_builder
 
     def build_struct_declr(self, name, typ, members):
         logging.debug(f"{name}, {members}")
@@ -109,7 +135,8 @@ class Compiler:
         raise NotImplementedError
 
     def build_block(self, stmts):
-        raise NotImplementedError
+        for stmt in stmts:
+            self.build_node(stmt)
 
     def build_if_stmt(self, condition, if_block, else_block):
         raise NotImplementedError
@@ -118,7 +145,8 @@ class Compiler:
         raise NotImplementedError
 
     def build_return_stmt(self, value):
-        raise NotImplementedError
+        value = self.build_node(value)
+        self.builder.ret(value)
 
     def build_assignment_stmt(self, target, value):
         raise NotImplementedError
@@ -212,7 +240,7 @@ class Compiler:
         if typ == builtin.types["int"]:
             return ir.Constant(ir.IntType(32), int(value.lexeme))
         elif typ == builtin.types["float"]:
-            return ir.Constant(ir.DoubleType, float(value.lexeme))
+            return ir.Constant(ir.DoubleType(), float(value.lexeme))
         else:
             raise NotImplementedError
 

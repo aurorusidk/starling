@@ -44,7 +44,8 @@ def compile_file(path):
     backing_mod = llvm.parse_assembly("")
     engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
 
-    mod = llvm.parse_assembly(compiler.module)
+    print(compiler.module)
+    mod = llvm.parse_assembly(str(compiler.module))
     mod.verify()
     engine.add_module(mod)
     engine.finalize_object()
@@ -53,4 +54,4 @@ def compile_file(path):
     func_ptr = engine.get_function_address("main")
     cfunc = CFUNCTYPE(c_int)(func_ptr)
     res = cfunc()
-    print(res)
+    print("program exited with code:", res)
