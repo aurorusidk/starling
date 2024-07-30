@@ -1,10 +1,11 @@
 import logging
+from llvmlite import ir
+from dataclasses import dataclass
 
 from .lexer import TokenType as T
 from .type_checker import Scope
 from . import ast_nodes as ast
 from . import builtin
-from llvmlite import ir
 
 
 type_map = {
@@ -14,6 +15,12 @@ type_map = {
 }
 
 
+@dataclass
+class StaVariable:
+    name: str
+    ptr: ir.PointerType
+
+
 class Compiler:
     def __init__(self):
         self.scope = Scope(None)
@@ -21,12 +28,12 @@ class Compiler:
         self.builder = None
         # TODO: builtins
 
-    def build_node(self, node):
+    def build_node(self, node, **kwargs):
         match node:
             case ast.Literal(tok):
                 return self.build_literal(tok, node.typ)
             case ast.Identifier(name):
-                return self.build_identifier(name)
+                return self.build_identifier(name, **kwargs)
             case ast.RangeExpr(start, end):
                 return self.build_range_expr(start, end)
             case ast.GroupExpr(expr):
@@ -127,7 +134,12 @@ class Compiler:
         raise NotImplementedError
 
     def build_variable_declr(self, name, typ, value):
-        raise NotImplementedError
+        typ = type_map[typ]
+        ptr = self.builder.alloca(typ)
+        if value is not None:
+            value = self.build_node(value)
+            self.builder.store(value, ptr)
+        self.scope.declare(name, ptr)
 
     def build_type(self, name):
         raise NotImplementedError
@@ -155,7 +167,7 @@ class Compiler:
             if_terminated = self.builder.block.is_terminated
             if not if_terminated:
                 self.builder.branch(end_bb)
-        
+
         else:
             then_bb = self.builder.append_basic_block("then")
             else_bb = self.builder.append_basic_block("else")
@@ -174,11 +186,11 @@ class Compiler:
 
             if not (if_terminated and else_terminated):
                 end_bb = self.builder.append_basic_block("end")
-                
+
                 if not if_terminated:
                     self.builder.position_at_end(then_bb)
                     self.builder.branch(end_bb)
-                
+
                 if not else_terminated:
                     self.builder.position_at_end(else_bb)
                     self.builder.branch(end_bb)
@@ -207,7 +219,9 @@ class Compiler:
         self.builder.ret(value)
 
     def build_assignment_stmt(self, target, value):
-        raise NotImplementedError
+        ptr = self.build_node(target, load=False)
+        value = self.build_node(value)
+        self.builder.store(value, ptr)
 
     def build_binary_expr(self, op, left, right):
         left = self.build_node(left)
@@ -304,8 +318,12 @@ class Compiler:
         else:
             raise NotImplementedError
 
-    def build_identifier(self, name):
-        raise NotImplementedError
+    def build_identifier(self, name, load=True):
+        ptr = self.scope.lookup(name)
+        if load:
+            return self.builder.load(ptr)
+        else:
+            return ptr
 
     def build_group_expr(self, expr):
         return self.build_node(expr)
