@@ -122,6 +122,22 @@ interface IO {
 }
 ```
 
+## If statements
+If statments are formed of a condition, an executing block, and an optional else statement. If statments utilise the keywords: `if` and `else`.
+
+```
+if true {}
+else {}
+```
+
+In place of the block following the keywords, any statement can be used. This allows for `else if` structure to be used for multiple conditions.
+
+```
+if cond1 {}
+else if cond2 {}
+else {}
+```
+
 ## Implementing methods on types
 
 The `impl` keyword is used to implement methods for a given type.
