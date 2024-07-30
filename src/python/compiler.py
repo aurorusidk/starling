@@ -187,7 +187,20 @@ class Compiler:
         self.builder.position_at_start(end_bb)
 
     def build_while_stmt(self, condition, while_block):
-        raise NotImplementedError
+        cond_bb = self.builder.append_basic_block("cond")
+        loop_bb = self.builder.append_basic_block("loop")
+        end_bb = self.builder.append_basic_block("end")
+
+        self.builder.branch(cond_bb)
+
+        self.builder.position_at_start(cond_bb)
+        condition = self.build_node(condition)
+        self.builder.cbranch(condition, loop_bb, end_bb)
+
+        self.builder.position_at_start(loop_bb)
+        self.build_node(while_block)
+        self.builder.branch(cond_bb)
+        self.builder.position_at_start(end_bb)
 
     def build_return_stmt(self, value):
         value = self.build_node(value)
