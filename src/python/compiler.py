@@ -143,15 +143,48 @@ class Compiler:
         # TODO: Fully implement expression building
         condition = self.build_node(condition)
 
+        end_bb = None
         if else_block is None:
-            with self.builder.if_then(condition):
-                self.build_node(if_block)
+            then_bb = self.builder.append_basic_block("then")
+            end_bb = self.builder.append_basic_block("end")
+
+            self.builder.cbranch(condition, then_bb, end_bb)
+
+            self.builder.position_at_start(then_bb)
+            self.build_node(if_block)
+            if_terminated = self.builder.block.is_terminated
+            if not if_terminated:
+                self.builder.branch(end_bb)
+        
         else:
-            with self.builder.if_else(condition) as (then, otherwise):
-                with then:
-                    self.build_node(if_block)
-                with otherwise:
-                    self.build_node(else_block)
+            then_bb = self.builder.append_basic_block("then")
+            else_bb = self.builder.append_basic_block("else")
+
+            self.builder.cbranch(condition, then_bb, else_bb)
+
+            self.builder.position_at_start(then_bb)
+            self.build_node(if_block)
+            then_bb = self.builder.block
+            if_terminated = self.builder.block.is_terminated
+
+            self.builder.position_at_start(else_bb)
+            self.build_node(else_block)
+            else_bb = self.builder.block
+            else_terminated = self.builder.block.is_terminated
+
+            if not (if_terminated and else_terminated):
+                end_bb = self.builder.append_basic_block("end")
+                
+                if not if_terminated:
+                    self.builder.position_at_end(then_bb)
+                    self.builder.branch(end_bb)
+                
+                if not else_terminated:
+                    self.builder.position_at_end(else_bb)
+                    self.builder.branch(end_bb)
+            else:
+                end_bb = else_bb
+        self.builder.position_at_start(end_bb)
 
     def build_while_stmt(self, condition, while_block):
         raise NotImplementedError
