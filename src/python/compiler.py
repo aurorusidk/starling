@@ -277,8 +277,11 @@ class Compiler:
             raise NotImplementedError
 
     def build_div(self, left, right):
-        # TODO: implement integer division
-        if left.type == ir.DoubleType():
+        if left.type == ir.IntType(32):
+            left = self.builder.sitofp(left, ir.DoubleType())
+            right = self.builder.sitofp(right, ir.DoubleType())
+            return self.builder.fdiv(left, right)
+        elif left.type == ir.DoubleType():
             return self.builder.fdiv(left, right)
         else:
             raise NotImplementedError
