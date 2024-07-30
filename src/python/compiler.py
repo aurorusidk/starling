@@ -226,7 +226,7 @@ class Compiler:
     def build_binary_expr(self, op, left, right):
         left = self.build_node(left)
         right = self.build_node(right)
-        assert left.typ == right.typ, "Type coercion not implemented"
+        assert left.type == right.type, "Type coercion not implemented"
         match op.typ:
             case T.PLUS:
                 return self.build_add(left, right)
@@ -252,34 +252,84 @@ class Compiler:
                 assert False, f"Unimplemented operator: {op.typ}"
 
     def build_add(self, left, right):
-        raise NotImplementedError
+        # Type coercion not implemented, so only left.typ needs checking
+        if left.type == ir.IntType(32):
+            return self.builder.add(left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fadd(left, right)
+        else:
+            raise NotImplementedError
 
     def build_sub(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.sub(left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fsub(left, right)
+        else:
+            raise NotImplementedError
 
     def build_mul(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.mul(left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fmul(left, right)
+        else:
+            raise NotImplementedError
 
     def build_div(self, left, right):
-        raise NotImplementedError
+        # TODO: implement integer division
+        if left.type == ir.DoubleType():
+            return self.builder.fdiv(left, right)
+        else:
+            raise NotImplementedError
 
     def build_equal(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed("==", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered("==", left, right)
+        else:
+            raise NotImplementedError
 
     def build_not_equal(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed("!=", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered("!=", left, right)
+        else:
+            raise NotImplementedError
 
     def build_less_than(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed("<", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered("<", left, right)
+        else:
+            raise NotImplementedError
 
     def build_greater_than(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed(">", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered(">", left, right)
+        else:
+            raise NotImplementedError
 
     def build_less_than_equal(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed("<=", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered("<=", left, right)
+        else:
+            raise NotImplementedError
 
     def build_greater_than_equal(self, left, right):
-        raise NotImplementedError
+        if left.type == ir.IntType(32):
+            return self.builder.icmp_signed(">=", left, right)
+        elif left.type == ir.DoubleType():
+            return self.builder.fcmp_ordered(">=", left, right)
+        else:
+            raise NotImplementedError
 
     def build_unary_expr(self, op, right):
         right = self.build_node(right)
