@@ -291,6 +291,8 @@ class Compiler:
             return self.builder.icmp_signed("==", left, right)
         elif left.type == ir.DoubleType():
             return self.builder.fcmp_ordered("==", left, right)
+        elif left.type == ir.IntType(1):
+            return self.builder.icmp_unsigned("==", left, right)
         else:
             raise NotImplementedError
 
@@ -299,6 +301,8 @@ class Compiler:
             return self.builder.icmp_signed("!=", left, right)
         elif left.type == ir.DoubleType():
             return self.builder.fcmp_ordered("!=", left, right)
+        elif left.type == ir.IntType(1):
+            return self.builder.icmp_unsigned("!=", left, right)
         else:
             raise NotImplementedError
 
