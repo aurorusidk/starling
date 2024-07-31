@@ -387,3 +387,46 @@ class Compiler:
 
     def build_range_expr(self, start, end):
         raise NotImplementedError
+
+
+if __name__ == "__main__":
+    import sys
+    from ctypes import CFUNCTYPE, c_int
+    import llvmlite.binding as llvm
+
+    from .lexer import tokenise
+    from .parser import parse
+    from .type_checker import TypeChecker
+
+    logging.basicConfig(format="%(levelname)s: %(message)s")
+    logging.getLogger().setLevel(logging.DEBUG)
+
+    assert len(sys.argv) == 2, "no input file"
+    with open(sys.argv[1]) as f:
+        src = f.read()
+    tokens = tokenise(src)
+    tree = parse(tokens)
+    tc = TypeChecker(tree)
+    tc.check(tree)
+    compiler = Compiler()
+    compiler.build_node(tree)
+
+    llvm.initialize()
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+    target = llvm.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_mod = llvm.parse_assembly("")
+    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
+
+    print(compiler.module)
+    mod = llvm.parse_assembly(str(compiler.module))
+    mod.verify()
+    engine.add_module(mod)
+    engine.finalize_object()
+    engine.run_static_constructors()
+
+    func_ptr = engine.get_function_address("main")
+    cfunc = CFUNCTYPE(c_int)(func_ptr)
+    res = cfunc()
+    print("program exited with code:", res)
