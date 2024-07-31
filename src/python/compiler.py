@@ -18,11 +18,13 @@ type_map = {
 @dataclass
 class StaVariable:
     name: str
+    typ: ir.Type
     ptr: ir.PointerType
 
 
 @dataclass
 class StaStruct:
+    name: str
     typ: ir.IdentifiedStructType
     field_map: dict[str, int]
 
@@ -139,8 +141,10 @@ class Compiler:
             field_map[fname] = i
             field_types.append(type_map[ftype])
         stype.set_body(*field_types)
-
-        self.scope.declare(name, StaStruct(stype, field_map))
+        struct = StaStruct(name.value, stype, field_map)
+        # TODO: proper type scope declaration needed
+        type_map[typ] = stype
+        self.scope.declare(name, struct)
 
     def build_interface_declr(self, name, typ, methods):
         logging.debug(f"{name}, {methods}")
@@ -156,7 +160,7 @@ class Compiler:
         if value is not None:
             value = self.build_node(value)
             self.builder.store(value, ptr)
-        var = StaVariable(name.value, ptr)
+        var = StaVariable(name.value, typ, ptr)
         self.scope.declare(name, var)
 
     def build_type(self, name):
@@ -376,7 +380,20 @@ class Compiler:
 
     def build_selector_expr(self, target, name):
         logging.debug(f"{target}.{name}")
-        raise NotImplementedError
+        load_field = self.load_ids
+        self.load_ids = False
+        struct = self.build_node(target).ptr
+        self.load_ids = True
+        print(struct)
+        stype = self.scope.lookup(target.typ.name)
+        field_offset = stype.field_map[name.value]
+        index = ir.Constant(ir.IntType(32), field_offset)
+        field = self.builder.gep(struct, [ir.Constant(ir.IntType(32), 0), index])
+        field_type = target.typ.fields[name.value]
+        if load_field:
+            return self.builder.load(field)
+        else:
+            return StaVariable(name.value, field_type, field)
 
     def build_index_expr(self, target, index):
         raise NotImplementedError
