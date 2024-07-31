@@ -26,11 +26,14 @@ class StaStruct:
     typ: ir.IdentifiedStructType
     field_map: dict[str, int]
 
+
 class Compiler:
     def __init__(self):
         self.scope = Scope(None)
         self.module = ir.Module()
         self.builder = None
+
+        self.load_ids = True
         # TODO: builtins
 
     def build_node(self, node, **kwargs):
@@ -153,7 +156,8 @@ class Compiler:
         if value is not None:
             value = self.build_node(value)
             self.builder.store(value, ptr)
-        self.scope.declare(name, ptr)
+        var = StaVariable(name.value, ptr)
+        self.scope.declare(name, var)
 
     def build_type(self, name):
         raise NotImplementedError
@@ -233,9 +237,11 @@ class Compiler:
         self.builder.ret(value)
 
     def build_assignment_stmt(self, target, value):
-        ptr = self.build_node(target, load=False)
+        self.load_ids = False
+        var = self.build_node(target)
+        self.load_ids = True
         value = self.build_node(value)
-        self.builder.store(value, ptr)
+        self.builder.store(value, var.ptr)
 
     def build_binary_expr(self, op, left, right):
         left = self.build_node(left)
@@ -389,12 +395,12 @@ class Compiler:
         else:
             raise NotImplementedError
 
-    def build_identifier(self, name, load=True):
-        ptr = self.scope.lookup(name)
-        if load:
-            return self.builder.load(ptr)
-        else:
-            return ptr
+    def build_identifier(self, name):
+        obj = self.scope.lookup(name)
+        if isinstance(obj, StaVariable):
+            if self.load_ids:
+                return self.builder.load(obj.ptr)
+        return obj
 
     def build_group_expr(self, expr):
         return self.build_node(expr)
