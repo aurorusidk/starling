@@ -170,16 +170,31 @@ class Parser:
     def parse_type(self):
         if self.check(T.IDENTIFIER):
             return ast.TypeName(self.parse_identifier())
-        elif self.check(T.LEFT_SQUARE):
+        elif self.consume(T.ARR):
             return self.parse_array_type()
+        elif self.consume(T.VEC):
+            return self.parse_vector_type()
         self.error("Failed to parse type")
 
     def parse_array_type(self):
-        self.expect(T.LEFT_SQUARE)
-        length = self.parse_expression()
-        self.expect(T.RIGHT_SQUARE)
-        typ = self.parse_type()
+        length = None
+        typ = None
+        if self.consume(T.LEFT_SQUARE):
+            if self.check(T.IDENTIFIER, T.ARR, T.VEC):
+                typ = self.parse_type()
+                if self.consume(T.COMMA):
+                    length = self.parse_expression()
+            else:
+                length = self.parse_expression()
+            self.expect(T.RIGHT_SQUARE)
         return ast.ArrayType(length, typ)
+
+    def parse_vector_type(self):
+        typ = None
+        if self.consume(T.LEFT_SQUARE):
+            typ = self.parse_type()
+            self.expect(T.RIGHT_SQUARE)
+        return ast.VectorType(typ)
 
     def parse_block(self):
         statements = []

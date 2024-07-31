@@ -13,6 +13,7 @@ TokenType = Enum("TokenType", [
     "LEFT_CURLY", "RIGHT_CURLY", "LEFT_SQUARE", "RIGHT_SQUARE",
     "IF", "ELSE", "WHILE", "RETURN",
     "VAR", "FUNC", "STRUCT", "INTERFACE", "IMPL",
+    "ARR", "VEC",
 ])
 Token = namedtuple("Token", ["typ", "lexeme", "pos"])
 
@@ -41,6 +42,8 @@ KEYWORDS = {
     "struct": T.STRUCT,
     "interface": T.INTERFACE,
     "impl": T.IMPL,
+    "arr": T.ARR,
+    "vec": T.VEC,
 }
 
 DIGRAPHS = {

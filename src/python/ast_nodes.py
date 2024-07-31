@@ -100,6 +100,11 @@ class ArrayType(Type):
 
 
 @dataclass
+class VectorType(Type):
+    elem_type: Type
+
+
+@dataclass
 class Block(Stmt):
     stmt_list: list[Stmt]
 
