@@ -6,7 +6,7 @@ from .lexer import tokenise
 from .parser import parse
 from .type_checker import TypeChecker
 from .interpreter import Interpreter, StaFunctionReturn
-from .compiler import Compiler
+from .compiler import Compiler, execute_ir
 
 
 def exec_file(path):
@@ -35,23 +35,6 @@ def compile_file(path):
     tc.check(tc.root)
     compiler = Compiler()
     compiler.build_node(ast)
-
-    llvm.initialize()
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
-    target = llvm.Target.from_default_triple()
-    target_machine = target.create_target_machine()
-    backing_mod = llvm.parse_assembly("")
-    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
-
     print(compiler.module)
-    mod = llvm.parse_assembly(str(compiler.module))
-    mod.verify()
-    engine.add_module(mod)
-    engine.finalize_object()
-    engine.run_static_constructors()
-
-    func_ptr = engine.get_function_address("main")
-    cfunc = CFUNCTYPE(c_int)(func_ptr)
-    res = cfunc()
+    res = execute_ir(str(compiler.module))
     print("program exited with code:", res)

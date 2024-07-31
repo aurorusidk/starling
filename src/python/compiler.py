@@ -1,5 +1,7 @@
 import logging
 from llvmlite import ir
+import llvmlite.binding as llvm
+from ctypes import CFUNCTYPE, c_int
 from dataclasses import dataclass
 
 from .lexer import TokenType as T
@@ -426,6 +428,34 @@ class Compiler:
         raise NotImplementedError
 
 
+def compile_ir(ir):
+    mod = llvm.parse_assembly(ir)
+    mod.verify()
+    return mod
+
+
+def create_execution_engine():
+    target = llvm.Target.from_default_triple()
+    target_machine = target.create_target_machine()
+    backing_mod = llvm.parse_assembly("")
+    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
+    return engine
+
+
+def execute_ir(ir, entry="main", return_type=c_int):
+    llvm.initialize()
+    llvm.initialize_native_target()
+    llvm.initialize_native_asmprinter()
+    mod = compile_ir(ir)
+    engine = create_execution_engine()
+    engine.add_module(mod)
+    engine.finalize_object()
+    engine.run_static_constructors()
+    func_ptr = engine.get_function_address(entry)
+    cfunc = CFUNCTYPE(return_type)(func_ptr)
+    return cfunc()
+
+
 if __name__ == "__main__":
     import sys
     from ctypes import CFUNCTYPE, c_int
@@ -447,23 +477,5 @@ if __name__ == "__main__":
     tc.check(tree)
     compiler = Compiler()
     compiler.build_node(tree)
-
-    llvm.initialize()
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
-    target = llvm.Target.from_default_triple()
-    target_machine = target.create_target_machine()
-    backing_mod = llvm.parse_assembly("")
-    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
-
-    print(compiler.module)
-    mod = llvm.parse_assembly(str(compiler.module))
-    mod.verify()
-    engine.add_module(mod)
-    engine.finalize_object()
-    engine.run_static_constructors()
-
-    func_ptr = engine.get_function_address("main")
-    cfunc = CFUNCTYPE(c_int)(func_ptr)
-    res = cfunc()
+    res = execute_ir(str(compiler.module))
     print("program exited with code:", res)
