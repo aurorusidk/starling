@@ -112,15 +112,26 @@ struct Foo {
 A struct requires one or more fields, separated by commas. A field is simply an uninitialised variable.
 `field str`
 
-## Interface delaration
-Interfaces are declared with the `interface` keyword. An interface requires one or more function signatures to be defined within it.
+## Arrays and vectors
+
+Arrays and vectors are defined using square brackets `[]`.
+
+By default, literals of the form `[a, b, c]` are arrays. The `arr` and `vec` types can be used when declaring a variable to specify the desired type.
+
+If an initial value is not given for an array, a length must be specified.
 
 ```
-interface IO {
-    read() str
-    write(value str)
-}
+var a arr[int] = [1, 1, 2, 3, 5]
+var b vec[int] = []
+var c arr[int, 3]
 ```
+
+By default, literals of the form `[]` are arrays. `arr` and `vec` may be used to deliberately specify the desired type.
+
+## Ranges
+Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
+
+Behind the scenes, ranges act as arrays. Any operation that can be performed on an array can also be performed on a range.
 
 ## If statements
 If statments are formed of a condition, an executing block, and an optional else statement. If statments utilise the keywords: `if` and `else`.
@@ -136,6 +147,16 @@ In place of the block following the keywords, any statement can be used. This al
 if cond1 {}
 else if cond2 {}
 else {}
+```
+
+## Interface delaration
+Interfaces are declared with the `interface` keyword. An interface requires one or more function signatures to be defined within it.
+
+```
+interface IO {
+    read() str
+    write(value str)
+}
 ```
 
 ## Implementing methods on types
@@ -207,9 +228,6 @@ if (ret_val.is_some()) {
 ```
 
 `unbox()` will error if the value is `nil`.
-
-## Ranges
-Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
 
 ## Loops
 TBD - Starling will not feature traditional `for` loops.
