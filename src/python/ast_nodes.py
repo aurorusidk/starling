@@ -53,6 +53,11 @@ class RangeExpr(Expr):
 
 
 @dataclass
+class ArrayExpr(Expr):
+    elements: list[Expr]
+
+
+@dataclass
 class GroupExpr(Expr):
     value: Expr
 
