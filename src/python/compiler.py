@@ -21,6 +21,11 @@ class StaVariable:
     ptr: ir.PointerType
 
 
+@dataclass
+class StaStruct:
+    typ: ir.IdentifiedStructType
+    field_map: dict[str, int]
+
 class Compiler:
     def __init__(self):
         self.scope = Scope(None)
@@ -123,7 +128,16 @@ class Compiler:
 
     def build_struct_declr(self, name, typ, members):
         logging.debug(f"{name}, {members}")
-        raise NotImplementedError
+        stype = self.module.context.get_identified_type(f"struct.{typ.name}")
+
+        field_map = {}
+        field_types = []
+        for i, (fname, ftype) in enumerate(typ.fields.items()):
+            field_map[fname] = i
+            field_types.append(type_map[ftype])
+        stype.set_body(*field_types)
+
+        self.scope.declare(name, StaStruct(stype, field_map))
 
     def build_interface_declr(self, name, typ, methods):
         logging.debug(f"{name}, {methods}")
