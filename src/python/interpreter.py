@@ -24,6 +24,13 @@ class StaArray(StaObject):
 
 
 @dataclass
+class StaVector(StaObject):
+    typ: types.VectorType
+    value: list[StaObject]
+    length: int
+
+
+@dataclass
 class StaVariable:
     name: str
     value: StaObject
@@ -115,6 +122,8 @@ class Interpreter:
                 return self.eval_identifier(name)
             case ast.RangeExpr(start, end):
                 return self.eval_range_expr(start, end)
+            case ast.ArrayExpr(elements):
+                return self.eval_array_expr(elements, node.typ)
             case ast.GroupExpr(expr):
                 return self.eval_group_expr(expr)
             case ast.CallExpr(target, args):
@@ -358,7 +367,7 @@ class Interpreter:
     def eval_index_expr(self, target, index):
         target = self.eval_node(target)
         index = self.eval_node(index)
-        if index.value < 0 or index.value >= target.typ.length:
+        if index.value < 0 or index.value >= target.length:
             raise StaValueError("Index out of bounds")
         return target.value[index.value]
 
@@ -427,6 +436,22 @@ class Interpreter:
             ],
             length
         )
+
+    def eval_array_expr(self, elements, typ):
+        if isinstance(typ, types.ArrayType):
+            return StaArray(
+                typ,
+                [self.eval_node(element) for element in elements],
+                typ.length
+            )
+        elif isinstance(typ, types.VectorType):
+            return StaVector(
+                typ,
+                [self.eval_node(element) for element in elements],
+                len(elements)
+            )
+        else:
+            assert False, f"Unreachable: {typ}"
 
 
 def repl(interpreter=None):
