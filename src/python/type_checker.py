@@ -2,29 +2,9 @@ import logging
 
 from .lexer import TokenType as T
 from . import ast_nodes as ast
+from .scope import Scope
 from . import builtin
 from . import type_defs as types
-
-
-class Scope:
-    def __init__(self, parent):
-        self.parent = parent
-        self.children = []
-        self.name_map = {}
-
-    def strict_lookup(self, name):
-        return self.name_map.get(name)
-
-    def lookup(self, name):
-        s = self
-        while not (val := s.strict_lookup(name)):
-            s = s.parent
-            if not s:
-                return None
-        return val
-
-    def declare(self, name: ast.Identifier, typ):
-        self.name_map[name.value] = typ
 
 
 unary_op_preds = {
