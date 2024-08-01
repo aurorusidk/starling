@@ -66,31 +66,118 @@ Starling aims to provide a variety of external libraries for use with the core l
 # Syntax
 
 ## Line termination
-Lines of Starling code can be implicitly terminated with a newline character, but may also be explicitly terminated with a semicolon `;`.
+Lines of code in Starling are terminated using semicolons `;`.
+
+However, Starling also features semicolon insertion, and will insert a semicolon in place of a newline character, if appropriate.
+
+Semicolons are inserted after any literal, identifier, return statemnt, or closing bracket. Semicolons are **not** inserted anywhere else.
+
+For example, semicolons will **not** be inserted after an operation, an open bracket, or a declaration keyword. This allows code to span multiple lines, for convenience.
+
+## Identifiers
+"Identifier" is a collective term which includes the names of variables, functions, structs, and interfaces.
+
+An identifier may contain any alphanumeric character, in addition to underscores. Identifiers may **not** begin with a numeric character.
+
+Examples of valid identifiers include `my_function`, `Number3`, and `_secret`.
+
+Examples of invalid identifiers include `my-function`, `3rdNumber`, and `/secret`.
+
+Reserved keyword names also may not be used as identifiers.
+
+## Data types
+Starling currently supports four basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. One is non-numeric: strings `str`.
+
+Starling will not aggressively coerce between data types, and operators can (in general) not be used on different types. For example, this means that a number would need to be explicitly converted into a string in order to perform string operations on it.
+
+### Numeric types
+
+Integer literals are written using only numeric characters. `8` is an `int`.
+
+Floating point literals are written using numeric characters, and contain a decimal point `.`. `3.14` is a `float`.
+
+Fraction literals are written using numeric characters, and contain a double slash `//` to separate the numerator and denominator. `2//5` is a `frac`.
+
+TBD - Fractions may be changed to expressions rather than literals, and thus be made able to take a variable as their numerator and/or denominator. This is not implemented.
+
+TBD - All numeric types will be able to be coerced between each other implicitly, however this is not yet implemented.
+
+### Non-numeric types
+
+Strings are surrounded by double quotes `" "`.
+
+TBD - Single quotes `' '` may be used for a `char` data type, but this is not implemented.
+
+## Operators
+
+Starling features the following basic operators:
+* Assignment `=`
+* Addition/Concatenation `+`
+* Subtraction `-`
+* Multiplication `*`
+* Division `/`
+* Boolean negation `!`
+* Equality check `==`
+* Inequality check `!=`
+* Less than check `<`
+* Greater than check `>`
+* Less than or equal check `<=`
+* Greater than or equal check `>=`
+
+Operators may also be "grouped" using brackets `( )`. This allows the order of operations to be more precisely controlled.
+
+In addition to these, there are some special operations that may be performed on certain types.
+* Call `foo(params)` - for callables, such as functions; also used for creating new objects of structs
+* Index `foo[index]` - for iterables, such as arrays and vectors
+* Selector `foo.bar` `foo.baz(params)` - for accessing attributes or methods of types such as structs
 
 ## Code blocks
-Blocks will use curly brackets `{ }`.
+Blocks use curly brackets `{ }`.
 
-Variables declared within `if` or `loop` blocks will be accessible outside of the scope of those blocks. Variables declared within function blocks remain within the scope of the function.
+In general, blocks do not have distinct scope. This includes `if` and `while` blocks.
+
+Function blocks **do** have distinct scope, and variables declared within them **cannot** be accessed outside of the block.
+
+`struct`s, `interface`s, and `impl` declarations also use curly brackets, however these do not function like traditional blocks. See their respective sections of this document for information on their syntax.
 
 ## Variable declaration
-Variable declaration uses the `var` keyword. The language can infer the type of a variable if one is not given, but an initial value must be provided.
+Variable declaration uses the `var` keyword.
 
-`var foo int = 1`
+A type and/or an initial value *may* be provided, though neither is required. The type of a variable can be inferred based on either initial or following assignments.
 
-`var bar = "foobar"`
+`var foo int = 1;`
 
-For assignment expressions, the `:=` operator will be used.
+`var bar = "foobar";`
+
+`var baz;`
 
 ## Function declaration
-Functions are declared using the `fn` keyword. The language will infer the return type of a function if one is not given.
+Functions are declared using the `fn` keyword, in the following form:
+
+```
+fn foo() int {
+    return 1;
+}
+```
+
+The `return` keyword is used to provide a value that the function will supply when it is called.
+
+Note also that the return type of the function, here `int`, is placed after the brackets but before the block.
 
 The `void` type is used for functions that have no return value.
 
-Parameters of functions are formatted similarly to variable declarations. It's possible to provide a type to be enforced, as well as a default value, though neither are mandatory.
+```
+fn foo() void {
+    print("Hello world");
+}
+```
+
+Like with variables, the language can infer the return type of a function, based on the actual return value, if no type is given.
+
+Parameters of functions are formatted similarly to variable declarations. Parameter types cannot be inferred and must be provided. A default value may also be given for a parameter, but is not required.
 `fn foo(arg type = default) {}`
 
-The foundation of any Starling program is the main function, which will take in a vector of arguments and return an integer:
+The foundation of any Starling program is the main function, which takes in a vector of arguments and return an integer:
 ```
 fn main(argv vec) int {
     // Your program here
@@ -99,39 +186,7 @@ fn main(argv vec) int {
 
 The main entry point implicitly returns 0, unless an error occurs.
 
-## Struct declaration
-Structs, or structures, are declared with the `struct` keyword.
-
-```
-struct Foo {
-    bar int
-    ...
-}
-```
-
-A struct requires one or more fields, separated by commas. A field is simply an uninitialised variable.
-`field str`
-
-## Arrays and vectors
-
-Arrays and vectors are defined using square brackets `[]`.
-
-By default, literals of the form `[a, b, c]` are arrays. The `arr` and `vec` types can be used when declaring a variable to specify the desired type.
-
-If an initial value is not given for an array, a length must be specified.
-
-```
-var a arr[int] = [1, 1, 2, 3, 5]
-var b vec[int] = []
-var c arr[int, 3]
-```
-
-By default, literals of the form `[]` are arrays. `arr` and `vec` may be used to deliberately specify the desired type.
-
-## Ranges
-Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
-
-Behind the scenes, ranges act as arrays. Any operation that can be performed on an array can also be performed on a range.
+TBD - Starling will also feature "anonymous" or "lambda" functions, but this is not yet implemented.
 
 ## If statements
 If statments are formed of a condition, an executing block, and an optional else statement. If statments utilise the keywords: `if` and `else`.
@@ -149,15 +204,48 @@ else if cond2 {}
 else {}
 ```
 
+## Loops
+Starling features `while` loops. Similarly to if statements, these are formed of a condition and an executing block.
+
+```
+while true {}
+```
+
+TBD - Starling will not feature traditional `for` loops. More discussions need to be had to decide upon the syntax that will be used instead.
+
+## Ranges
+Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
+
+Ranges only accept integer values for their lower and upper bounds.
+
+Ranges expand to arrays. For example, the range `[1:4]` is equivalent to the array `[1, 2, 3]`.
+
+## Struct declaration
+Structs, or structures, are declared with the `struct` keyword.
+
+```
+struct Foo {
+    bar int;
+    ...
+}
+```
+
+A struct requires one or more fields, separated by semicolons. A type **is** required when declaring a field. A value cannot be provided.
+`field str;`
+
 ## Interface delaration
-Interfaces are declared with the `interface` keyword. An interface requires one or more function signatures to be defined within it.
+Interfaces are declared with the `interface` keyword. An interface requires one or more function signatures to be defined within it, separated by semicolons.
 
 ```
 interface IO {
-    read() str
-    write(value str)
+    read() str;
+    write(value str);
 }
 ```
+
+As interfaces use the same function signature system as function declarations, they follow the same syntax rules. Namely, that types do not *need* to be specified for either function returns or for parameters.
+
+Interfaces are used with the `impl` keyword (see the "Implementing methods on types" heading, below) to add methods to `struct`s in a standardised way. This allows the programmer to ensure that a struct can be operated upon in certain ways.
 
 ## Implementing methods on types
 
@@ -167,7 +255,7 @@ It can be used with a bare type. Below is an example using the struct `Foo` desc
 ```
 impl Foo {
     fn baz() int {
-        return self.bar
+        return self.bar;
     }
 }
 ```
@@ -178,7 +266,7 @@ Only one `impl` block may be created for each bare type per program. It must hav
 
 The `impl` keyword can also be used in conjunction with an interface. The interface's identifier is given inside a pair of angle brackets `< >`.
 
-The below example demonstrates the type `File` having `IO` methods implemented for it. (See the interface declaration heading, above, for the `IO` interface declaration.)
+The below example demonstrates the type `File` having `IO` methods implemented for it. (See the "Interface declaration" heading, above, for the `IO` interface declaration.)
 
 ```
 struct File {
@@ -228,6 +316,9 @@ if (ret_val.is_some()) {
 ```
 
 `unbox()` will error if the value is `nil`.
+
+## Ranges
+Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
 
 ## Loops
 TBD - Starling will not feature traditional `for` loops.
