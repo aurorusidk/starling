@@ -213,6 +213,25 @@ while true {}
 
 TBD - Starling will not feature traditional `for` loops. More discussions need to be had to decide upon the syntax that will be used instead.
 
+## Arrays and vectors
+
+Arrays and vectors are defined using square brackets `[]`.
+
+By default, literals of the form `[a, b, c]` are arrays. The `arr` and `vec` keywords can be used in conjunction to deliberately create a literal of the given type.
+
+`arr[a, b, c]` is an array literal, and equivalent to `[a, b, c]`.
+`vec[a, b, c]` is a vector literal.
+
+`arr` and `vec` can also be used as types when declaring a variable, to specify the desired type. In this situation, it's not necessary to specify that a literal is a vector.
+
+```
+var a arr[int] = [1, 1, 2, 3, 5];
+var b vec[int] = [];
+var c arr[int, 3];
+```
+
+If an initial value is not given for an array, a length must be specified.
+
 ## Ranges
 Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
 
