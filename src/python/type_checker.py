@@ -135,6 +135,16 @@ class TypeChecker:
                 node.typ = types.ArrayType(builtin.types["int"], None)
                 # TODO: add length eval for consts
 
+            case ast.ArrayExpr(elements):
+                elem_type = None
+                for element in elements:
+                    self.check_expr(element)
+                    if elem_type is None:
+                        elem_type = element.typ
+                    elif elem_type != element.typ:
+                        self.error("Array elements must be of the same type")
+                node.typ = types.ArrayType(elem_type, len(elements))
+
             case ast.GroupExpr(expr):
                 self.check_expr(expr)
                 node.typ = expr.typ
@@ -247,7 +257,17 @@ class TypeChecker:
                 self.check_expr(length)
                 if length.typ != builtin.types["int"]:
                     self.error("Array length must be a integer")
-                return types.ArrayType(None, self.check_type(elem_type))
+                return types.ArrayType(
+                    self.check_type(elem_type),
+                    int(length.value.lexeme)
+                )
+
+            case ast.VectorType(elem_type):
+                return types.VectorType(self.check_type(elem_type))
+
+            case types.BasicType():
+                logging.debug(f"Type {node} already checked, proceeding")
+                return node
 
             case _:
                 assert False, f"Unreachable: could not match type {node}"
@@ -375,6 +395,43 @@ class TypeChecker:
                     self.check_expr(value)
 
                 if typ is not None:
+                    # Special handling for arrays and vectors
+                    if isinstance(typ, ast.ArrayType):
+                        if typ.elem_type is None:
+                            if value is None:
+                                self.error(f"Type of array {name.value} unknown")
+                            else:
+                                typ.elem_type = value.typ.elem_type
+                        elif value is not None:
+                            if self.check_type(typ.elem_type) != value.typ.elem_type:
+                                self.error(f"Array {name.value} of incorrect type")
+
+                        if typ.length is None:
+                            if value is None:
+                                self.error(f"Length of array {name.value} unknown")
+                            else:
+                                typ.length = ast.Literal(
+                                    ast.Token(T.INTEGER, len(value.elements), None)
+                                )
+                        elif value is not None:
+                            if int(typ.length.value.lexeme) != len(value.elements):
+                                self.error(f"Array {name.value} of incorrect length")
+
+                    elif isinstance(typ, ast.VectorType):
+                        if typ.elem_type is None:
+                            if value is None:
+                                self.error(f"Type of vector {name.value} unknown")
+                            else:
+                                typ.elem_type = value.typ.elem_type
+                        elif value is not None:
+                            if self.check_type(typ.elem_type) != value.typ.elem_type:
+                                self.error(f"Vector {name.value} of incorrect type")
+
+                        # Coerce array literal into vector type
+                        if value is not None and isinstance(value.typ, types.ArrayType):
+                            value.typ = types.VectorType(value.typ.elem_type)
+                    # End of special handling for arrays and vectors
+
                     typ = self.check_type(typ)
                     if value is not None:
                         if value.typ != typ:
