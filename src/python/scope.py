@@ -17,3 +17,6 @@ class Scope:
 
     def declare(self, name, value):
         self.name_map[name] = value
+
+    def __repr__(self):
+        return repr(self.name_map)

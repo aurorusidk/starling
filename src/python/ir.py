@@ -1,13 +1,16 @@
 import logging
 
+from .scope import Scope
 from . import ast_nodes as ast
 from . import type_defs as types
+from . import builtin
 from . import ir_nodes as ir
 
 
 class IRNoder:
     def __init__(self):
-        pass
+        self.scope = Scope(None)
+        self.scope.name_map |= builtin.types
 
     def make(self, node):
         match node:
@@ -51,7 +54,9 @@ class IRNoder:
     def make_type(self, node):
         match node:
             case ast.TypeName(name):
-                raise NotImplementedError
+                typ = self.scope.lookup(name.value)
+                assert isinstance(typ, types.Type)
+                return typ
             case ast.ArrayType(length, elem_type):
                 raise NotImplementedError
             case ast.FunctionSignature(name, return_type, params):

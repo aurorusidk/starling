@@ -4,8 +4,9 @@ import logging
 
 from .lexer import TokenType as T, tokenise
 from .parser import Parser, parse
-from .type_checker import Scope, TypeChecker
+from .type_checker import TypeChecker
 from . import ast_nodes as ast
+from .scope import Scope
 from . import type_defs as types
 from . import builtin
 
