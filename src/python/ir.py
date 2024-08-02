@@ -69,12 +69,10 @@ class IRNoder:
             case ast.Block(stmts):
                 stmts = [self.make_stmt(s) for s in stmts]
                 return ir.Block(stmts)
-                for stmt in stmts:
-                    self.make_stmt(stmt)
             case ast.DeclrStmt(declr):
-                self.make_declr(declr)
+                return self.make_declr(declr)
             case ast.ExprStmt(expr):
-                self.make_expr(declr)
+                return self.make_expr(declr)
             case ast.IfStmt(condition, if_block, else_block):
                 raise NotImplementedError
             case ast.WhileStmt(condition, block):
@@ -108,18 +106,24 @@ class IRNoder:
         param_names = []
         param_types = []
         for param in params:
-            param_names.append(p.name.value)
+            param_names.append(param.name.value)
             ptype = None
-            if p.typ is not None:
-                ptype = self.make_type(p.typ)
+            if param.typ is not None:
+                ptype = self.make_type(param.typ)
             param_types.append(ptype)
         type_hint = types.FunctionType(return_type, param_types)
-        return ir.FunctionSignature(name.value, param_names, type_hint)
+        return ir.FunctionSignatureRef(name.value, param_names, type_hint)
 
     def make_function_declr(self, signature, block):
         sig = self.make_type(signature)
+        self.scope = Scope(self.scope)
+        for pname, ptype in zip(sig.params, sig.type_hint.param_types):
+            ref = ir.Ref(pname, ptype)
+            self.scope.declare(pname, ref)
         block = self.make_stmt(block)
-        return ir.Function(sig, block)
+        func_scope = self.scope
+        self.scope = self.scope.parent
+        return ir.DefFunc(sig, block, func_scope)
 
 
 if __name__ == "__main__":
