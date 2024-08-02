@@ -86,7 +86,7 @@ Examples of invalid identifiers include `my-function`, `3rdNumber`, and `/secret
 Reserved keyword names also may not be used as identifiers.
 
 ## Data types
-Starling currently supports four basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. One is non-numeric: strings `str`.
+Starling currently supports five basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. Two are non-numeric: booleans `bool`, and strings `str`.
 
 Starling will not aggressively coerce between data types, and operators can (in general) not be used on different types. For example, this means that a number would need to be explicitly converted into a string in order to perform string operations on it.
 
@@ -104,7 +104,9 @@ TBD - All numeric types will be able to be coerced between each other implicitly
 
 ### Non-numeric types
 
-Strings are surrounded by double quotes `" "`.
+Boolean literals are one of two values, either `true` or `false`.
+
+String literals are surrounded by double quotes `" "`.
 
 TBD - Single quotes `' '` may be used for a `char` data type, but this is not implemented.
 
