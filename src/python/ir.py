@@ -95,7 +95,7 @@ class IRNoder:
             case ast.ImplDeclr(target, interface, methods):
                 raise NotImplementedError
             case ast.VariableDeclr(name, typ, value):
-                raise NotImplementedError
+                return self.make_variable_declr(name, typ, value)
             case _:
                 assert False, f"Unexpected declr {node}"
 
@@ -124,6 +124,21 @@ class IRNoder:
         func_scope = self.scope
         self.scope = self.scope.parent
         return ir.DefFunc(sig, block, func_scope)
+
+    def make_variable_declr(self, name, typ, value):
+        name = name.value
+        type_hint = None
+        if typ is not None:
+            type_hint = self.make_type(typ)
+        ref = ir.Ref(name, type_hint)
+        self.scope.declare(name, ref)
+        instr = ir.Declare(ref)
+        if value is not None:
+            value = self.make_expr(value)
+            ref.values.append(value)
+            assign_instr = ir.Assign(ref, value)
+            instr = ir.MultiInstr(instr, assign_instr)
+        return instr
 
 
 if __name__ == "__main__":
