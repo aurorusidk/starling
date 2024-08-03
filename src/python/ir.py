@@ -98,7 +98,7 @@ class IRNoder:
             case ast.FunctionDeclr(signature, block):
                 self.make_function_declr(signature, block)
             case ast.StructDeclr(name, fields):
-                raise NotImplementedError
+                self.make_struct_declr(name, fields)
             case ast.InterfaceDeclr(name, methods):
                 raise NotImplementedError
             case ast.ImplDeclr(target, interface, methods):
@@ -141,6 +141,22 @@ class IRNoder:
         func_scope = self.scope
         self.scope = self.scope.parent
         self.instrs.append(ir.DefFunc(sig, block, func_scope))
+
+    def make_struct_declr(self, name, fields):
+        name = name.value
+        field_names = []
+        field_types = []
+        for field in fields:
+            field_names.append(field.name.value)
+            ftype = None
+            if field.typ is not None:
+                ftype = self.make_type(field.typ)
+            field_types.append(ftype)
+        type_hint = types.StructType(field_types)
+        ref = ir.StructTypeRef(name, type_hint, field_names)
+        print(ref.values)
+        self.scope.declare(name, ref)
+        self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value
