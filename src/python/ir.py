@@ -132,8 +132,8 @@ class IRNoder:
 
     def make_function_declr(self, signature, block):
         sig = self.make_type(signature)
-        self.scope = Scope(self.scope)
         self.scope.declare(sig.name, sig)
+        self.scope = Scope(self.scope)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
@@ -188,5 +188,6 @@ if __name__ == "__main__":
     tree = parser.parse(toks)
     noder = IRNoder()
     ir = noder.make(tree)
+    print(noder.scope)
     print(ir)
 
