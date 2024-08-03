@@ -96,7 +96,7 @@ class IRNoder:
     def make_declr(self, node):
         match node:
             case ast.FunctionDeclr(signature, block):
-                return self.make_function_declr(signature, block)
+                self.make_function_declr(signature, block)
             case ast.StructDeclr(name, fields):
                 raise NotImplementedError
             case ast.InterfaceDeclr(name, methods):
@@ -104,7 +104,7 @@ class IRNoder:
             case ast.ImplDeclr(target, interface, methods):
                 raise NotImplementedError
             case ast.VariableDeclr(name, typ, value):
-                return self.make_variable_declr(name, typ, value)
+                self.make_variable_declr(name, typ, value)
             case _:
                 assert False, f"Unexpected declr {node}"
 
@@ -128,11 +128,12 @@ class IRNoder:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
         type_hint = types.FunctionType(return_type, param_types)
-        return ir.FunctionSignatureRef(name.value, param_names, type_hint)
+        return ir.FunctionSignatureRef(name.value, type_hint, param_names)
 
     def make_function_declr(self, signature, block):
         sig = self.make_type(signature)
         self.scope = Scope(self.scope)
+        self.scope.declare(sig.name, sig)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)

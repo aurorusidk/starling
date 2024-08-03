@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import type_defs as types
 from .scope import Scope
@@ -20,20 +20,12 @@ class Constant(Object):
     typ: types.Type
 
 
+@dataclass
 class Ref:
-    def __init__(self, name, type_hint, *, checked_type=None, values=None):
-        self.name = name
-        self.type_hint = type_hint
-        self.checked_type = checked_type
-        self.values = values
-        if values is None:
-            self.values = []
-
-    def __repr__(self):
-        return (
-            f"Ref(name={self.name}, type_hint={self.type_hint}, "
-            f"checked_type={self.checked_type}, values={self.values})"
-        )
+    name: str
+    type_hint: types.Type
+    checked_type: types.Type = field(default=None, init=False)
+    values: list = field(default_factory=list, init=False)
 
 
 class Instruction:
@@ -46,21 +38,20 @@ class FieldRef(Ref):
 
 
 @dataclass
+class StructTypeRef(Ref):
+    name: str
+    fields: list[str]
+
+
+@dataclass
 class FunctionSignatureRef(Ref):
     name: str
     params: list[str]
-    type_hint: types.FunctionType
-    checked_type: types.FunctionType = None
 
 
 @dataclass
 class Block:
     stmts: list
-
-
-@dataclass
-class MultiInstr(Instruction):
-    intstrs: list[Instruction]
 
 
 @dataclass

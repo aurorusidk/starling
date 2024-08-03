@@ -17,7 +17,7 @@ class BasicTypeFlag(Flag):
     NUMERIC = INTEGER | FLOAT | RATIONAL
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class Type:
     methods: dict = field(default_factory=dict, kw_only=True)
 
@@ -29,6 +29,9 @@ class Type:
     def __str__(self):
         return self.string
 
+    def __repr__(self):
+        return self.string
+
     def __eq__(self, other):
         return self.string == other.string
 
@@ -37,7 +40,7 @@ class Type:
         return hash(self.string)
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class BasicType(Type):
     kind: BasicTypeKind
     flags: BasicTypeFlag
@@ -48,7 +51,7 @@ class BasicType(Type):
         return self._string
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class ArrayType(Type):
     elem_type: Type
     length: int
@@ -58,7 +61,7 @@ class ArrayType(Type):
         return f"[{self.length}]{self.elem_type}"
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class VectorType(Type):
     elem_type: Type
 
@@ -67,7 +70,7 @@ class VectorType(Type):
         return f"[]{self.elem_type}"
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class FunctionType(Type):
     return_type: Type
     param_types: list[Type]
@@ -78,10 +81,9 @@ class FunctionType(Type):
         return f"fn ({format_ptypes}) -> {self.return_type}"
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class StructType(Type):
-    name: str
-    fields: dict[str, Type]
+    fields: list[Type]
 
     @property
     def string(self):
@@ -89,7 +91,7 @@ class StructType(Type):
         return f"struct {{{format_fields}}}"
 
 
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class Interface(Type):
     name: str
     methods: dict[str, FunctionType]
