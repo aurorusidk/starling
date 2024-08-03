@@ -8,6 +8,18 @@ class Object:
     pass
 
 
+@dataclass
+class Value(Object):
+    value: object
+    typ: types.Type
+
+
+@dataclass
+class Constant(Object):
+    value: Value
+    typ: types.Type
+
+
 class Ref:
     def __init__(self, name, type_hint, *, checked_type=None, values=None):
         self.name = name

@@ -1,5 +1,6 @@
 import logging
 
+from .lexer import TokenType as T
 from .scope import Scope
 from . import ast_nodes as ast
 from . import type_defs as types
@@ -34,7 +35,7 @@ class IRNoder:
     def make_expr(self, node):
         match node:
             case ast.Literal(tok):
-                raise NotImplementedError
+                return self.make_literal(tok)
             case ast.Identifier(name):
                 raise NotImplementedError
             case ast.RangeExpr(start, end):
@@ -106,6 +107,13 @@ class IRNoder:
                 return self.make_variable_declr(name, typ, value)
             case _:
                 assert False, f"Unexpected declr {node}"
+
+    def make_literal(self, tok):
+        match tok.typ:
+            case T.INTEGER:
+                return ir.Constant(int(tok.lexeme), self.scope.lookup("int"))
+            case _:
+                assert False, f"Unexpected literal token {tok}"
 
     def make_function_signature(self, name, return_type, params):
         if return_type is not None:
