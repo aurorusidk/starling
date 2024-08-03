@@ -11,6 +11,8 @@ class IRNoder:
     def __init__(self):
         self.scope = Scope(None)
         self.scope.name_map |= builtin.types
+        self.exprs = []
+        self.instrs = []
 
     def make(self, node):
         match node:
@@ -23,8 +25,9 @@ class IRNoder:
             case ast.Declr():
                 self.make_declr(node)
             case ast.Program(declrs):
-                declrs = [self.make_declr(d) for d in declrs]
-                return ir.Program(declrs)
+                for declr in declrs:
+                    self.make_declr(declr)
+                return ir.Program(self.instrs)
             case _:
                 assert False, f"Unexpected node {node}"
 
@@ -67,12 +70,17 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
-                stmts = [self.make_stmt(s) for s in stmts]
-                return ir.Block(stmts)
+                prev_instrs = self.instrs
+                self.instrs = []
+                for stmt in stmts:
+                    self.make_stmt(stmt)
+                block = ir.Block(self.instrs)
+                self.instrs = prev_instrs
+                return block
             case ast.DeclrStmt(declr):
-                return self.make_declr(declr)
+                self.make_declr(declr)
             case ast.ExprStmt(expr):
-                return self.make_expr(declr)
+                self.make_expr(declr)
             case ast.IfStmt(condition, if_block, else_block):
                 raise NotImplementedError
             case ast.WhileStmt(condition, block):
@@ -123,7 +131,7 @@ class IRNoder:
         block = self.make_stmt(block)
         func_scope = self.scope
         self.scope = self.scope.parent
-        return ir.DefFunc(sig, block, func_scope)
+        self.instrs.append(ir.DefFunc(sig, block, func_scope))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value
@@ -132,13 +140,11 @@ class IRNoder:
             type_hint = self.make_type(typ)
         ref = ir.Ref(name, type_hint)
         self.scope.declare(name, ref)
-        instr = ir.Declare(ref)
+        self.instrs.append(ir.Declare(ref))
         if value is not None:
             value = self.make_expr(value)
             ref.values.append(value)
-            assign_instr = ir.Assign(ref, value)
-            instr = ir.MultiInstr(instr, assign_instr)
-        return instr
+            self.instrs.append(ir.Assign(ref, value))
 
 
 if __name__ == "__main__":
