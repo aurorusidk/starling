@@ -38,9 +38,15 @@ class FieldRef(Ref):
 
 
 @dataclass
-class StructTypeRef(Ref):
+class StructTypeRef(Ref, types.Type):
     name: str
     fields: list[str]
+
+    @property
+    def string(self):
+        if self.checked_type is None:
+            return str(self.type_hint)
+        return str(self.checked_type)
 
 
 @dataclass
