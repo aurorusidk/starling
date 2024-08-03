@@ -89,7 +89,7 @@ class IRNoder:
             case ast.ReturnStmt(value):
                 raise NotImplementedError
             case ast.AssignmentStmt(target, value):
-                raise NotImplementedError
+                self.make_assignment_stmt(target, value)
             case _:
                 assert False, f"Unexpected stmt {node}"
 
@@ -114,6 +114,12 @@ class IRNoder:
                 return ir.Constant(int(tok.lexeme), self.scope.lookup("int"))
             case _:
                 assert False, f"Unexpected literal token {tok}"
+
+    def make_assignment_stmt(self, target, value):
+        target = self.make_expr(target)
+        value = self.make_expr(value)
+        target.values.append(value)
+        self.instrs.append(ir.Assign(target, value))
 
     def make_function_signature(self, name, return_type, params):
         if return_type is not None:
@@ -154,7 +160,6 @@ class IRNoder:
             field_types.append(ftype)
         type_hint = types.StructType(field_types)
         ref = ir.StructTypeRef(name, type_hint, field_names)
-        print(ref.values)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
 
