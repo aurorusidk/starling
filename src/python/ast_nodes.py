@@ -58,6 +58,11 @@ class ArrayExpr(Expr):
 
 
 @dataclass
+class VectorExpr(Expr):
+    elements: list[Expr]
+
+
+@dataclass
 class GroupExpr(Expr):
     value: Expr
 

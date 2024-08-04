@@ -330,6 +330,14 @@ class Parser:
             expr = self.parse_expression()
             self.expect(T.RIGHT_BRACKET)
             return ast.GroupExpr(expr)
+
+        elif self.consume(T.VEC):
+            self.expect(T.LEFT_SQUARE)
+            return self.parse_array_primary(T.VEC)
+        elif self.consume(T.ARR):
+            self.expect(T.LEFT_SQUARE)
+            return self.parse_array_primary(T.ARR)
+
         elif self.consume(T.LEFT_SQUARE):
             exprs = []
             exprs.append(self.parse_expression())
@@ -341,10 +349,7 @@ class Parser:
                 return ast.RangeExpr(exprs[0], end)
 
             # Handle array literal [x,y,z]
-            while not self.consume(T.RIGHT_SQUARE):
-                self.expect(T.COMMA)
-                exprs.append(self.parse_expression())
-            return ast.ArrayExpr(exprs)
+            return self.parse_array_primary(T.ARR, exprs)
 
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
@@ -355,6 +360,19 @@ class Parser:
             if not value:
                 self.error("Failed to parse primary")
             return ast.Literal(value)
+
+    def parse_array_primary(self, typ, exprs=[]):
+        if not exprs:  # if exprs is empty
+            exprs.append(self.parse_expression())
+        while not self.consume(T.RIGHT_SQUARE):
+            self.expect(T.COMMA)
+            exprs.append(self.parse_expression())
+        if typ == T.VEC:
+            return ast.VectorExpr(exprs)
+        elif typ == T.ARR:
+            return ast.ArrayExpr(exprs)
+        else:
+            assert False, "Unreachable"
 
     def parse_identifier(self):
         tok = self.expect(T.IDENTIFIER)

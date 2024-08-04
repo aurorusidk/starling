@@ -124,6 +124,8 @@ class Interpreter:
                 return self.eval_range_expr(start, end)
             case ast.ArrayExpr(elements):
                 return self.eval_array_expr(elements, node.typ)
+            case ast.VectorExpr(elements):
+                return self.eval_array_expr(elements, node.typ)
             case ast.GroupExpr(expr):
                 return self.eval_group_expr(expr)
             case ast.CallExpr(target, args):
