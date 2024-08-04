@@ -70,7 +70,7 @@ Lines of code in Starling are terminated using semicolons `;`.
 
 However, Starling also features semicolon insertion, and will insert a semicolon in place of a newline character, if appropriate.
 
-Semicolons are inserted after any literal, identifier, return statemnt, or closing bracket. Semicolons are **not** inserted anywhere else.
+Semicolons are inserted after any literal, identifier, return statement, or closing bracket. Semicolons are **not** inserted anywhere else.
 
 For example, semicolons will **not** be inserted after an operation, an open bracket, or a declaration keyword. This allows code to span multiple lines, for convenience.
 
@@ -191,7 +191,7 @@ The main entry point implicitly returns 0, unless an error occurs.
 TBD - Starling will also feature "anonymous" or "lambda" functions, but this is not yet implemented.
 
 ## If statements
-If statments are formed of a condition, an executing block, and an optional else statement. If statments utilise the keywords: `if` and `else`.
+If statements are formed of a condition, an executing block, and an optional else statement. If statements utilise the keywords: `if` and `else`.
 
 ```
 if true {}
