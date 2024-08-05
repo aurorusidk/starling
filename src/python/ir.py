@@ -122,16 +122,27 @@ class IRNoder:
         raise NotImplementedError
 
     def make_selector_expr(self, target, name):
-        raise NotImplementedError
+        target = self.make_expr(target)
+        field_id = target.name + "." + name.value
+        if (ref := self.scope.lookup(field_id)):
+            return ref
+
+        type_hint = None
+        if isinstance(target.type_hint, ir.StructTypeRef):
+            index = target.type_hint.fields.index(name.value)
+            type_hint = target.type_hint.type_hint.fields[index]
+        ref = ir.FieldRef(field_id, type_hint, target)
+        self.scope.declare(field_id, ref)
+        return ref
 
     def make_unary_expr(self, op, rhs):
         rhs = self.make_expr(rhs)
-        return ir.Unary(op.value, rhs)
+        return ir.Unary(op.lexeme, rhs)
 
-    def make_binary_expr(op, lhs, rhs):
+    def make_binary_expr(self, op, lhs, rhs):
         lhs = self.make_expr(lhs)
         rhs = self.make_expr(rhs)
-        return ir.Binary(op.value, lhs, rhs)
+        return ir.Binary(op.lexeme, lhs, rhs)
 
     def make_assignment_stmt(self, target, value):
         target = self.make_expr(target)
