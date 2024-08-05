@@ -87,7 +87,7 @@ class IRNoder:
             case ast.IfStmt(condition, if_block, else_block):
                 self.make_if_stmt(condition, if_block, else_block)
             case ast.WhileStmt(condition, block):
-                raise NotImplementedError
+                self.make_while_stmt(condition, block)
             case ast.ReturnStmt(value):
                 self.make_return_stmt(value)
             case ast.AssignmentStmt(target, value):
@@ -158,6 +158,18 @@ class IRNoder:
         if_block.instrs.append(ir.Branch(merge_block))
         else_block.instrs.append(ir.Branch(merge_block))
         self.block = merge_block
+
+    def make_while_stmt(self, condition, block):
+        cond_block = ir.Block([])
+        self.instrs.append(ir.Branch(cond_block))
+        self.block = cond_block
+        self.make_expr(condition)
+        loop_block = self.make_stmt(block)
+        # TODO: check block termination
+        end_block = ir.Block([])
+        cond_block.append(ir.CBranch(condition, loop_block, end_block))
+        loop_block.append(ir.Branch(cond_block))
+        self.block = end_block
 
     def make_return_stmt(self, value):
         value = self.make_expr(value)
