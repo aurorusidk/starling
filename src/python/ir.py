@@ -30,9 +30,10 @@ class IRNoder:
             case ast.Declr():
                 self.make_declr(node)
             case ast.Program(declrs):
+                block = self.block
                 for declr in declrs:
                     self.make_declr(declr)
-                return ir.Program(self.instrs)
+                return ir.Program(block.instrs)
             case _:
                 assert False, f"Unexpected node {node}"
 
@@ -83,7 +84,7 @@ class IRNoder:
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)
             case ast.ExprStmt(expr):
-                self.make_expr(declr)
+                self.make_expr(expr)
             case ast.IfStmt(condition, if_block, else_block):
                 self.make_if_stmt(condition, if_block, else_block)
             case ast.WhileStmt(condition, block):
@@ -150,30 +151,34 @@ class IRNoder:
         condition = self.make_expr(condition)
         prev_block = self.block
         if_block = self.make_stmt(if_block)
-        else_block = self.make_stmt(else_block)
+        if else_block is not None:
+            else_block = self.make_stmt(else_block)
 
         # TODO: check block termination and if else is None
         merge_block = ir.Block([])
+        if else_block is None:
+            else_block = merge_block
+        else:
+            else_block.instrs.append(ir.Branch(merge_block))
         prev_block.instrs.append(ir.CBranch(condition, if_block, else_block))
         if_block.instrs.append(ir.Branch(merge_block))
-        else_block.instrs.append(ir.Branch(merge_block))
         self.block = merge_block
 
     def make_while_stmt(self, condition, block):
         cond_block = ir.Block([])
         self.instrs.append(ir.Branch(cond_block))
         self.block = cond_block
-        self.make_expr(condition)
+        condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
         # TODO: check block termination
         end_block = ir.Block([])
-        cond_block.append(ir.CBranch(condition, loop_block, end_block))
-        loop_block.append(ir.Branch(cond_block))
+        cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
+        loop_block.instrs.append(ir.Branch(cond_block))
         self.block = end_block
 
     def make_return_stmt(self, value):
         value = self.make_expr(value)
-        self.instrs.apppend(ir.Return(value))
+        self.instrs.append(ir.Return(value))
 
     def make_assignment_stmt(self, target, value):
         target = self.make_expr(target)
@@ -197,6 +202,7 @@ class IRNoder:
         return ir.FunctionSignatureRef(name.value, type_hint, param_names)
 
     def make_function_declr(self, signature, block):
+        def_block = self.block
         sig = self.make_type(signature)
         self.scope.declare(sig.name, sig)
         self.scope = Scope(self.scope)
@@ -206,7 +212,7 @@ class IRNoder:
         block = self.make_stmt(block)
         func_scope = self.scope
         self.scope = self.scope.parent
-        self.instrs.append(ir.DefFunc(sig, block, func_scope))
+        def_block.instrs.append(ir.DefFunc(sig, block, func_scope))
 
     def make_struct_declr(self, name, fields):
         name = name.value
@@ -252,7 +258,7 @@ if __name__ == "__main__":
     toks = lexer.tokenise(src)
     tree = parser.parse(toks)
     noder = IRNoder()
-    ir = noder.make(tree)
+    iir = noder.make(tree)
     print(noder.scope)
-    print(ir)
-
+    logging.debug(iir)
+    print(ir.IRPrinter().to_string(iir))
