@@ -13,7 +13,11 @@ class IRNoder:
         self.scope = Scope(None)
         self.scope.name_map |= builtin.types
         self.exprs = []
-        self.instrs = []
+        self.block = ir.Block([])
+
+    @property
+    def instrs(self):
+        return self.block.instrs
 
     def make(self, node):
         match node:
@@ -71,19 +75,17 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
-                prev_instrs = self.instrs
-                self.instrs = []
+                block = ir.Block([])
+                self.block = block
                 for stmt in stmts:
                     self.make_stmt(stmt)
-                block = ir.Block(self.instrs)
-                self.instrs = prev_instrs
                 return block
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)
             case ast.ExprStmt(expr):
                 self.make_expr(declr)
             case ast.IfStmt(condition, if_block, else_block):
-                raise NotImplementedError
+                self.make_if_stmt(condition, if_block, else_block)
             case ast.WhileStmt(condition, block):
                 raise NotImplementedError
             case ast.ReturnStmt(value):
@@ -143,6 +145,19 @@ class IRNoder:
         lhs = self.make_expr(lhs)
         rhs = self.make_expr(rhs)
         return ir.Binary(op.lexeme, lhs, rhs)
+
+    def make_if_stmt(self, condition, if_block, else_block):
+        condition = self.make_expr(condition)
+        prev_block = self.block
+        if_block = self.make_stmt(if_block)
+        else_block = self.make_stmt(else_block)
+
+        # TODO: check block termination and if else is None
+        merge_block = ir.Block([])
+        prev_block.instrs.append(ir.CBranch(condition, if_block, else_block))
+        if_block.instrs.append(ir.Branch(merge_block))
+        else_block.instrs.append(ir.Branch(merge_block))
+        self.block = merge_block
 
     def make_return_stmt(self, value):
         value = self.make_expr(value)

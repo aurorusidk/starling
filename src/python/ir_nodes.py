@@ -57,7 +57,7 @@ class FunctionSignatureRef(Ref):
 
 @dataclass
 class Block:
-    stmts: list
+    instrs: list
 
 
 @dataclass
@@ -74,6 +74,18 @@ class Assign(Instruction):
 @dataclass
 class Return(Instruction):
     value: Object
+
+
+@dataclass
+class Branch(Instruction):
+    block: Block
+
+
+@dataclass
+class CBranch(Instruction):
+    condition: Object
+    t_block: Block
+    f_block: Block
 
 
 @dataclass
