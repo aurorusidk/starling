@@ -170,6 +170,8 @@ class Parser:
     def parse_type(self):
         if self.check(T.IDENTIFIER):
             return ast.TypeName(self.parse_identifier())
+        elif self.consume(T.OPTIONAL):
+            return self.parse_optional_type()
         elif self.check(T.LEFT_SQUARE):
             return self.parse_array_type()
         self.error("Failed to parse type")
@@ -180,6 +182,12 @@ class Parser:
         self.expect(T.RIGHT_SQUARE)
         typ = self.parse_type()
         return ast.ArrayType(length, typ)
+
+    def parse_optional_type(self):
+        self.consume(T.LESS_THAN)
+        typ = self.parse_type()
+        self.consume(T.GREATER_THAN)
+        return ast.OptionalType(typ)
 
     def parse_block(self):
         statements = []

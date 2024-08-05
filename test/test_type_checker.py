@@ -111,6 +111,12 @@ class TestTypeChecker(unittest.TestCase):
                     builtin.types["float"],
                 ]
             ),
+            "fn test(x float) Optional<bool> {}": types.FunctionType(
+                types.OptionalType(builtin.types["bool"]),
+                [
+                    builtin.types["float"],
+                ]
+            ),
             "struct test {x int; y str;}": types.StructType(
                 "test",
                 {

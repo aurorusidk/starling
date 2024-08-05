@@ -4,7 +4,7 @@ from enum import Enum
 
 
 TokenType = Enum("TokenType", [
-    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOLEAN", "IDENTIFIER",
+    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOLEAN", "OPTIONAL", "IDENTIFIER",
     "EQUALS_EQUALS", "BANG_EQUALS",
     "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
     "EQUALS", "STAR", "SLASH", "PLUS", "MINUS", "BANG",
@@ -32,6 +32,7 @@ T = TokenType
 KEYWORDS = {
     "true": T.BOOLEAN,
     "false": T.BOOLEAN,
+    "Optional": T.OPTIONAL,
     "if": T.IF,
     "else": T.ELSE,
     "while": T.WHILE,

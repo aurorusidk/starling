@@ -11,6 +11,7 @@ class TestLexer(unittest.TestCase):
         tests = {
             "true": [Token(T.BOOLEAN, "true", start_pos)],
             "false": [Token(T.BOOLEAN, "false", start_pos)],
+            "Optional": [Token(T.OPTIONAL, "Optional", start_pos)],
             "if": [Token(T.IF, "if", start_pos)],
             "else": [Token(T.ELSE, "else", start_pos)],
             "while": [Token(T.WHILE, "while", start_pos)],
@@ -35,6 +36,7 @@ class TestLexer(unittest.TestCase):
             "IF": [Token(T.IDENTIFIER, "IF", start_pos)],
             "fN": [Token(T.IDENTIFIER, "fN", start_pos)],
             "strUct": [Token(T.IDENTIFIER, "strUct", start_pos)],
+            "optional": [Token(T.IDENTIFIER, "optional", start_pos)],
         }
 
         for test, expected in tests.items():
@@ -46,7 +48,7 @@ class TestLexer(unittest.TestCase):
             "string": [Token(T.IDENTIFIER, "string", start_pos)],
             "func": [Token(T.IDENTIFIER, "func", start_pos)],
             "variable": [Token(T.IDENTIFIER, "variable", start_pos)],
-            "implement": [Token(T.IDENTIFIER, "implement", start_pos)]
+            "implement": [Token(T.IDENTIFIER, "implement", start_pos)],
         }
 
         for test, expected in tests.items():

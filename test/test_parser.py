@@ -45,6 +45,12 @@ class TestParser(unittest.TestCase):
                 ast.TypeName(ast.Identifier("int")),
                 ast.Identifier("x"),
             ),
+
+            "var test Optional<int> = x;": ast.VariableDeclr(
+                ast.Identifier("test"),
+                ast.OptionalType(ast.TypeName(ast.Identifier("int"))),
+                ast.Identifier("x"),
+            ),
         }
 
         p = Parser(None)

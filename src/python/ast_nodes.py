@@ -100,6 +100,11 @@ class ArrayType(Type):
 
 
 @dataclass
+class OptionalType(Type):
+    some_type: Type
+
+
+@dataclass
 class Block(Stmt):
     stmt_list: list[Stmt]
 

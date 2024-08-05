@@ -242,6 +242,9 @@ class TypeChecker:
                     self.error(f"{value.value} is not a valid type")
                 return typ
 
+            case ast.OptionalType(some_type):
+                return types.OptionalType(self.check_type(some_type))
+
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
                 self.check_expr(length)

@@ -49,6 +49,15 @@ class BasicType(Type):
 
 
 @dataclass(eq=False)
+class OptionalType(Type):
+    some_type: Type
+
+    @property
+    def string(self):
+        return f"Optional<{self.some_type}>"
+
+
+@dataclass(eq=False)
 class ArrayType(Type):
     elem_type: Type
     length: int
