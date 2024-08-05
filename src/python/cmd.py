@@ -1,6 +1,3 @@
-import llvmlite.binding as llvm
-from ctypes import CFUNCTYPE, c_int
-
 # this shadows a python module name but it hopefully doesn't matter
 from .lexer import tokenise
 from .parser import parse
