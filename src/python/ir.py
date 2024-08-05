@@ -87,7 +87,7 @@ class IRNoder:
             case ast.WhileStmt(condition, block):
                 raise NotImplementedError
             case ast.ReturnStmt(value):
-                raise NotImplementedError
+                self.make_return_stmt(value)
             case ast.AssignmentStmt(target, value):
                 self.make_assignment_stmt(target, value)
             case _:
@@ -143,6 +143,10 @@ class IRNoder:
         lhs = self.make_expr(lhs)
         rhs = self.make_expr(rhs)
         return ir.Binary(op.lexeme, lhs, rhs)
+
+    def make_return_stmt(self, value):
+        value = self.make_expr(value)
+        self.instrs.apppend(ir.Return(value))
 
     def make_assignment_stmt(self, target, value):
         target = self.make_expr(target)

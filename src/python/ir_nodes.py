@@ -72,6 +72,11 @@ class Assign(Instruction):
 
 
 @dataclass
+class Return(Instruction):
+    value: Object
+
+
+@dataclass
 class DefFunc(Instruction):
     target: FunctionSignatureRef
     block: Block
