@@ -37,21 +37,21 @@ class IRNoder:
             case ast.Literal(tok):
                 return self.make_literal(tok)
             case ast.Identifier(name):
-                raise NotImplementedError
+                return self.make_identifier(name)
             case ast.RangeExpr(start, end):
                 raise NotImplementedError
             case ast.GroupExpr(expr):
-                raise NotImplementedError
+                return self.make_expr(expr)
             case ast.CallExpr(target, args):
-                raise NotImplementedError
+                return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
                 raise NotImplementedError
             case ast.SelectorExpr(target, name):
-                raise NotImplementedError
-            case ast.UnaryExpr():
-                raise NotImplementedError
-            case ast.BinaryExpr():
-                raise NotImplementedError
+                return self.make_selector_expr(target, name)
+            case ast.UnaryExpr(op, rhs):
+                return self.make_unary_expr(op, rhs)
+            case ast.BinaryExpr(op, lhs, rhs):
+                return self.make_binary_expr(op, lhs, rhs)
             case _:
                 assert False, f"Unexpected expr {node}"
 
@@ -114,6 +114,24 @@ class IRNoder:
                 return ir.Constant(int(tok.lexeme), self.scope.lookup("int"))
             case _:
                 assert False, f"Unexpected literal token {tok}"
+
+    def make_identifier(self, name):
+        return self.scope.lookup(name)
+
+    def make_call_expr(self, target, args):
+        raise NotImplementedError
+
+    def make_selector_expr(self, target, name):
+        raise NotImplementedError
+
+    def make_unary_expr(self, op, rhs):
+        rhs = self.make_expr(rhs)
+        return ir.Unary(op.value, rhs)
+
+    def make_binary_expr(op, lhs, rhs):
+        lhs = self.make_expr(lhs)
+        rhs = self.make_expr(rhs)
+        return ir.Binary(op.value, lhs, rhs)
 
     def make_assignment_stmt(self, target, value):
         target = self.make_expr(target)

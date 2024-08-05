@@ -21,7 +21,7 @@ class Constant(Object):
 
 
 @dataclass
-class Ref:
+class Ref(Object):
     name: str
     type_hint: types.Type
     checked_type: types.Type = field(default=None, init=False)
@@ -78,6 +78,23 @@ class DefFunc(Instruction):
     scope: Scope
 
 
+# this is the same as in the AST
+# maybe we want to define the ops separately to remove the dependence on tokens
+# for now the op will just be the op string
+@dataclass
+class Unary(Instruction):
+    op: str
+    lhs: Object
+    rhs: Object
+
+
+@dataclass
+class Binary(Instruction):
+    op: str
+    lhs: Object
+    rhs: Object
+
+
 @dataclass
 class Program:
-    declrs: list
+    declrs: list[Instruction]
