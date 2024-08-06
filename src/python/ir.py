@@ -188,10 +188,12 @@ class IRNoder:
         self.block = cond_block
         condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
+        loop_block_end = self.block
         # TODO: check block termination
         end_block = ir.Block([])
         cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
-        loop_block.instrs.append(ir.Branch(cond_block))
+        if not loop_block_end.is_terminated:
+            loop_block_end.instrs.append(ir.Branch(cond_block))
         self.block = end_block
 
     def make_return_stmt(self, value):
