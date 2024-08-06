@@ -34,7 +34,7 @@ class Ref(Object):
 
 
 class Instruction:
-    pass
+    is_terminator = False
 
 
 @dataclass
@@ -64,6 +64,12 @@ class FunctionSignatureRef(Ref):
 class Block:
     instrs: list
 
+    @property
+    def is_terminated(self):
+        if self.instrs:
+            return self.instrs[-1].is_terminator
+        return False
+
 
 @dataclass
 class Declare(Instruction):
@@ -78,16 +84,19 @@ class Assign(Instruction):
 
 @dataclass
 class Return(Instruction):
+    is_terminator = True
     value: Object
 
 
 @dataclass
 class Branch(Instruction):
+    is_terminator = True
     block: Block
 
 
 @dataclass
 class CBranch(Instruction):
+    is_terminator = True
     condition: Object
     t_block: Block
     f_block: Block
