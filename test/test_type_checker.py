@@ -125,6 +125,9 @@ class TestTypeChecker(unittest.TestCase):
                 }
             ),
             "var test int = 1;": builtin.types["int"],
+            "var test Optional<int> = nil;": types.OptionalType(
+                builtin.types["int"]
+            ),
         }
 
         for test, expected, in tests.items():
@@ -138,6 +141,8 @@ class TestTypeChecker(unittest.TestCase):
         tests = [
             # TODO: are there any other possible errors here?
             "var test str = 1.5;",
+            "var test Optional<bool> = 5;"
+            "var test int = nil;"
         ]
 
         for test in tests:

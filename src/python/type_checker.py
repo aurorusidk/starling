@@ -121,6 +121,9 @@ class TypeChecker:
                     case _:
                         assert False, f"Unknown literal type {tok.typ}"
 
+            case ast.Nil():
+                node.typ = types.OptionalType(None)
+
             case ast.Identifier(name):
                 # lookup the name
                 node.typ = self.scope.lookup(name)
@@ -243,7 +246,8 @@ class TypeChecker:
                 return typ
 
             case ast.OptionalType(some_type):
-                return types.OptionalType(self.check_type(some_type))
+                some_type = self.check_type(some_type)
+                return types.OptionalType(some_type)
 
             case ast.ArrayType(length, elem_type):
                 # TODO: check if length is a constant
@@ -286,6 +290,15 @@ class TypeChecker:
                     self.error("Return statement outside a function")
                 if self.function.return_type is None:
                     self.function.return_type = value.typ
+                elif isinstance(self.function.return_type, types.OptionalType):
+                    if isinstance(value, ast.Nil):
+                        value.typ.some_type = self.function.return_type.some_type
+                    elif self.function.return_type.some_type != value.typ:
+                        self.error(
+                            f"Return value with type {value.typ} "
+                            f"does not match optional function return type "
+                            f"{self.function.return_type.some_type}"
+                        )
                 elif self.function.return_type != value.typ:
                     self.error(
                         f"Return value with type {value.typ} "
@@ -379,7 +392,16 @@ class TypeChecker:
 
                 if typ is not None:
                     typ = self.check_type(typ)
-                    if value is not None:
+                    if isinstance(typ, types.OptionalType):
+                        if isinstance(value, ast.Nil):
+                            value.typ.some_type = typ.some_type
+                        elif typ != value.typ:
+                            self.error(
+                                f"Cannot assign value with type {value.typ} "
+                                f"to variable {name.value} with an optional "
+                                f"type of {typ.some_type}"
+                            )
+                    elif value is not None:
                         if value.typ != typ:
                             self.error(
                                 f"Cannot assign value with type {value.typ} "

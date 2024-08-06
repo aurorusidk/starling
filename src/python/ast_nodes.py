@@ -47,6 +47,11 @@ class Identifier(Expr):
 
 
 @dataclass
+class Nil(Expr):
+    pass
+
+
+@dataclass
 class RangeExpr(Expr):
     start: Expr
     end: Expr

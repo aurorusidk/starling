@@ -48,8 +48,18 @@ class TestParser(unittest.TestCase):
 
             "var test Optional<int> = x;": ast.VariableDeclr(
                 ast.Identifier("test"),
-                ast.OptionalType(ast.TypeName(ast.Identifier("int"))),
+                ast.OptionalType(
+                    ast.TypeName(ast.Identifier("int"))
+                    ),
                 ast.Identifier("x"),
+            ),
+
+            "var test Optional<int> = nil;": ast.VariableDeclr(
+                ast.Identifier("test"),
+                ast.OptionalType(
+                    ast.TypeName(ast.Identifier("int"))
+                    ),
+                ast.Nil(),
             ),
         }
 
@@ -67,6 +77,8 @@ class TestParser(unittest.TestCase):
             "struct test (x int; y int;)",
             "var test == x;",
             "var test = x",
+            "var test Optional<>;"
+            "var test Optional<NotAType>;"
         ]
 
         p = Parser(None)
@@ -154,6 +166,7 @@ class TestParser(unittest.TestCase):
                 ast.Identifier("x"),
                 ast.Identifier("y"),
             ),
+            "nil": ast.Nil(),
         }
 
         p = Parser(None)

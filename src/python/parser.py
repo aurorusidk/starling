@@ -331,6 +331,8 @@ class Parser:
             return ast.RangeExpr(start, end)
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
+        elif self.consume(T.NIL):
+            return ast.Nil()
         else:
             value = self.consume(
                 T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,

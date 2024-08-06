@@ -130,6 +130,8 @@ class Interpreter:
 
             case ast.TypeName(name):
                 return self.eval_type(name)
+            case ast.OptionalType(some_type):
+                return self.eval_optional_type(some_type)
             case ast.ArrayType(length, elem_type):
                 return self.eval_array_type(length, elem_type)
 
@@ -241,6 +243,10 @@ class Interpreter:
         typ = builtin.types.get(name.value)
         assert typ is not None, f"Unimplemented type: {name.value}"
         return typ
+
+    def eval_optional_type(self, some_type):
+        some_type = self.eval_node(some_type.value)
+        return types.OptionalType(some_type)
 
     def eval_array_type(self, length, elem_type):
         length = self.eval_node(length)
