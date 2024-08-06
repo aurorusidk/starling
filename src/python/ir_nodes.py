@@ -144,7 +144,7 @@ class IRPrinter:
                     instrs = '\n'.join(' ' + self.to_string(i) for i in ir.instrs)
                     if not instrs:
                         instrs = " [empty]"
-                    return f"{block_hash}:\n{instrs}"
+                    return f"\n{block_hash}:\n{instrs}"
                 return ""
             case Declare(ref):
                 return f"DECLARE {self.to_string(ref)}"
@@ -153,15 +153,15 @@ class IRPrinter:
             case Return(value):
                 return f"RETURN {self.to_string(value)}"
             case Branch(block):
-                return f"BRANCH {id_hash(block)}\n{self.to_string(block)}"
+                return f"BRANCH {id_hash(block)}{self.to_string(block)}"
             case CBranch(condition, t_block, f_block):
                 return (
                     f"CBRANCH {self.to_string(condition)} "
-                    f"{id_hash(t_block)} {id_hash(f_block)}\n"
-                    f"{self.to_string(t_block)}\n{self.to_string(f_block)}"
+                    f"{id_hash(t_block)} {id_hash(f_block)}"
+                    f"{self.to_string(t_block)}{self.to_string(f_block)}"
                 )
             case DefFunc(target, block):
-                return f"DEFINE {self.to_string(target)}\n{self.to_string(block)}"
+                return f"DEFINE {self.to_string(target)}{self.to_string(block)}"
             case Unary(op, rhs):
                 return f"{op}{self.to_string(rhs)}"
             case Binary(op, lhs, rhs):
