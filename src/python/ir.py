@@ -151,6 +151,7 @@ class IRNoder:
         logging.debug("making if ir")
         condition = self.make_expr(condition)
         prev_block = self.block
+
         if isinstance(if_block, ast.Block):
             if_block = self.make_stmt(if_block)
         else:
@@ -159,6 +160,7 @@ class IRNoder:
             self.block = if_block
             self.make_stmt(stmt)
         if_block_end = self.block
+
         if else_block is not None:
             if isinstance(else_block, ast.Block):
                 else_block = self.make_stmt(else_block)
@@ -169,17 +171,24 @@ class IRNoder:
                 self.make_stmt(stmt)
         else_block_end = self.block
 
+        # if there is an empty block ready we can use that as the merge block
         if self.block.instrs:
             merge_block = ir.Block([])
         else:
             merge_block = self.block
+
+        if not if_block_end.is_terminated:
+            if_block_end.instrs.append(ir.Branch(merge_block))
+
         if else_block is None:
             else_block = merge_block
         elif not else_block_end.is_terminated:
-            else_block_end.instrs.append(ir.Branch(merge_block))
+            # if we didn't create a new merge block
+            # then the else_block_end might be the merge_block
+            if else_block_end != merge_block:
+                else_block_end.instrs.append(ir.Branch(merge_block))
+
         prev_block.instrs.append(ir.CBranch(condition, if_block, else_block))
-        if not if_block_end.is_terminated:
-            if_block_end.instrs.append(ir.Branch(merge_block))
         self.block = merge_block
 
     def make_while_stmt(self, condition, block):
@@ -189,7 +198,6 @@ class IRNoder:
         condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
         loop_block_end = self.block
-        # TODO: check block termination
         end_block = ir.Block([])
         cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
         if not loop_block_end.is_terminated:
