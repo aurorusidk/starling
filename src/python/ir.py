@@ -148,14 +148,30 @@ class IRNoder:
         return ir.Binary(op.lexeme, lhs, rhs)
 
     def make_if_stmt(self, condition, if_block, else_block):
+        logging.debug("making if ir")
         condition = self.make_expr(condition)
         prev_block = self.block
-        if_block = self.make_stmt(if_block)
+        if isinstance(if_block, ast.Block):
+            if_block = self.make_stmt(if_block)
+        else:
+            stmt = if_block
+            if_block = ir.Block([])
+            self.block = if_block
+            self.make_stmt(stmt)
         if else_block is not None:
-            else_block = self.make_stmt(else_block)
+            if isinstance(else_block, ast.Block):
+                else_block = self.make_stmt(else_block)
+            else:
+                stmt = else_block
+                else_block = ir.Block([])
+                self.block = else_block
+                self.make_stmt(stmt)
 
         # TODO: check block termination and if else is None
-        merge_block = ir.Block([])
+        if self.block.instrs:
+            merge_block = ir.Block([])
+        else:
+            merge_block = self.block
         if else_block is None:
             else_block = merge_block
         else:
@@ -257,6 +273,7 @@ if __name__ == "__main__":
         src = f.read()
     toks = lexer.tokenise(src)
     tree = parser.parse(toks)
+    print(tree)
     noder = IRNoder()
     iir = noder.make(tree)
     print(noder.scope)
