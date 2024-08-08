@@ -180,3 +180,4 @@ if __name__ == "__main__":
     tc = TypeChecker(iir)
     tc.check(iir)
     print(iir)
+    print(ir.IRPrinter().to_string(iir))

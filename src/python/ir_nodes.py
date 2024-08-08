@@ -132,15 +132,16 @@ class IRPrinter:
         self.blocks_seen = []
 
     def to_string(self, ir):
+        string = ""
         match ir:
             case Constant(value):
-                return str(value)
+                string += str(value)
             case StructTypeRef():
-                return f"{ir.name}{{{', '.join(ir.fields)}}}"
+                string += f"{ir.name}{{{', '.join(ir.fields)}}}"
             case FunctionSignatureRef():
-                return f"{ir.name}({', '.join(ir.params)})"
+                string += f"{ir.name}({', '.join(ir.params)})"
             case Ref(name):
-                return name
+                string += name
             case Block():
                 if id_hash(ir) not in self.blocks_seen:
                     block_hash = id_hash(ir)
@@ -148,29 +149,31 @@ class IRPrinter:
                     instrs = '\n'.join(' ' + self.to_string(i) for i in ir.instrs)
                     if not instrs:
                         instrs = " [empty]"
-                    return f"\n{block_hash}:\n{instrs}"
-                return ""
+                    string += f"\n{block_hash}:\n{instrs}"
             case Declare(ref):
-                return f"DECLARE {self.to_string(ref)}"
+                string += f"DECLARE {self.to_string(ref)}"
             case Assign(target, value):
-                return f"ASSIGN {self.to_string(target)} <- {self.to_string(value)}"
+                string += f"ASSIGN {self.to_string(target)} <- {self.to_string(value)}"
             case Return(value):
-                return f"RETURN {self.to_string(value)}"
+                string += f"RETURN {self.to_string(value)}"
             case Branch(block):
-                return f"BRANCH {id_hash(block)}{self.to_string(block)}"
+                string += f"BRANCH {id_hash(block)}{self.to_string(block)}"
             case CBranch(condition, t_block, f_block):
-                return (
+                string += (
                     f"CBRANCH {self.to_string(condition)} "
                     f"{id_hash(t_block)} {id_hash(f_block)}"
                     f"{self.to_string(t_block)}{self.to_string(f_block)}"
                 )
             case DefFunc(target, block):
-                return f"DEFINE {self.to_string(target)}{self.to_string(block)}"
+                string += f"DEFINE {self.to_string(target)}{self.to_string(block)}"
             case Unary(op, rhs):
-                return f"{op}{self.to_string(rhs)}"
+                string += f"{op}{self.to_string(rhs)}"
             case Binary(op, lhs, rhs):
-                return f"({self.to_string(lhs)} {op} {self.to_string(rhs)})"
+                string += f"({self.to_string(lhs)} {op} {self.to_string(rhs)})"
             case Program(declrs):
-                return '\n'.join(self.to_string(d) for d in declrs)
+                string += '\n'.join(self.to_string(d) for d in declrs)
             case _:
                 assert False, ir
+        if ir.checked_type is not None:
+            string += f" [{ir.checked_type}]"
+        return string
