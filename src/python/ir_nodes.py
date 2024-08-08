@@ -9,31 +9,25 @@ def id_hash(obj):
     return sha1(str(id(obj)).encode("UTF-8")).hexdigest()[:4]
 
 
-class Object:
-    pass
-
-
 @dataclass
-class Value(Object):
-    value: object
-    typ: types.Type
+class Object:
+    progress: object = field(default=None, init=False)
+    checked_type: types.Type = field(default=None, init=False)
 
 
 @dataclass
 class Constant(Object):
     value: object
-    typ: types.Type
 
 
 @dataclass
 class Ref(Object):
     name: str
     type_hint: types.Type
-    checked_type: types.Type = field(default=None, init=False)
     values: list = field(default_factory=list, init=False)
 
 
-class Instruction:
+class Instruction(Object):
     is_terminator = False
 
 
@@ -58,10 +52,13 @@ class StructTypeRef(Ref, types.Type):
 class FunctionSignatureRef(Ref):
     name: str
     params: list[str]
+    # we do not use `self.values`. maybe for function objects?
+    return_values: list = field(default_factory=list, init=False)
+    param_values: list = field(default_factory=list, init=False)
 
 
 @dataclass
-class Block:
+class Block(Object):
     instrs: list
 
     @property
@@ -126,8 +123,8 @@ class Binary(Instruction):
 
 
 @dataclass
-class Program:
-    declrs: list[Instruction]
+class Program(Object):
+    instrs: list[Instruction]
 
 
 class IRPrinter:
@@ -136,9 +133,7 @@ class IRPrinter:
 
     def to_string(self, ir):
         match ir:
-            case Value(value, _):
-                return str(value)
-            case Constant(value, _):
+            case Constant(value):
                 return str(value)
             case StructTypeRef():
                 return f"{ir.name}{{{', '.join(ir.fields)}}}"

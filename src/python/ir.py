@@ -14,6 +14,7 @@ class IRNoder:
         self.scope.name_map |= builtin.types
         self.exprs = []
         self.block = ir.Block([])
+        self.current_func = None
 
     @property
     def instrs(self):
@@ -114,7 +115,9 @@ class IRNoder:
     def make_literal(self, tok):
         match tok.typ:
             case T.INTEGER:
-                return ir.Constant(int(tok.lexeme), self.scope.lookup("int"))
+                val = ir.Constant(int(tok.lexeme))
+                val.checked_type = self.scope.lookup("int")
+                return val
             case _:
                 assert False, f"Unexpected literal token {tok}"
 
@@ -206,6 +209,8 @@ class IRNoder:
 
     def make_return_stmt(self, value):
         value = self.make_expr(value)
+        assert self.current_func is not None, "Return statement outside a function"
+        self.current_func.return_values.append(value)
         self.instrs.append(ir.Return(value))
 
     def make_assignment_stmt(self, target, value):
@@ -232,6 +237,8 @@ class IRNoder:
     def make_function_declr(self, signature, block):
         def_block = self.block
         sig = self.make_type(signature)
+        prev_func = self.current_func
+        self.current_func = sig
         self.scope.declare(sig.name, sig)
         self.scope = Scope(self.scope)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
@@ -240,6 +247,7 @@ class IRNoder:
         block = self.make_stmt(block)
         func_scope = self.scope
         self.scope = self.scope.parent
+        self.current_func = prev_func
         def_block.instrs.append(ir.DefFunc(sig, block, func_scope))
 
     def make_struct_declr(self, name, fields):
