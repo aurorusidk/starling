@@ -1,7 +1,6 @@
 from enum import Enum
 import logging
 
-from .lexer import TokenType as T
 from . import ir_nodes as ir
 from . import builtin
 from . import type_defs as types
@@ -13,22 +12,21 @@ progress = Enum("progress", [
 
 
 unary_op_preds = {
-    T.MINUS: types.is_numeric,
-    T.BANG: types.is_bool,
+    '-': types.is_numeric,
+    '!': types.is_bool,
 }
 
 binary_op_preds = {
-    T.PLUS: lambda t: types.is_numeric(t) or types.is_string(t),
-    T.MINUS: types.is_numeric,
-    T.STAR: types.is_numeric,
-    T.SLASH: types.is_numeric,
+    '+': lambda t: types.is_numeric(t) or types.is_string(t),
+    '-': types.is_numeric,
+    '*': types.is_numeric,
+    '/': types.is_numeric,
 }
 
 
 def is_comparison_op(op):
-    return op.typ in (
-        T.GREATER_THAN, T.LESS_THAN, T.GREATER_EQUALS, T.LESS_EQUALS,
-        T.EQUALS_EQUALS, T.BANG_EQUALS,
+    return op in (
+        '>', '<', '>=', '<=', '==', '!=',
     )
 
 
@@ -111,14 +109,15 @@ class TypeChecker:
             case ir.FunctionSignatureRef():
                 if node.checked_type is None:
                     node.checked_type = types.FunctionType()
+                typ = node.checked_type
                 for value in node.return_values:
                     self.check(value)
-                    node.checked_type.return_type = self.update_types(node.checked_type.return_type, value.checked_type)
+                    typ.return_type = self.update_types(typ.return_type, value.checked_type)
                 pass
             case ir.StructTypeRef():
-                pass
+                raise NotImplementedError
             case ir.FieldRef():
-                pass
+                raise NotImplementedError
             case ir.Ref():
                 pass
             case _:
@@ -144,13 +143,31 @@ class TypeChecker:
             case ir.DefFunc(target, block, scope):
                 self.check(target)
                 self.check(block)
-            case ir.Binary(op, lhs, rhs):
-                self.check(lhs)
-                self.check(rhs)
+            case ir.Binary():
+                self.check_binary(node)
             case ir.Unary(op, rhs):
                 self.check(rhs)
             case _:
                 assert False, f"Unexpected instruction {node}"
+
+    def check_binary(self, node):
+        self.check(node.lhs)
+        self.check(node.rhs)
+
+        print(node.op)
+
+        if node.lhs.checked_type != node.rhs.checked_type:
+            self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
+        if is_comparison_op(node.op):
+            node.checked_type = builtin.types["bool"]
+
+        pred = binary_op_preds[node.op]
+        if not pred(node.lhs.checked_type):
+            self.error(f"Unsupported op '{node.op}' on {node.lhs.checked_type}")
+        elif node.op == '/':
+            node.checked_type = builtin.types["float"]
+        else:
+            node.checked_type = node.lhs.checked_type
 
     def check_object(self, node):
         match node:
