@@ -146,15 +146,14 @@ class TypeChecker:
             case ir.Binary():
                 self.check_binary(node)
             case ir.Unary(op, rhs):
-                self.check(rhs)
+                self.check_unary(node)
             case _:
                 assert False, f"Unexpected instruction {node}"
+        node.progress = progress.COMPLETED
 
     def check_binary(self, node):
         self.check(node.lhs)
         self.check(node.rhs)
-
-        print(node.op)
 
         if node.lhs.checked_type != node.rhs.checked_type:
             self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
@@ -168,6 +167,15 @@ class TypeChecker:
             node.checked_type = builtin.types["float"]
         else:
             node.checked_type = node.lhs.checked_type
+
+    def check_unary(self, node):
+        self.check(node.rhs)
+
+        pred = unary_op_preds[node.op]
+        if not pred(node.rhs.checked_type):
+            self.error(f"Unsupported op {node.op} on {node.rhs.checked_type}")
+        else:
+            node.checked_type = node.rhs.checked_type
 
     def check_object(self, node):
         match node:
