@@ -1,3 +1,4 @@
+from fractions import Fraction
 import logging
 
 from .lexer import TokenType as T
@@ -117,9 +118,21 @@ class IRNoder:
             case T.INTEGER:
                 val = ir.Constant(int(tok.lexeme))
                 val.checked_type = self.scope.lookup("int")
-                return val
+            case T.FLOAT:
+                val = ir.Constant(float(tok.lexeme))
+                val.checked_type = self.scope.lookup("float")
+            case T.RATIONAL:
+                val = ir.Constant(Fraction(tok.lexeme.replace("//", "/")))
+                val.checked_type = self.scope.lookup("frac")
+            case T.STRING:
+                val = ir.Constant(str(tok.lexeme[1:-1]))
+                val.checked_type = self.scope.lookup("str")
+            case T.BOOLEAN:
+                val = ir.Constant(tok.lexeme == "true")
+                val.checked_type = self.scope.lookup("bool")
             case _:
                 assert False, f"Unexpected literal token {tok}"
+        return val
 
     def make_identifier(self, name):
         return self.scope.lookup(name)
