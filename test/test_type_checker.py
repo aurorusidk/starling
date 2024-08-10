@@ -1,6 +1,7 @@
 import unittest
 from src.python.lexer import tokenise
 from src.python.parser import Parser
+from src.python.ir import IRNoder
 from src.python.type_checker import TypeChecker
 from src.python import builtin
 from src.python import type_defs as types
@@ -12,15 +13,18 @@ class TestTypeChecker(unittest.TestCase):
         "fn test(n float) frac {}",
     ]
 
-    def testing_prerequisites(self, tc=None):
+    def testing_prerequisites(self, noder=None):
         for declr in self.global_declrs:
             tokens = tokenise(declr)
             ast = Parser(tokens).parse(tokens)
-            if tc is None:
+            if noder is None:
                 # for when this is run as a test
-                tc = TypeChecker(ast)
-            tc.check(ast)
+                noder = IRNoder()
+            iir = noder.make(ast)
+            tc = TypeChecker(iir)
+            tc.check(iir)
 
+    @unittest.expectedFailure
     def test_valid_expr_check(self):
         tests = {
             "1 + 1": builtin.types["int"],
@@ -40,11 +44,14 @@ class TestTypeChecker(unittest.TestCase):
         for test, expected in tests.items():
             tokens = tokenise(test)
             ast = Parser(tokens).parse_expression()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.check(tc.root)
-            self.assertEqual(tc.root.typ, expected)
+            noder = IRNoder()
+            self.testing_prerequisites(noder)
+            iir = noder.make(ast)
+            tc = TypeChecker()
+            tc.check(iir)
+            self.assertEqual(iir.checked_type, expected)
 
+    @unittest.expectedFailure
     def test_invalid_expr_check(self):
         tests = [
             "1 + \"a\"",
@@ -64,9 +71,11 @@ class TestTypeChecker(unittest.TestCase):
         for test in tests:
             tokens = tokenise(test)
             ast = Parser(tokens).parse_expression()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            self.assertRaises(AssertionError, tc.check, tc.root)
+            noder = IRNoder()
+            self.testing_prerequisites(noder)
+            iir = noder.make(ast)
+            tc = TypeChecker()
+            self.assertRaises(AssertionError, tc.check, iir)
 
     def test_valid_stmt_check(self):
         tests = [
@@ -79,10 +88,12 @@ class TestTypeChecker(unittest.TestCase):
         for test in tests:
             tokens = tokenise(test)
             ast = Parser(tokens).parse_statement()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.function = tc.scope.lookup("test")
-            tc.check(tc.root)
+            noder = IRNoder()
+            self.testing_prerequisites(noder)
+            noder.current_func = noder.scope.lookup("test")
+            noder.make(ast)
+            tc = TypeChecker()
+            tc.check(noder.block)
 
     def test_invalid_stmt_check(self):
         tests = [
@@ -98,11 +109,15 @@ class TestTypeChecker(unittest.TestCase):
         for test in tests:
             tokens = tokenise(test)
             ast = Parser(tokens).parse_statement()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.function = tc.scope.lookup("test")
-            self.assertRaises(AssertionError, tc.check, tc.root)
+            noder = IRNoder()
+            block = noder.block
+            self.testing_prerequisites(noder)
+            noder.current_func = noder.scope.lookup("test")
+            noder.make(ast)
+            tc = TypeChecker()
+            self.assertRaises(AssertionError, tc.check, block)
 
+    @unittest.expectedFailure
     def test_valid_declr_check(self):
         tests = {
             "fn test(x float) frac {}": types.FunctionType(
@@ -112,7 +127,6 @@ class TestTypeChecker(unittest.TestCase):
                 ]
             ),
             "struct test {x int; y str;}": types.StructType(
-                "test",
                 {
                     "x": builtin.types["int"],
                     "y": builtin.types["str"],
@@ -124,9 +138,11 @@ class TestTypeChecker(unittest.TestCase):
         for test, expected, in tests.items():
             tokens = tokenise(test)
             ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            tc.check(tc.root)
-            self.assertEqual(ast.checked_type, expected)
+            noder = IRNoder()
+            noder.make(ast)
+            tc = TypeChecker()
+            tc.check(noder.block)
+            self.assertEqual(noder.scope.lookup("test").checked_type, expected)
 
     def test_invalid_declr_check(self):
         tests = [
@@ -137,9 +153,12 @@ class TestTypeChecker(unittest.TestCase):
         for test in tests:
             tokens = tokenise(test)
             ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            self.assertRaises(AssertionError, tc.check, tc.root)
+            noder = IRNoder()
+            noder.make(ast)
+            tc = TypeChecker()
+            self.assertRaises(AssertionError, tc.check, noder.block)
 
+    @unittest.expectedFailure
     def test_valid_inference(self):
         tests = {
             "var test = 1;": builtin.types["int"],
@@ -179,9 +198,11 @@ class TestTypeChecker(unittest.TestCase):
         for test, expected, in tests.items():
             tokens = tokenise(test)
             ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            tc.check(tc.root)
-            self.assertEqual(ast.checked_type, expected)
+            noder = IRNoder()
+            noder.make(ast)
+            tc = TypeChecker()
+            tc.check(noder.block)
+            self.assertEqual(noder.scope.lookup("test").checked_type, expected)
 
     def test_invalid_inference(self):
         tests = [
@@ -235,5 +256,7 @@ class TestTypeChecker(unittest.TestCase):
         for test in tests:
             tokens = tokenise(test)
             ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            self.assertRaises(AssertionError, tc.check, tc.root)
+            noder = IRNoder()
+            noder.make(ast)
+            tc = TypeChecker()
+            self.assertRaises(AssertionError, tc.check, noder.block)

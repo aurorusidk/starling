@@ -31,8 +31,7 @@ def is_comparison_op(op):
 
 
 class TypeChecker:
-    def __init__(self, iir, error_handler=None):
-        self.ir = iir
+    def __init__(self, error_handler=None):
         # used to infer return types
         self.function = None
         self.error_handler = error_handler
@@ -138,6 +137,8 @@ class TypeChecker:
                 self.check(block)
             case ir.CBranch(condition, t_block, f_block):
                 self.check(condition)
+                if condition.checked_type != builtin.types["bool"]:
+                    self.error("Branch condition must be a boolean")
                 self.check(t_block)
                 self.check(f_block)
             case ir.DefFunc(target, block, scope):

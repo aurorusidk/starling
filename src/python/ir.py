@@ -24,7 +24,7 @@ class IRNoder:
     def make(self, node):
         match node:
             case ast.Expr():
-                self.make_expr(node)
+                return self.make_expr(node)
             case ast.Type():
                 self.make_type(node)
             case ast.Stmt():
@@ -78,10 +78,12 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
+                prev_block = self.block
                 block = ir.Block([])
                 self.block = block
                 for stmt in stmts:
                     self.make_stmt(stmt)
+                self.block = prev_block
                 return block
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)

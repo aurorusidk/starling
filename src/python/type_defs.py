@@ -33,6 +33,8 @@ class Type:
         return self.string
 
     def __eq__(self, other):
+        if not isinstance(other, Type):
+            return False
         return self.string == other.string
 
     def __hash__(self):
