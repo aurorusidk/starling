@@ -2,6 +2,21 @@ import random
 import schemdraw
 from schemdraw import flow
 
+from .ir_nodes import id_hash
+
+
+def create_flows(block):
+    flows = {}
+    queue = [block]
+    while queue:
+        cur = queue.pop(0)
+        cur_id = id_hash(cur)
+        if cur_id in flows:
+            continue
+        queue.extend(cur.deps)
+        flows[id_hash(cur)] = [id_hash(b) for b in cur.deps]
+    return flows
+
 
 class ControlFlows:
     def __init__(self, flows):
