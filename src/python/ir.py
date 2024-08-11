@@ -78,12 +78,10 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
-                prev_block = self.block
                 block = ir.Block([])
                 self.block = block
                 for stmt in stmts:
                     self.make_stmt(stmt)
-                self.block = prev_block
                 return block
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)
@@ -255,11 +253,13 @@ class IRNoder:
         prev_func = self.current_func
         self.current_func = sig
         self.scope.declare(sig.name, sig)
+        prev_block = self.block
         self.scope = Scope(self.scope)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
         block = self.make_stmt(block)
+        self.block = prev_block
         func_scope = self.scope
         self.scope = self.scope.parent
         self.current_func = prev_func
