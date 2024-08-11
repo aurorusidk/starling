@@ -27,6 +27,22 @@ class IRNoder:
         self.blocks[ir.id_hash(block)] = block
         return block
 
+    def branch(self, block, from_block=None):
+        if from_block is None:
+            from_block = self.block
+        from_block.deps.append(block)
+        instr = ir.Branch(block)
+        from_block.instrs.append(instr)
+        return instr
+
+    def cbranch(self, cond, t_block, f_block, from_block=None):
+        if from_block is None:
+            from_block = self.block
+        from_block.deps.extend((t_block, f_block))
+        instr = ir.CBranch(cond, t_block, f_block)
+        from_block.instrs.append(instr)
+        return instr
+
     def make(self, node):
         match node:
             case ast.Expr():
@@ -200,7 +216,7 @@ class IRNoder:
             merge_block = self.block
 
         if not if_block_end.is_terminated:
-            if_block_end.instrs.append(ir.Branch(merge_block))
+            self.branch(merge_block, from_block=if_block_end)
 
         if else_block is None:
             else_block = merge_block
@@ -208,22 +224,22 @@ class IRNoder:
             # if we didn't create a new merge block
             # then the else_block_end might be the merge_block
             if else_block_end != merge_block:
-                else_block_end.instrs.append(ir.Branch(merge_block))
+                self.branch(merge_block, from_block=else_block_end)
 
-        prev_block.instrs.append(ir.CBranch(condition, if_block, else_block))
+        self.cbranch(condition, if_block, else_block, from_block=prev_block)
         self.block = merge_block
 
     def make_while_stmt(self, condition, block):
         cond_block = self.new_block()
-        self.instrs.append(ir.Branch(cond_block))
+        self.branch(cond_block)
         self.block = cond_block
         condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
         loop_block_end = self.block
         end_block = self.new_block()
-        cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
+        self.cbranch(condition, loop_block, end_block, from_block=cond_block)
         if not loop_block_end.is_terminated:
-            loop_block_end.instrs.append(ir.Branch(cond_block))
+            self.branch(cond_block, from_block=loop_block_end)
         self.block = end_block
 
     def make_return_stmt(self, value):
