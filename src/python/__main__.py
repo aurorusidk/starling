@@ -1,6 +1,6 @@
 import argparse
 
-from .cmd import exec_file, compile_file
+from . import cmd
 
 
 parser = argparse.ArgumentParser(
@@ -12,13 +12,20 @@ t_mode_g = parser.add_argument_group("translation mode")
 t_mode = t_mode_g.add_mutually_exclusive_group(required=True)
 t_mode.add_argument("-i", "--interpret", action="store_true")
 t_mode.add_argument("-c", "--compile", action="store_true")
+t_mode.add_argument("--tokenise", action="store_true")
+t_mode.add_argument("--parse", action="store_true")
+t_mode.add_argument("--make-ir", action="store_true")
+t_mode.add_argument("--typecheck", action="store_true")
 
 parser.add_argument("filename", help="the file to translate")
 
-args = parser.parse_args()
-if args.interpret:
-    exec_file(args.filename)
-elif args.compile:
-    compile_file(args.filename)
+args = vars(parser.parse_args())
+filename = args.pop("filename")
+if args.get("interpret"):
+    cmd.exec_file(filename, **args)
+elif args.get("compile"):
+    cmd.compile_file(filename, **args)
 else:
-    assert False, "Unreachable"
+    with open(filename) as f:
+        src = f.read()
+    cmd.translate(src, **args)
