@@ -16,10 +16,16 @@ class IRNoder:
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
+        self.blocks = {}
 
     @property
     def instrs(self):
         return self.block.instrs
+
+    def new_block(self):
+        block = ir.Block([])
+        self.blocks[ir.id_hash(block)] = block
+        return block
 
     def make(self, node):
         match node:
@@ -78,7 +84,7 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
-                block = ir.Block([])
+                block = self.new_block()
                 self.block = block
                 for stmt in stmts:
                     self.make_stmt(stmt)
@@ -172,7 +178,7 @@ class IRNoder:
             if_block = self.make_stmt(if_block)
         else:
             stmt = if_block
-            if_block = ir.Block([])
+            if_block = self.new_block()
             self.block = if_block
             self.make_stmt(stmt)
         if_block_end = self.block
@@ -182,14 +188,14 @@ class IRNoder:
                 else_block = self.make_stmt(else_block)
             else:
                 stmt = else_block
-                else_block = ir.Block([])
+                else_block = self.new_block()
                 self.block = else_block
                 self.make_stmt(stmt)
         else_block_end = self.block
 
         # if there is an empty block ready we can use that as the merge block
         if self.block.instrs:
-            merge_block = ir.Block([])
+            merge_block = self.new_block()
         else:
             merge_block = self.block
 
@@ -208,13 +214,13 @@ class IRNoder:
         self.block = merge_block
 
     def make_while_stmt(self, condition, block):
-        cond_block = ir.Block([])
+        cond_block = self.new_block()
         self.instrs.append(ir.Branch(cond_block))
         self.block = cond_block
         condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
         loop_block_end = self.block
-        end_block = ir.Block([])
+        end_block = self.new_block()
         cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
         if not loop_block_end.is_terminated:
             loop_block_end.instrs.append(ir.Branch(cond_block))
