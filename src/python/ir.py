@@ -7,6 +7,7 @@ from . import ast_nodes as ast
 from . import type_defs as types
 from . import builtin
 from . import ir_nodes as ir
+from . import control_flows as cf
 
 
 class IRNoder:
@@ -341,3 +342,4 @@ if __name__ == "__main__":
     print(noder.scope)
     logging.debug(iir)
     print(ir.IRPrinter().to_string(iir))
+    cf.ControlFlows(ir.IRPrinter().get_flows(iir)).draw_flow()
