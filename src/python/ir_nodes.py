@@ -60,6 +60,7 @@ class FunctionSignatureRef(Ref):
 @dataclass
 class Block(Object):
     instrs: list
+    deps: list = field(default_factory=list)
 
     @property
     def is_terminated(self):

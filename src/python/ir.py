@@ -17,10 +17,32 @@ class IRNoder:
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
+        self.blocks = {}
 
     @property
     def instrs(self):
         return self.block.instrs
+
+    def new_block(self):
+        block = ir.Block([])
+        self.blocks[ir.id_hash(block)] = block
+        return block
+
+    def branch(self, block, from_block=None):
+        if from_block is None:
+            from_block = self.block
+        from_block.deps.append(block)
+        instr = ir.Branch(block)
+        from_block.instrs.append(instr)
+        return instr
+
+    def cbranch(self, cond, t_block, f_block, from_block=None):
+        if from_block is None:
+            from_block = self.block
+        from_block.deps.extend((t_block, f_block))
+        instr = ir.CBranch(cond, t_block, f_block)
+        from_block.instrs.append(instr)
+        return instr
 
     def make(self, node):
         match node:
@@ -79,12 +101,10 @@ class IRNoder:
     def make_stmt(self, node):
         match node:
             case ast.Block(stmts):
-                prev_block = self.block
-                block = ir.Block([])
+                block = self.new_block()
                 self.block = block
                 for stmt in stmts:
                     self.make_stmt(stmt)
-                self.block = prev_block
                 return block
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)
@@ -175,7 +195,7 @@ class IRNoder:
             if_block = self.make_stmt(if_block)
         else:
             stmt = if_block
-            if_block = ir.Block([])
+            if_block = self.new_block()
             self.block = if_block
             self.make_stmt(stmt)
         if_block_end = self.block
@@ -185,19 +205,19 @@ class IRNoder:
                 else_block = self.make_stmt(else_block)
             else:
                 stmt = else_block
-                else_block = ir.Block([])
+                else_block = self.new_block()
                 self.block = else_block
                 self.make_stmt(stmt)
         else_block_end = self.block
 
         # if there is an empty block ready we can use that as the merge block
         if self.block.instrs:
-            merge_block = ir.Block([])
+            merge_block = self.new_block()
         else:
             merge_block = self.block
 
         if not if_block_end.is_terminated:
-            if_block_end.instrs.append(ir.Branch(merge_block))
+            self.branch(merge_block, from_block=if_block_end)
 
         if else_block is None:
             else_block = merge_block
@@ -205,22 +225,22 @@ class IRNoder:
             # if we didn't create a new merge block
             # then the else_block_end might be the merge_block
             if else_block_end != merge_block:
-                else_block_end.instrs.append(ir.Branch(merge_block))
+                self.branch(merge_block, from_block=else_block_end)
 
-        prev_block.instrs.append(ir.CBranch(condition, if_block, else_block))
+        self.cbranch(condition, if_block, else_block, from_block=prev_block)
         self.block = merge_block
 
     def make_while_stmt(self, condition, block):
-        cond_block = ir.Block([])
-        self.instrs.append(ir.Branch(cond_block))
+        cond_block = self.new_block()
+        self.branch(cond_block)
         self.block = cond_block
         condition = self.make_expr(condition)
         loop_block = self.make_stmt(block)
         loop_block_end = self.block
-        end_block = ir.Block([])
-        cond_block.instrs.append(ir.CBranch(condition, loop_block, end_block))
+        end_block = self.new_block()
+        self.cbranch(condition, loop_block, end_block, from_block=cond_block)
         if not loop_block_end.is_terminated:
-            loop_block_end.instrs.append(ir.Branch(cond_block))
+            self.branch(cond_block, from_block=loop_block_end)
         self.block = end_block
 
     def make_return_stmt(self, value):
@@ -256,11 +276,13 @@ class IRNoder:
         prev_func = self.current_func
         self.current_func = sig
         self.scope.declare(sig.name, sig)
+        prev_block = self.block
         self.scope = Scope(self.scope)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
         block = self.make_stmt(block)
+        self.block = prev_block
         func_scope = self.scope
         self.scope = self.scope.parent
         self.current_func = prev_func
