@@ -7,7 +7,6 @@ from . import ast_nodes as ast
 from . import type_defs as types
 from . import builtin
 from . import ir_nodes as ir
-from . import control_flows as cf
 
 
 class IRNoder:
@@ -58,7 +57,7 @@ class IRNoder:
                 block = self.block
                 for declr in declrs:
                     self.make_declr(declr)
-                return ir.Program(block.instrs)
+                return ir.Program(block)
             case _:
                 assert False, f"Unexpected node {node}"
 
@@ -281,17 +280,17 @@ class IRNoder:
         prev_func = self.current_func
         self.current_func = sig
         self.scope.declare(sig.name, sig)
-        prev_block = self.block
         self.scope = Scope(self.scope)
         for pname, ptype in zip(sig.params, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
         block = self.make_stmt(block)
-        self.block = prev_block
+        self.block = def_block
         func_scope = self.scope
         self.scope = self.scope.parent
         self.current_func = prev_func
         def_block.instrs.append(ir.DefFunc(sig, block, func_scope))
+        def_block.deps.append(block)
 
     def make_struct_declr(self, name, fields):
         name = name.value
@@ -327,6 +326,7 @@ if __name__ == "__main__":
 
     from . import lexer
     from . import parser
+    from . import control_flows as cf
 
     logging.basicConfig(format="%(levelname)s: %(message)s")
     logging.getLogger().setLevel(logging.DEBUG)
@@ -336,10 +336,11 @@ if __name__ == "__main__":
         src = f.read()
     toks = lexer.tokenise(src)
     tree = parser.parse(toks)
-    print(tree)
+    logging.debug(tree)
     noder = IRNoder()
+    block = noder.block
     iir = noder.make(tree)
-    print(noder.scope)
     logging.debug(iir)
     print(ir.IRPrinter().to_string(iir))
-    cf.ControlFlows(ir.IRPrinter().get_flows(iir)).draw_flow()
+    flows = cf.create_flows(block)
+    cf.ControlFlows(flows).draw_flow()
