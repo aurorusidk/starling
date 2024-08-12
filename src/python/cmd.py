@@ -21,8 +21,8 @@ def translate(src, **flags):
     noder = IRNoder()
     block = noder.block
     iir = noder.make(ast)
-    if flags.get("cf_show") or (flags.get("cfpath") is not None):
-        process_cf(block, flags.get("cfpath"), flags.get("cf_show"))
+    if flags.get("cf_show") or (flags.get("cf_path") is not None):
+        process_cf(block, flags.get("cf_path"), flags.get("cf_show"))
     if flags.get("make_ir"):
         print(IRPrinter().to_string(iir))
         return iir
