@@ -160,6 +160,7 @@ class TypeChecker:
             self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
         if is_comparison_op(node.op):
             node.checked_type = builtin.types["bool"]
+            return
 
         pred = binary_op_preds[node.op]
         if not pred(node.lhs.checked_type):
