@@ -20,16 +20,11 @@ t_mode.add_argument("--typecheck", action="store_true")
 parser.add_argument("filename", help="the file to translate")
 
 cf_g = parser.add_argument_group("control flow diagram")
-cf_g.add_argument("--cf-diagram", action="store_true", help="create a control flow diagram")
-cf_g.add_argument("--cfpath", help="the path the cf-diagram will be saved under")
+cf_g.add_argument("--cf-show", action="store_true", help="display a control flow diagram")
+cf_g.add_argument("--cfpath", help="save a cf-diagram at the given path")
 
 args = vars(parser.parse_args())
 filename = args.pop("filename")
-
-if "cfpath" in args:
-    if not args.get("cf_diagram"):
-        parser.error("--cfpath requires --cf-diagram")
-
 if args.get("interpret"):
     cmd.exec_file(filename, **args)  # NOTE: idk is this works
 elif args.get("compile"):

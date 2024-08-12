@@ -10,7 +10,6 @@ from .control_flows import ControlFlows, create_flows
 
 
 def translate(src, **flags):
-    print(flags)
     tokens = tokenise(src)
     if flags.get("tokenise"):
         print(tokens)
@@ -22,14 +21,8 @@ def translate(src, **flags):
     noder = IRNoder()
     block = noder.block
     iir = noder.make(ast)
-
-    if flags.get("cf_diagram"):
-        flows = create_flows(block)
-        cf = ControlFlows(flows)
-        cf.draw_flow()
-        if (cfpath := flags.get("cfpath")):
-            cf.save_flow(cfpath)
-
+    if flags.get("cf_show") or (flags.get("cfpath") is not None):
+        process_cf(block, flags.get("cfpath"), flags.get("cf_show"))
     if flags.get("make_ir"):
         print(IRPrinter().to_string(iir))
         return iir
@@ -64,3 +57,11 @@ def compile_file(path, **flags):
     print(compiler.module)
     res = execute_ir(str(compiler.module))
     print("program exited with code:", res)
+
+
+def process_cf(block, path, show):
+    flows = create_flows(block)
+    cf = ControlFlows(flows)
+    cf.draw_flow(show)
+    if path is not None:
+        cf.save_flow(path)

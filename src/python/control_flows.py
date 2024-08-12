@@ -25,8 +25,8 @@ class ControlFlows:
         self.blocks = {}
         self.dy = -2  # change this value to increase spacing
 
-    def draw_flow(self):
-        with schemdraw.Drawing() as self.d:
+    def draw_flow(self, display):
+        with schemdraw.Drawing(show=display) as self.d:
             self.d.config(fontsize=11)
             flow.Box(w=0, h=0)
             self.d.move(3, 0)
