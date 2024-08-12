@@ -26,14 +26,14 @@ class ControlFlows:
         self.dy = -2  # change this value to increase spacing
 
     def draw_flow(self):
-        with schemdraw.Drawing() as d:
-            d.config(fontsize=11)
+        with schemdraw.Drawing() as self.d:
+            self.d.config(fontsize=11)
             flow.Box(w=0, h=0)
-            d.move(3, 0)
+            self.d.move(3, 0)
 
             for block in self.flows.keys():
                 self.blocks[block] = flow.Box(w=2, h=1).anchor("N").label(block)
-                d.move(0, self.dy)
+                self.d.move(0, self.dy)
 
             alt = 2
             for block, branches in self.flows.items():
@@ -51,10 +51,14 @@ class ControlFlows:
                         curve = -0.5
                     if start.y < end.y:
                         curve *= -1
-                    print(start)
-                    print(end)
                     flow.Arc2(k=curve, arrow="->").at(start).to(end).color(colour)
                 alt += 1
+
+    def save_flow(self, path):
+        if self.d:
+            image_bytes = self.d.get_imagedata("svg")
+            with open(path, "wb") as f:
+                f.write(image_bytes)
 
 
 if __name__ == "__main__":
