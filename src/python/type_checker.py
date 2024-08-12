@@ -131,6 +131,9 @@ class TypeChecker:
             case ir.Assign(ref, value):
                 self.check(ref)
                 self.check(value)
+            case ir.Load(ref):
+                self.check(ref)
+                node.checked_type = ref.checked_type
             case ir.Return(value):
                 self.check(value)
             case ir.Branch(block):
@@ -146,7 +149,7 @@ class TypeChecker:
                 self.check(block)
             case ir.Binary():
                 self.check_binary(node)
-            case ir.Unary(op, rhs):
+            case ir.Unary():
                 self.check_unary(node)
             case _:
                 assert False, f"Unexpected instruction {node}"

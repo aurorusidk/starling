@@ -36,7 +36,7 @@ def exec_file(path, **flags):
     interpreter = Interpreter()
     interpreter.eval_node(iir)
     # define entry point
-    if (fn := interpreter.scope.lookup("main")):
+    if (fn := interpreter.entry):
         try:
             interpreter.eval_node(fn.block)
         except StaFunctionReturn as res:
