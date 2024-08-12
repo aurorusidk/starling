@@ -40,6 +40,8 @@ class ControlFlows:
                 colour = "#"
                 for i in range(3):
                     colour += random.choice(self.colour_parts)
+                if colour == "#FFFFFF":
+                    colour = "#000000"
                 for end_block in branches:
                     if (alt % 2) == 0:
                         start = self.blocks[block].E
