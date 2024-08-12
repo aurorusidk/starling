@@ -22,6 +22,14 @@ def translate(src, **flags):
     noder = IRNoder()
     block = noder.block
     iir = noder.make(ast)
+
+    if flags.get("cf_diagram"):
+        flows = create_flows(block)
+        cf = ControlFlows(flows)
+        cf.draw_flow()
+        if (cfpath := flags.get("cfpath")):
+            cf.save_flow(cfpath)
+
     if flags.get("make_ir"):
         print(IRPrinter().to_string(iir))
         return iir
@@ -29,12 +37,6 @@ def translate(src, **flags):
     tc.check(iir)
     if flags.get("typecheck"):
         print(IRPrinter().to_string(iir))
-        if flags.get("cf_diagram"):
-            flows = create_flows(block)
-            cf = ControlFlows(flows)
-            cf.draw_flow()
-            if (cfpath := flags.get("cfpath")):
-                cf.save_flow(cfpath)
         return iir
     return iir
 
