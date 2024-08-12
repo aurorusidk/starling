@@ -9,7 +9,8 @@ from .compiler import Compiler, execute_ir
 from .control_flows import ControlFlows, create_flows
 
 
-def translate(src, cfpath, **flags):
+def translate(src, **flags):
+    print(flags)
     tokens = tokenise(src)
     if flags.get("tokenise"):
         print(tokens)
@@ -32,16 +33,16 @@ def translate(src, cfpath, **flags):
             flows = create_flows(block)
             cf = ControlFlows(flows)
             cf.draw_flow()
-            if cfpath is not None:
+            if (cfpath := flags.get("cfpath")):
                 cf.save_flow(cfpath)
         return iir
     return iir
 
 
-def exec_file(path, cfpath, **flags):
+def exec_file(path, **flags):
     with open(path) as f:
         src = f.read()
-    iir = translate(src, cfpath)
+    iir = translate(src, **flags)
     interpreter = Interpreter()
     interpreter.eval_node(iir)
     # define entry point
@@ -52,10 +53,10 @@ def exec_file(path, cfpath, **flags):
             print(f"program returned with value {res.value}")
 
 
-def compile_file(path, cfpath, **flags):
+def compile_file(path, **flags):
     with open(path) as f:
         src = f.read()
-    iir = translate(src, cfpath)
+    iir = translate(src, **flags)
     compiler = Compiler()
     compiler.build_node(iir)
     print(compiler.module)
