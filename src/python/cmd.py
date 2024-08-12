@@ -6,9 +6,10 @@ from .ir_nodes import IRPrinter
 from .type_checker import TypeChecker
 from .interpreter import Interpreter, StaFunctionReturn
 from .compiler import Compiler, execute_ir
+from .control_flows import ControlFlows, create_flows
 
 
-def translate(src, **flags):
+def translate(src, cfpath, **flags):
     tokens = tokenise(src)
     if flags.get("tokenise"):
         print(tokens)
@@ -17,7 +18,9 @@ def translate(src, **flags):
     if flags.get("parse"):
         print(ast)
         return ast
-    iir = IRNoder().make(ast)
+    noder = IRNoder()
+    block = noder.block
+    iir = noder.make(ast)
     if flags.get("make_ir"):
         print(IRPrinter().to_string(iir))
         return iir
@@ -25,14 +28,20 @@ def translate(src, **flags):
     tc.check(iir)
     if flags.get("typecheck"):
         print(IRPrinter().to_string(iir))
+        if flags.get("cf_diagram"):
+            flows = create_flows(block)
+            cf = ControlFlows(flows)
+            cf.draw_flow()
+            if cfpath is not None:
+                cf.save_flow(cfpath)
         return iir
     return iir
 
 
-def exec_file(path, **flags):
+def exec_file(path, cfpath, **flags):
     with open(path) as f:
         src = f.read()
-    iir = translate(src)
+    iir = translate(src, cfpath)
     interpreter = Interpreter()
     interpreter.eval_node(iir)
     # define entry point
@@ -43,10 +52,10 @@ def exec_file(path, **flags):
             print(f"program returned with value {res.value}")
 
 
-def compile_file(path, **flags):
+def compile_file(path, cfpath, **flags):
     with open(path) as f:
         src = f.read()
-    iir = translate(src)
+    iir = translate(src, cfpath)
     compiler = Compiler()
     compiler.build_node(iir)
     print(compiler.module)

@@ -89,9 +89,8 @@ class TypeChecker:
                 self.check_ref(node)
             case ir.Instruction():
                 self.check_instr(node)
-            case ir.Program(instrs):
-                for instr in instrs:
-                    self.check_instr(instr)
+            case ir.Program(block):
+                self.check(block)
             case ir.Object():
                 # misc
                 self.check_object(node)
