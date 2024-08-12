@@ -81,6 +81,11 @@ class Assign(Instruction):
 
 
 @dataclass
+class Load(Instruction):
+    ref: Ref
+
+
+@dataclass
 class Return(Instruction):
     is_terminator = True
     value: Object
@@ -155,6 +160,8 @@ class IRPrinter:
                 string += f"DECLARE {self.to_string(ref)}"
             case Assign(target, value):
                 string += f"ASSIGN {self.to_string(target)} <- {self.to_string(value)}"
+            case Load(ref):
+                string += f"LOAD({self.to_string(ref)})"
             case Return(value):
                 string += f"RETURN {self.to_string(value)}"
             case Branch(block):

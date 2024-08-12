@@ -61,21 +61,21 @@ class IRNoder:
             case _:
                 assert False, f"Unexpected node {node}"
 
-    def make_expr(self, node):
+    def make_expr(self, node, load=True):
         match node:
             case ast.Literal(tok):
                 return self.make_literal(tok)
             case ast.Identifier(name):
-                return self.make_identifier(name)
+                return self.make_identifier(name, load)
             case ast.RangeExpr(start, end):
                 raise NotImplementedError
             case ast.GroupExpr(expr):
-                return self.make_expr(expr)
+                return self.make_expr(expr, load)
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
                 raise NotImplementedError
-            case ast.SelectorExpr(target, name):
+            case ast.SelectorExpr(target, name, load):
                 return self.make_selector_expr(target, name)
             case ast.UnaryExpr(op, rhs):
                 return self.make_unary_expr(op, rhs)
@@ -156,14 +156,17 @@ class IRNoder:
                 assert False, f"Unexpected literal token {tok}"
         return val
 
-    def make_identifier(self, name):
-        return self.scope.lookup(name)
+    def make_identifier(self, name, load=True):
+        ref = self.scope.lookup(name)
+        if load:
+            return ir.Load(ref)
+        return ref
 
     def make_call_expr(self, target, args):
         raise NotImplementedError
 
-    def make_selector_expr(self, target, name):
-        target = self.make_expr(target)
+    def make_selector_expr(self, target, name, load=True):
+        target = self.make_expr(target, load=False)
         field_id = target.name + "." + name.value
         if (ref := self.scope.lookup(field_id)):
             return ref
@@ -174,6 +177,8 @@ class IRNoder:
             type_hint = target.type_hint.type_hint.fields[index]
         ref = ir.FieldRef(field_id, type_hint, target)
         self.scope.declare(field_id, ref)
+        if load:
+            return ir.Load(ref)
         return ref
 
     def make_unary_expr(self, op, rhs):
@@ -249,7 +254,7 @@ class IRNoder:
         self.instrs.append(ir.Return(value))
 
     def make_assignment_stmt(self, target, value):
-        target = self.make_expr(target)
+        target = self.make_expr(target, load=False)
         value = self.make_expr(value)
         target.values.append(value)
         self.instrs.append(ir.Assign(target, value))
