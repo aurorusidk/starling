@@ -26,9 +26,9 @@ cf_g.add_argument("--cfpath", help="save a cf-diagram at the given path")
 args = vars(parser.parse_args())
 filename = args.pop("filename")
 if args.get("interpret"):
-    cmd.exec_file(filename, **args)  # NOTE: idk is this works
+    cmd.exec_file(filename, **args)
 elif args.get("compile"):
-    cmd.compile_file(filename, **args)  # NOTE: idk is this works
+    cmd.compile_file(filename, **args)
 else:
     with open(filename) as f:
         src = f.read()
