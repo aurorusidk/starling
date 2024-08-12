@@ -1,8 +1,10 @@
 # input/testing files
+
 input.*
 
 # control flow diagrams
-.svg
+
+*.svg
 
 # Python
 
