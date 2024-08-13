@@ -18,24 +18,24 @@ def translate(src, **flags):
     if flags.get("parse"):
         print(ast)
         return ast
+
     noder = IRNoder()
     block = noder.block
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
         process_cf(block, flags.get("cf_path"), flags.get("cf_show"))
+    printer = IRPrinter(flags.get("test"))
     if flags.get("make_ir"):
-        printer = IRPrinter()
-        if flags.get("test"):
-            printer.is_test()
-            # print(printer.to_string(iir))
-            return printer.to_string(iir)
-        print(printer.to_string(iir))
-        return iir
+        iir_string = printer.to_string(iir)
+        print(iir_string)
+        return iir_string
     tc = TypeChecker()
     tc.check(iir)
     if flags.get("typecheck"):
-        print(IRPrinter().to_string(iir))
-        return iir
+        iir_string = printer.to_string(iir)
+        print(iir_string)
+        return iir_string
+
     return iir
 
 
