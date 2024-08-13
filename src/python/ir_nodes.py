@@ -139,17 +139,59 @@ class Program(Object):
     block: Block
 
 
+def counter():
+    i = 0
+    def inner(*args, **kwargs):
+        nonlocal i
+        i += 1
+        return i
+    return inner
+
+
 class IRPrinter:
-    def __init__(self):
+    def __init__(self, test=False):
         self.blocks_seen = []
         self.blocks_to_add = []
-        self.test = False
-        self.true_to_test = {}
+        self.make_id = id_hash
+        if test:
+            self.make_id = counter()
 
     def _to_string(self, ir):
-        blocks_to_add = []
         string = ""
         match ir:
+            case Program(block):
+                block, _ = self._to_string(block)
+                return block
+            case Block(instrs):
+                name = self.make_id(ir)
+                self.blocks_seen.append(name)
+                instrs = '\n'.join(' ' + self._to_string(i) for i in instrs)
+                if not instrs:
+                    instrs = " [empty]"
+                return f"\n{name}:\n{instrs}", name
+            case Declare(ref):
+                return f"DECLARE {self._to_string(ref)}"
+            case Assign(target, value):
+                return f"ASSIGN {self._to_string(target)} <- {self.to_string(value)}"
+            case Return(value):
+                return f"RETURN {self._to_string(value)}"
+            case Branch(block):
+                block, block_name = self._to_string(block)
+                return f"BRANCH {block_name}{block}"
+            case CBranch(condition, t_block, f_block):
+                t_block, t_block_name = self._to_string(t_block)
+                f_block, f_block_name = self._to_string(f_block)
+                return (
+                    f"CBRANCH {self._to_string(condition)} "
+                    f"{t_block_name} {f_block_name}{t_block}{f_block}"
+                )
+            case DefFunc(target, block):
+                # defer block until after current block is done
+                block, block_name = self._to_string(block)
+                self.blocks_to_add.append(block)
+                return f"DEFINE {self._to_string(target)} {block_name}"
+
+            # these could have a type and should not early return
             case Constant(value):
                 string += str(value)
             case StructTypeRef():
@@ -158,64 +200,25 @@ class IRPrinter:
                 string += f"{ir.name}({', '.join(ir.param_names)})"
             case Ref(name):
                 string += name
-            case Block():
-                if id_hash(ir) not in self.blocks_seen:
-                    block_hash = id_hash(ir)
-                    if self.test:
-                        num = ""
-                        for i in range(4-len(str(self.block_counter))):
-                            num += "0"
-                        num += str(self.block_counter)
-                        self.block_counter += 1
-                        self.true_to_test[id_hash(ir)] = num
-                    self.blocks_seen.append(block_hash)
-                    instrs = '\n'.join(' ' + self._to_string(i) for i in ir.instrs)
-                    if not instrs:
-                        instrs = " [empty]"
-                    string += f"\n{block_hash}:\n{instrs}"
-            case Declare(ref):
-                string += f"DECLARE {self._to_string(ref)}"
-            case Assign(target, value):
-                string += f"ASSIGN {self._to_string(target)} <- {self.to_string(value)}"
             case Load(ref):
                 string += f"LOAD({self._to_string(ref)})"
             case Call(ref, args):
                 args = ', '.join(self._to_string(a) for a in args)
                 string += f"CALL {self._to_string(ref)} ({args})"
-            case Return(value):
-                string += f"RETURN {self._to_string(value)}"
-            case Branch(block):
-                string += f"BRANCH {id_hash(block)}{self._to_string(block)}"
-            case CBranch(condition, t_block, f_block):
-                string += (
-                    f"CBRANCH {self._to_string(condition)} "
-                    f"{id_hash(t_block)} {id_hash(f_block)}"
-                    f"{self._to_string(t_block)}{self.to_string(f_block)}"
-                )
-            case DefFunc(target, block):
-                self.blocks_to_add.append(block)
-                string += f"DEFINE {self._to_string(target)} {id_hash(block)}"
             case Unary(op, rhs):
                 string += f"{op}{self._to_string(rhs)}"
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self.to_string(rhs)})"
-            case Program(block):
-                string += self._to_string(block)
             case _:
                 assert False, ir
+
         if ir.checked_type is not None:
             string += f" [{ir.checked_type}]"
         return string
 
     def to_string(self, ir):
         string = self._to_string(ir)
+        # add deferred blocks
         for block in self.blocks_to_add:
-            string += self._to_string(block)
-        if self.test:
-            for hash, num in self.true_to_test.items():
-                string = string.replace(hash, num)
+            string += block
         return string
-
-    def is_test(self):
-        self.test = True
-        self.block_counter = 1
