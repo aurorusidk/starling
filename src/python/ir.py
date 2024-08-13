@@ -75,8 +75,8 @@ class IRNoder:
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
                 raise NotImplementedError
-            case ast.SelectorExpr(target, name, load):
-                return self.make_selector_expr(target, name)
+            case ast.SelectorExpr(target, name):
+                return self.make_selector_expr(target, name, load)
             case ast.UnaryExpr(op, rhs):
                 return self.make_unary_expr(op, rhs)
             case ast.BinaryExpr(op, lhs, rhs):
