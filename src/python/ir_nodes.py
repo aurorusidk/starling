@@ -24,7 +24,7 @@ class Constant(Object):
 class Ref(Object):
     name: str
     type_hint: types.Type
-    values: list = field(default_factory=list, init=False)
+    values: list = field(default_factory=list, kw_only=True)
 
 
 class Instruction(Object):
@@ -143,6 +143,8 @@ class IRPrinter:
     def __init__(self):
         self.blocks_seen = []
         self.blocks_to_add = []
+        self.test = False
+        self.true_to_test = {}
 
     def _to_string(self, ir):
         blocks_to_add = []
@@ -159,6 +161,13 @@ class IRPrinter:
             case Block():
                 if id_hash(ir) not in self.blocks_seen:
                     block_hash = id_hash(ir)
+                    if self.test:
+                        num = ""
+                        for i in range(4-len(str(self.block_counter))):
+                            num += "0"
+                        num += str(self.block_counter)
+                        self.block_counter += 1
+                        self.true_to_test[id_hash(ir)] = num
                     self.blocks_seen.append(block_hash)
                     instrs = '\n'.join(' ' + self._to_string(i) for i in ir.instrs)
                     if not instrs:
@@ -202,4 +211,11 @@ class IRPrinter:
         string = self._to_string(ir)
         for block in self.blocks_to_add:
             string += self._to_string(block)
+        if self.test:
+            for hash, num in self.true_to_test.items():
+                string = string.replace(hash, num)
         return string
+
+    def is_test(self):
+        self.test = True
+        self.block_counter = 1

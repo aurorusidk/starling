@@ -21,6 +21,8 @@ cf_g = parser.add_argument_group("control flow diagram")
 cf_g.add_argument("--cf-show", action="store_true", help="display a control flow diagram")
 cf_g.add_argument("--cf-path", help="save a cf-diagram at the given path")
 
+parser.add_argument("--test", action="store_true", help="causes the IRPrinter to enter test mode")
+
 parser.add_argument("filename", help="the file to translate")
 
 args = vars(parser.parse_args())

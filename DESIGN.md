@@ -104,12 +104,12 @@ Structs, or structures, are declared with the `struct` keyword.
 
 ```
 struct Foo {
-    bar int
+    bar int;
     ...
 }
 ```
 
-A struct requires one or more fields, separated by commas. A field is simply an uninitialised variable.
+A struct requires one or more fields, separated by semicolons. A field is simply an uninitialised variable.
 `field str`
 
 ## Interface delaration

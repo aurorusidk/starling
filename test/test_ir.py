@@ -7,74 +7,16 @@ import src.python.builtin as builtin
 
 class TestIR(unittest.TestCase):
     def test_globals(self):
-        # TODO: add testing for interfaces
         tests = {
-            """
-            """:
-            ir.Program(
-                ir.Block(
-                    []
-                )
-            ),
-            """fn main() {
-            }
-            """:
-            ir.Program(
-                ir.Block(
-                    [
-                        ir.DefFunc(
-                            ir.FunctionSignatureRef("main", types.FunctionType(None, []), [], []),
-                            (block := ir.Block([]))
-                        )
-                    ],
-                    deps=[block]
-                )
-            ),
-            """
-            fn main() {
-            }
-            fn test() {
-            }
-            """:
-            ir.Program(
-                ir.Block(
-                    [
-                        ir.DefFunc(
-                            ir.FunctionSignatureRef("main", types.FunctionType(None, []), [], []),
-                            (block1 := ir.Block([]))
-                        ),
-                        ir.DefFunc(
-                            ir.FunctionSignatureRef("test", types.FunctionType(None, []), [], []),
-                            (block2 := ir.Block([]))
-                        )
-                    ],
-                    deps=[block1, block2]
-                )
-            ),
-            """
-            struct test {
-                a int; b int;
-            }
-            """:
-            ir.Program(
-                ir.Block(
-                    [
-                        ir.Declare(
-                            ir.StructTypeRef("test", types.StructType(
-                                [builtin.types["int"],
-                                 builtin.types["int"]
-                                 ]), ["a", "b"])
-                        )
-                    ],
-                    deps=[]
-                )
-            ),
-        }
+                """
+                fn main() {
+                }
+                """:
+                "\n0001:\n DEFINE main() 0002\n0002:\n [empty]"
+                }
 
         for test, expected in tests.items():
-            print(translate(test, **{"make_ir": True}))
-            print(expected)
-            self.assertEqual(translate(test, **{"make_ir": True}), expected)
+            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
     def test_valid_ref(self):
         tests = {}

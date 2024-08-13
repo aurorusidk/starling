@@ -25,6 +25,11 @@ def translate(src, **flags):
         process_cf(block, flags.get("cf_path"), flags.get("cf_show"))
     if flags.get("make_ir"):
         print(IRPrinter().to_string(iir))
+        if flags.get("test"):
+            printer.is_test()
+            # print(printer.to_string(iir))
+            return printer.to_string(iir)
+        print(printer.to_string(iir))
         return iir
     tc = TypeChecker()
     tc.check(iir)
