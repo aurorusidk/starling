@@ -172,9 +172,11 @@ class Interpreter:
 
     def eval_object(self, node):
         match node:
-            case ir.Block(instrs) | ir.Program(instrs):
+            case ir.Block(instrs):
                 for instr in instrs:
                     self.eval_node(instr)
+            case ir.Program(block):
+                self.eval_node(block)
             case ir.Constant(value):
                 return StaObject(value)
             case _:
