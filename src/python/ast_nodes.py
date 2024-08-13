@@ -53,13 +53,18 @@ class RangeExpr(Expr):
 
 
 @dataclass
-class ArrayExpr(Expr):
+class SequenceExpr(Expr):
     elements: list[Expr]
 
 
 @dataclass
-class VectorExpr(Expr):
-    elements: list[Expr]
+class ArrayExpr(SequenceExpr):
+    pass
+
+
+@dataclass
+class VectorExpr(SequenceExpr):
+    pass
 
 
 @dataclass

@@ -333,23 +333,30 @@ class Parser:
 
         elif self.consume(T.VEC):
             self.expect(T.LEFT_SQUARE)
-            return self.parse_array_primary(T.VEC)
+            elements = self.get_sequence_elements()
+            return ast.VectorExpr(elements)
+
         elif self.consume(T.ARR):
             self.expect(T.LEFT_SQUARE)
-            return self.parse_array_primary(T.ARR)
+            elements = self.get_sequence_elements()
+            return ast.ArrayExpr(elements)
 
         elif self.consume(T.LEFT_SQUARE):
-            exprs = []
-            exprs.append(self.parse_expression())
+            # If the brackets are empty, return early
+            if self.consume(T.RIGHT_SQUARE):
+                return ast.SequenceExpr([])
+
+            start = self.parse_expression()
 
             # Handle range expr [x:y]
             if self.consume(T.COLON):
                 end = self.parse_expression()
                 self.expect(T.RIGHT_SQUARE)
-                return ast.RangeExpr(exprs[0], end)
+                return ast.RangeExpr(start, end)
 
             # Handle array literal [x,y,z]
-            return self.parse_array_primary(T.ARR, exprs)
+            elements = self.get_sequence_elements(start)
+            return ast.SequenceExpr(elements)
 
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
@@ -361,18 +368,21 @@ class Parser:
                 self.error("Failed to parse primary")
             return ast.Literal(value)
 
-    def parse_array_primary(self, typ, exprs=[]):
-        if not exprs:  # if exprs is empty
-            exprs.append(self.parse_expression())
+    def get_sequence_elements(self, first_expr=None):
+        # If the brackets are empty, return an empty list
+        if self.consume(T.RIGHT_SQUARE):
+            return []
+        # Otherwise, use the first_expr if it was given
+        elif first_expr:
+            exprs = [first_expr]
+        else:
+            exprs = [self.parse_expression()]
+
         while not self.consume(T.RIGHT_SQUARE):
             self.expect(T.COMMA)
             exprs.append(self.parse_expression())
-        if typ == T.VEC:
-            return ast.VectorExpr(exprs)
-        elif typ == T.ARR:
-            return ast.ArrayExpr(exprs)
-        else:
-            assert False, "Unreachable"
+
+        return exprs
 
     def parse_identifier(self):
         tok = self.expect(T.IDENTIFIER)

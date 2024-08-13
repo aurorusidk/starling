@@ -48,7 +48,7 @@ class ArrayType(Type):
 
     @property
     def string(self):
-        return f"[{self.length}]{self.elem_type}"
+        return f"arr[{self.elem_type}, {self.length}]"
 
 
 @dataclass
@@ -57,7 +57,7 @@ class VectorType(Type):
 
     @property
     def string(self):
-        return f"[]{self.elem_type}"
+        return f"vec[{self.elem_type}]"
 
 
 @dataclass
