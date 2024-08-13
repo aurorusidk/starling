@@ -1,12 +1,10 @@
 from dataclasses import dataclass
-from fractions import Fraction
 import logging
 
-from .lexer import TokenType as T, tokenise
+from .lexer import tokenise
 from .parser import Parser, parse
 from .type_checker import TypeChecker
 from . import ir_nodes as ir
-from . import ast_nodes as ast
 from . import type_defs as types
 from . import builtin
 
@@ -146,6 +144,16 @@ class Interpreter:
             case ir.Load(ref):
                 var = self.eval_node(ref)
                 return var.value
+            case ir.Call(ref, args):
+                func = self.eval_node(ref)
+                for param_ref, arg in zip(func.sig.params, args):
+                    param = self.eval_node(param_ref)
+                    self.refs[id(param_ref)] = param
+                    param.value = self.eval_node(arg)
+                try:
+                    self.eval_node(func.block)
+                except StaFunctionReturn as res:
+                    return res.value
             case ir.Return(value):
                 val = self.eval_node(value)
                 raise StaFunctionReturn(val)
@@ -157,7 +165,7 @@ class Interpreter:
                     self.eval_node(t_block)
                 else:
                     self.eval_node(f_block)
-            case ir.DefFunc(target, block, scope):
+            case ir.DefFunc(target, block):
                 func = self.eval_node(target)
                 self.refs[id(target)] = func
                 if func.sig.name == "main":
