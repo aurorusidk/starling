@@ -158,6 +158,8 @@ class IRNoder:
 
     def make_identifier(self, name, load=True):
         ref = self.scope.lookup(name)
+        if ref is None:
+            assert False, f"Unknown name {name}"
         if load:
             return ir.Load(ref)
         return ref
