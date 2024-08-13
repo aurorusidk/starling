@@ -24,7 +24,7 @@ def translate(src, **flags):
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
         process_cf(block, flags.get("cf_path"), flags.get("cf_show"))
     if flags.get("make_ir"):
-        print(IRPrinter().to_string(iir))
+        printer = IRPrinter()
         if flags.get("test"):
             printer.is_test()
             # print(printer.to_string(iir))
