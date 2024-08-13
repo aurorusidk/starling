@@ -58,7 +58,7 @@ class TypeChecker:
                 pass
             case types.BasicType():
                 assert target == new
-            case type.FunctionType():
+            case types.FunctionType():
                 r_type = self.update_types(target.return_type, new.return_type)
                 assert len(target.param_types) == len(new.param_types)
                 p_types = []
@@ -99,6 +99,9 @@ class TypeChecker:
 
     def check_ref(self, node):
         if node.type_hint is not None and node.checked_type is None:
+            # this can make the type hint appear wrong
+            # as the checked type now shares an object with the type hint
+            # probably not an issue though?
             node.checked_type = node.type_hint
         for value in node.values:
             self.check(value)
@@ -111,7 +114,16 @@ class TypeChecker:
                 for value in node.return_values:
                     self.check(value)
                     typ.return_type = self.update_types(typ.return_type, value.checked_type)
-                pass
+
+                param_types = []
+                for i, param_name in enumerate(node.param_names):
+                    values = node.param_values.get(param_name)
+                    new_type = node.checked_type.param_types[i]
+                    for value in values:
+                        self.check(value)
+                        new_type = self.update_types(new_type, value.checked_type)
+                    param_types.append(new_type)
+                typ.param_types = param_types
             case ir.StructTypeRef():
                 raise NotImplementedError
             case ir.FieldRef():
@@ -133,6 +145,11 @@ class TypeChecker:
             case ir.Load(ref):
                 self.check(ref)
                 node.checked_type = ref.checked_type
+            case ir.Call(ref, args):
+                self.check(ref)
+                for arg in args:
+                    self.check(arg)
+                node.checked_type = ref.checked_type.return_type
             case ir.Return(value):
                 self.check(value)
             case ir.Branch(block):
@@ -143,7 +160,7 @@ class TypeChecker:
                     self.error("Branch condition must be a boolean")
                 self.check(t_block)
                 self.check(f_block)
-            case ir.DefFunc(target, block, scope):
+            case ir.DefFunc(target, block):
                 self.check(target)
                 self.check(block)
             case ir.Binary():

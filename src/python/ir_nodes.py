@@ -51,10 +51,11 @@ class StructTypeRef(Ref, types.Type):
 @dataclass
 class FunctionSignatureRef(Ref):
     name: str
-    params: list[str]
+    param_names: list[str]
+    params: list[Ref] = None
     # we do not use `self.values`. maybe for function objects?
-    return_values: list = field(default_factory=list, init=False)
-    param_values: list = field(default_factory=list, init=False)
+    return_values: list[Object] = field(default_factory=list, init=False)
+    param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
 
 
 @dataclass
@@ -86,6 +87,12 @@ class Load(Instruction):
 
 
 @dataclass
+class Call(Instruction):
+    target: FunctionSignatureRef
+    args: list[Object]
+
+
+@dataclass
 class Return(Instruction):
     is_terminator = True
     value: Object
@@ -109,7 +116,6 @@ class CBranch(Instruction):
 class DefFunc(Instruction):
     target: FunctionSignatureRef
     block: Block
-    scope: Scope
 
 
 # this is the same as in the AST
@@ -145,7 +151,7 @@ class IRPrinter:
             case StructTypeRef():
                 string += f"{ir.name}{{{', '.join(ir.fields)}}}"
             case FunctionSignatureRef():
-                string += f"{ir.name}({', '.join(ir.params)})"
+                string += f"{ir.name}({', '.join(ir.param_names)})"
             case Ref(name):
                 string += name
             case Block():
@@ -162,6 +168,9 @@ class IRPrinter:
                 string += f"ASSIGN {self.to_string(target)} <- {self.to_string(value)}"
             case Load(ref):
                 string += f"LOAD({self.to_string(ref)})"
+            case Call(ref, args):
+                args = ', '.join(self.to_string(a) for a in args)
+                string += f"CALL {self.to_string(ref)} ({args})"
             case Return(value):
                 string += f"RETURN {self.to_string(value)}"
             case Branch(block):

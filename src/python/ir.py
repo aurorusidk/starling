@@ -108,7 +108,7 @@ class IRNoder:
             case ast.DeclrStmt(declr):
                 self.make_declr(declr)
             case ast.ExprStmt(expr):
-                self.make_expr(expr)
+                self.instrs.append(self.make_expr(expr))
             case ast.IfStmt(condition, if_block, else_block):
                 self.make_if_stmt(condition, if_block, else_block)
             case ast.WhileStmt(condition, block):
@@ -163,7 +163,14 @@ class IRNoder:
         return ref
 
     def make_call_expr(self, target, args):
-        raise NotImplementedError
+        func = self.make_expr(target, load=False)
+        args = [self.make(a) for a in args]
+        for param, arg in zip(func.params, args):
+            values = func.param_values.get(param.name, [])
+            values.append(arg)
+            func.param_values[param.name] = values
+            param.values.append(arg)
+        return ir.Call(func, args)
 
     def make_selector_expr(self, target, name, load=True):
         target = self.make_expr(target, load=False)
@@ -281,15 +288,17 @@ class IRNoder:
         self.current_func = sig
         self.scope.declare(sig.name, sig)
         self.scope = Scope(self.scope)
-        for pname, ptype in zip(sig.params, sig.type_hint.param_types):
+        param_refs = []
+        for pname, ptype in zip(sig.param_names, sig.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
+            param_refs.append(ref)
+        sig.params = param_refs
         block = self.make_stmt(block)
         self.block = def_block
-        func_scope = self.scope
         self.scope = self.scope.parent
         self.current_func = prev_func
-        def_block.instrs.append(ir.DefFunc(sig, block, func_scope))
+        def_block.instrs.append(ir.DefFunc(sig, block))
         def_block.deps.append(block)
 
     def make_struct_declr(self, name, fields):
