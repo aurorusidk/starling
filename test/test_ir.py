@@ -1,25 +1,59 @@
 import unittest
-import src.python.ir_nodes as ir
-from src.python import type_defs as types
 from src.python.cmd import translate
-import src.python.builtin as builtin
 
 
 class TestIR(unittest.TestCase):
     def test_globals(self):
+        # TODO: add interfaces once fully implemented
         tests = {
                 """
                 fn main() {
                 }
                 """:
-                "\n0001:\n DEFINE main() 0002\n0002:\n [empty]"
+                "\n1:\n DEFINE main() 2\n2:\n [empty]",
+                """
+                fn test() {
+                }
+                fn main() {
+                }
+                """: "\n1:\n DEFINE test() 2\n DEFINE main() 3\n2:\n [empty]\n3:\n [empty]",
+                """
+                struct test {
+                    a int;
+                }
+                """: "\n1:\n DECLARE test{a}",
                 }
 
         for test, expected in tests.items():
             self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
     def test_valid_ref(self):
-        tests = {}
+        tests = {
+                """
+                struct test {
+                    a int;
+                }
+
+                fn main() {
+                    var b = test;
+                    var c = b.a;
+                }
+                """:
+                """\n1:\n DECLARE test{a}\n DEFINE main() 2\n2:\n DECLARE b
+ ASSIGN b <- LOAD(test{a})\n DECLARE c\n ASSIGN c <- LOAD(b.a)""",
+                """
+                fn test() {
+                }
+
+                fn main() {
+                    test();
+                }
+                """:
+                "\n1:\n DEFINE test() 2\n DEFINE main() 3\n2:\n [empty]\n3:\n CALL test() ()"
+                }
+
+        for test, expected in tests.items():
+            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
     def test_invalid_ref(self):
         tests = {}
