@@ -84,4 +84,11 @@ class TestIR(unittest.TestCase):
             self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
     def test_invalid(self):
-        tests = {}
+        # TODO: add more invalid testing where reasonable
+        tests = [
+                "a = 5;"
+                ]
+
+        for test_contents in tests:
+            test = "fn main() {" + test_contents + "}"
+            self.assertRaises(AssertionError, translate, test, make_ir=True, test=True)
