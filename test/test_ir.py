@@ -55,17 +55,33 @@ class TestIR(unittest.TestCase):
         for test, expected in tests.items():
             self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
-    def test_invalid_ref(self):
-        tests = {}
-
     def test_valid_instr(self):
-        tests = {}
+        # CALL instruction tested in test_valid_ref
+        tests = {
+                "var a;":
+                "\n1:\n DEFINE main() 2\n2:\n DECLARE a",
+                "var a; a = 5;":
+                "\n1:\n DEFINE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]",
+                "var a; var b = a;":
+                "\n1:\n DEFINE main() 2\n2:\n DECLARE a\n DECLARE b\n ASSIGN b <- LOAD(a)",
+                "return 0;":
+                "\n1:\n DEFINE main() 2\n2:\n RETURN 0 [int]",
+                "var a; while a < 2 {a = a + 1;}":
+                """\n1:\n DEFINE main() 2\n2:\n DECLARE a\n BRANCH 3\n3:
+ CBRANCH (LOAD(a) < 2 [int]) 4 5\n4:\n ASSIGN a <- (LOAD(a) + 1 [int])\n BRANCH 3\n5:\n [empty]""",
+                "if true return 0;":
+                """\n1:\n DEFINE main() 2\n2:\n CBRANCH True [bool] 3 4\n3:\n RETURN 0 [int]\n4:
+ [empty]""",
+                "fn test() {}":
+                "\n1:\n DEFINE main() 2\n3:\n [empty]\n2:\n DEFINE test() 3",
+                "var a = 5; a = a + 5;":
+                """\n1:\n DEFINE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]
+ ASSIGN a <- (LOAD(a) + 5 [int])"""
+                }
 
-    def test_invalid_instr(self):
-        tests = {}
+        for test_contents, expected in tests.items():
+            test = "fn main() {" + test_contents + "}"
+            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
 
-    def test_valid_object(self):
-        tests = {}
-
-    def test_invalid_object(self):
+    def test_invalid(self):
         tests = {}
