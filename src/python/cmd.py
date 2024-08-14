@@ -12,11 +12,9 @@ from .control_flows import ControlFlows, create_flows
 def translate(src, **flags):
     tokens = tokenise(src)
     if flags.get("tokenise"):
-        print(tokens)
         return tokens
     ast = parse(tokens)
     if flags.get("parse"):
-        print(ast)
         return ast
 
     noder = IRNoder()
@@ -27,13 +25,11 @@ def translate(src, **flags):
     printer = IRPrinter(flags.get("test"))
     if flags.get("make_ir"):
         iir_string = printer.to_string(iir)
-        print(iir_string)
         return iir_string
     tc = TypeChecker()
     tc.check(iir)
     if flags.get("typecheck"):
         iir_string = printer.to_string(iir)
-        print(iir_string)
         return iir_string
 
     return iir

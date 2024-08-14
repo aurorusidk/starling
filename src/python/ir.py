@@ -12,7 +12,10 @@ from . import ir_nodes as ir
 class IRNoder:
     def __init__(self):
         self.scope = Scope(None)
-        self.scope.name_map |= builtin.types
+        for name, typ in builtin.types.items():
+            ref = ir.Type(name, typ)
+            ref.checked_type = typ
+            self.scope.declare(name, ref)
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
@@ -88,7 +91,7 @@ class IRNoder:
         match node:
             case ast.TypeName(name):
                 typ = self.scope.lookup(name.value)
-                assert isinstance(typ, types.Type)
+                assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(length, elem_type):
                 raise NotImplementedError
@@ -129,7 +132,7 @@ class IRNoder:
             case ast.InterfaceDeclr(name, methods):
                 raise NotImplementedError
             case ast.ImplDeclr(target, interface, methods):
-                raise NotImplementedError
+                self.make_impl_declr(target, interface, methods)
             case ast.VariableDeclr(name, typ, value):
                 self.make_variable_declr(name, typ, value)
             case _:
@@ -165,27 +168,28 @@ class IRNoder:
         return ref
 
     def make_call_expr(self, target, args):
-        func = self.make_expr(target, load=False)
+        target = self.make_expr(target, load=False)
         args = [self.make(a) for a in args]
-        for param, arg in zip(func.params, args):
-            values = func.param_values.get(param.name, [])
-            values.append(arg)
-            func.param_values[param.name] = values
-            param.values.append(arg)
-        return ir.Call(func, args)
+        if isinstance(target, ir.FunctionRef):
+            for param, arg in zip(target.params, args):
+                values = target.param_values.get(param.name, [])
+                values.append(arg)
+                target.param_values[param.name] = values
+                param.values.append(arg)
+        return ir.Call(target, args)
 
     def make_selector_expr(self, target, name, load=True):
         target = self.make_expr(target, load=False)
-        field_id = target.name + "." + name.value
-        if (ref := self.scope.lookup(field_id)):
-            return ref
+        field_name = name.value
+        ref = target.members.get(field_name)
 
-        type_hint = None
-        if isinstance(target.type_hint, ir.StructTypeRef):
-            index = target.type_hint.fields.index(name.value)
-            type_hint = target.type_hint.type_hint.fields[index]
-        ref = ir.FieldRef(field_id, type_hint, target)
-        self.scope.declare(field_id, ref)
+        if not ref:
+            type_hint = None
+            if isinstance(target.type_hint, ir.StructTypeRef):
+                index = target.type_hint.fields.index(name.value)
+                type_hint = target.type_hint.type_hint.fields[index]
+            ref = ir.FieldRef(field_name, type_hint, target)
+            target.members[field_name] = ref
         if load:
             return ir.Load(ref)
         return ref
@@ -281,27 +285,29 @@ class IRNoder:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
         type_hint = types.FunctionType(return_type, param_types)
-        return ir.FunctionSignatureRef(name.value, type_hint, param_names)
+        return ir.FunctionRef(name.value, type_hint, param_names)
 
     def make_function_declr(self, signature, block):
         def_block = self.block
-        sig = self.make_type(signature)
+        func = self.make_type(signature)
         prev_func = self.current_func
-        self.current_func = sig
-        self.scope.declare(sig.name, sig)
+        self.current_func = func
+        self.scope.declare(func.name, func)
         self.scope = Scope(self.scope)
         param_refs = []
-        for pname, ptype in zip(sig.param_names, sig.type_hint.param_types):
+        for pname, ptype in zip(func.param_names, func.type_hint.param_types):
             ref = ir.Ref(pname, ptype)
             self.scope.declare(pname, ref)
             param_refs.append(ref)
-        sig.params = param_refs
+        func.params = param_refs
         block = self.make_stmt(block)
         self.block = def_block
         self.scope = self.scope.parent
         self.current_func = prev_func
-        def_block.instrs.append(ir.DefFunc(sig, block))
+        func.block = block
+        def_block.instrs.append(ir.Declare(func))
         def_block.deps.append(block)
+        return func
 
     def make_struct_declr(self, name, fields):
         name = name.value
@@ -317,6 +323,45 @@ class IRNoder:
         ref = ir.StructTypeRef(name, type_hint, field_names)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
+
+    def make_method(self, target, method):
+        def_block = self.block
+        func = self.make_type(method.signature)
+        func.param_names.insert(0, "self")
+        func.type_hint.param_types.insert(0, target.value)
+        prev_func = self.current_func
+        self.current_func = func
+        self.scope.declare(func.name, func)
+        self.scope = Scope(self.scope)
+        param_refs = []
+        for pname, ptype in zip(func.param_names, func.type_hint.param_types):
+            ref = ir.Ref(pname, ptype)
+            self.scope.declare(pname, ref)
+            param_refs.append(ref)
+        func.params = param_refs
+        block = self.make_stmt(method.block)
+        self.block = def_block
+        self.scope = self.scope.parent
+        self.current_func = prev_func
+        func.block = block
+        def_block.instrs.append(ir.Declare(func))
+        def_block.deps.append(block)
+        return func
+
+    def make_impl_declr(self, target, interface, methods):
+        if interface is None:
+            target = self.make_type(target)
+            self.scope = Scope(self.scope)
+            prev_block = self.block
+            block = ir.Block([])
+            self.block = block
+            target.methods.extend(self.make_method(target, m) for m in methods)
+            self.block = prev_block
+            self.scope = self.scope.parent
+            self.instrs.append(ir.DeclareMethods(target, block))
+            self.block.deps.append(block)
+        else:
+            raise NotImplementedError
 
     def make_variable_declr(self, name, typ, value):
         name = name.value

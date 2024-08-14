@@ -35,8 +35,7 @@ class StaParameter:
 
 @dataclass
 class StaFunction:
-    sig: ir.FunctionSignatureRef
-    block: ir.Block = None
+    func: ir.FunctionRef
 
 
 @dataclass

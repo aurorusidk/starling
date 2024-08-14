@@ -34,4 +34,4 @@ elif args.get("compile"):
 else:
     with open(filename) as f:
         src = f.read()
-    cmd.translate(src, **args)
+    print(cmd.translate(src, **args))

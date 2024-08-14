@@ -22,12 +22,34 @@ class Constant(Object):
 @dataclass
 class Ref(Object):
     name: str
-    type_hint: types.Type
+    type_hint: Object
     values: list = field(default_factory=list, kw_only=True)
+    members: dict = field(default_factory=dict, kw_only=True)
+
+
+@dataclass
+class Type(Ref):
+    name: str
+    methods: list = field(default_factory=list, kw_only=True)
 
 
 class Instruction(Object):
     is_terminator = False
+
+
+@dataclass
+class Block(Object):
+    instrs: list[Instruction]
+    deps: list = field(default_factory=list)
+
+    def __hash__(self):
+        return hash(id(self))
+
+    @property
+    def is_terminated(self):
+        if self.instrs:
+            return self.instrs[-1].is_terminator
+        return False
 
 
 @dataclass
@@ -36,7 +58,7 @@ class FieldRef(Ref):
 
 
 @dataclass
-class StructTypeRef(Ref, types.Type):
+class StructTypeRef(Type):
     name: str
     fields: list[str]
 
@@ -48,28 +70,14 @@ class StructTypeRef(Ref, types.Type):
 
 
 @dataclass
-class FunctionSignatureRef(Ref):
+class FunctionRef(Ref):
     name: str
     param_names: list[str]
     params: list[Ref] = None
+    block: Block = None
     # we do not use `self.values`. maybe for function objects?
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
-
-
-@dataclass
-class Block(Object):
-    instrs: list
-    deps: list = field(default_factory=list)
-
-    def __hash__(self):
-        return hash(id(self))
-
-    @property
-    def is_terminated(self):
-        if self.instrs:
-            return self.instrs[-1].is_terminator
-        return False
 
 
 @dataclass
@@ -90,7 +98,7 @@ class Load(Instruction):
 
 @dataclass
 class Call(Instruction):
-    target: FunctionSignatureRef
+    target: FunctionRef
     args: list[Object]
 
 
@@ -115,8 +123,8 @@ class CBranch(Instruction):
 
 
 @dataclass
-class DefFunc(Instruction):
-    target: FunctionSignatureRef
+class DeclareMethods(Instruction):
+    target: Type
     block: Block
 
 
@@ -162,7 +170,7 @@ class IRPrinter:
         if test:
             self.make_id = counter()
 
-    def _to_string(self, ir):
+    def _to_string(self, ir, show_type=True):
         string = ""
         match ir:
             case Program(block):
@@ -171,14 +179,20 @@ class IRPrinter:
             case Block(instrs):
                 name = self.make_id(ir)
                 if name in self.blocks_seen:
-                    return "", name
-                self.blocks_seen.append(name)
-                instrs = '\n'.join(' ' + self._to_string(i) for i in instrs)
-                if not instrs:
-                    instrs = " [empty]"
-                return f"\n{name}:\n{instrs}", name
+                    block = ""
+                else:
+                    self.blocks_seen.append(name)
+                    instrs = '\n'.join(' ' + self._to_string(i) for i in instrs)
+                    if not instrs:
+                        instrs = " [empty]"
+                    block = f"\n{name}:\n{instrs}"
+                return block, name
             case Declare(ref):
                 return f"DECLARE {self._to_string(ref)}"
+            case DeclareMethods(typ, block):
+                block, block_name = self._to_string(block)
+                self.blocks_to_add.append(block)
+                return f"DECLARE_METHODS {self._to_string(typ)} {block_name}"
             case Assign(target, value):
                 return f"ASSIGN {self._to_string(target)} <- {self.to_string(value)}"
             case Return(value):
@@ -193,19 +207,18 @@ class IRPrinter:
                     f"CBRANCH {self._to_string(condition)} "
                     f"{t_block_name} {f_block_name}{t_block}{f_block}"
                 )
-            case DefFunc(target, block):
-                # defer block until after current block is done
-                block, block_name = self._to_string(block)
-                self.blocks_to_add.append(block)
-                return f"DEFINE {self._to_string(target)} {block_name}"
-
-            # these could have a type and should not early return
-            case Constant(value):
-                string += str(value)
             case StructTypeRef():
                 string += f"{ir.name}{{{', '.join(ir.fields)}}}"
-            case FunctionSignatureRef():
-                string += f"{ir.name}({', '.join(ir.param_names)})"
+            case Type(name, value):
+                return name
+            case Constant(value):
+                string += str(value)
+            case FieldRef():
+                return f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
+            case FunctionRef():
+                block, block_name = self._to_string(ir.block)
+                self.blocks_to_add.append(block)
+                string += f"{ir.name}({', '.join(ir.param_names)}) {block_name}"
             case Ref(name):
                 string += name
             case Load(ref):
@@ -221,7 +234,7 @@ class IRPrinter:
                 assert False, ir
 
         if ir.checked_type is not None:
-            string += f" [{ir.checked_type}]"
+            string += f" [{self._to_string(ir.checked_type)}]"
         return string
 
     def to_string(self, ir):
