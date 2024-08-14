@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from hashlib import sha1
 
 from . import type_defs as types
-from .scope import Scope
 
 
 def id_hash(obj):
@@ -62,6 +61,9 @@ class FunctionSignatureRef(Ref):
 class Block(Object):
     instrs: list
     deps: list = field(default_factory=list)
+
+    def __hash__(self):
+        return hash(id(self))
 
     @property
     def is_terminated(self):
@@ -141,9 +143,13 @@ class Program(Object):
 
 def counter():
     i = 0
-    def inner(*args, **kwargs):
+    cache = {}
+    def inner(obj):
         nonlocal i
+        if obj in cache:
+            return cache[obj]
         i += 1
+        cache[obj] = i
         return i
     return inner
 
@@ -164,6 +170,8 @@ class IRPrinter:
                 return block
             case Block(instrs):
                 name = self.make_id(ir)
+                if name in self.blocks_seen:
+                    return "", name
                 self.blocks_seen.append(name)
                 instrs = '\n'.join(' ' + self._to_string(i) for i in instrs)
                 if not instrs:
