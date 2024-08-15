@@ -39,8 +39,8 @@ class TestIR(unittest.TestCase):
                     var c = b.a;
                 }
                 """:
-                """\n1:\n DECLARE test{a}\n DECLARE main() 2\n2:\n DECLARE b
- ASSIGN b <- LOAD(test{a})\n DECLARE c\n ASSIGN c <- LOAD(b.a)""",
+                ("\n1:\n DECLARE test{a}\n DECLARE main() 2\n2:\n DECLARE b"
+                 "\n ASSIGN b <- LOAD(test{a})\n DECLARE c\n ASSIGN c <- LOAD(b.a)"),
                 """
                 fn test() {
                 }
@@ -67,16 +67,17 @@ class TestIR(unittest.TestCase):
                 "return 0;":
                 "\n1:\n DECLARE main() 2\n2:\n RETURN 0 [int]",
                 "var a; while a < 2 {a = a + 1;}":
-                """\n1:\n DECLARE main() 2\n2:\n DECLARE a\n BRANCH 3\n3:
- CBRANCH (LOAD(a) < 2 [int]) 4 5\n4:\n ASSIGN a <- (LOAD(a) + 1 [int])\n BRANCH 3\n5:\n [empty]""",
+                ("\n1:\n DECLARE main() 2\n2:\n DECLARE a\n BRANCH 3\n3:"
+                 "\n CBRANCH (LOAD(a) < 2 [int]) 4 5\n4:\n ASSIGN a <- (LOAD(a) + 1 [int])"
+                 "\n BRANCH 3\n5:\n [empty]"),
                 "if true return 0;":
-                """\n1:\n DECLARE main() 2\n2:\n CBRANCH True [bool] 3 4\n3:\n RETURN 0 [int]\n4:
- [empty]""",
+                ("\n1:\n DECLARE main() 2\n2:\n CBRANCH True [bool] 3 4\n3:\n RETURN 0 [int]"
+                 "\n4:\n [empty]"),
                 "fn test() {}":
                 "\n1:\n DECLARE main() 2\n3:\n [empty]\n2:\n DECLARE test() 3",
                 "var a = 5; a = a + 5;":
-                """\n1:\n DECLARE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]
- ASSIGN a <- (LOAD(a) + 5 [int])"""
+                ("\n1:\n DECLARE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]"
+                 "\n ASSIGN a <- (LOAD(a) + 5 [int])")
                 }
 
         for test_contents, expected in tests.items():
