@@ -3,6 +3,7 @@ import unittest
 from src.python.lexer import tokenise, Token, TokenType as T, Pos
 from src.python.parser import Parser
 import src.python.ast_nodes as ast
+from src.python.cmd import translate
 
 
 class TestParser(unittest.TestCase):
@@ -47,11 +48,8 @@ class TestParser(unittest.TestCase):
             ),
         }
 
-        p = Parser(None)
         for test, expected in tests.items():
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertEqual(p.parse_declaration(), expected)
+            self.assertEqual(translate(test, parse=True), ast.Program([expected]))
 
     def test_invalid_declr(self):
         # TODO: implement correct parser errors, so test works correctly
@@ -63,11 +61,8 @@ class TestParser(unittest.TestCase):
             "var test = x",
         ]
 
-        p = Parser(None)
         for test in tests:
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertRaises(AssertionError, p.parse_declaration)
+            self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
@@ -94,11 +89,21 @@ class TestParser(unittest.TestCase):
             ),
         }
 
-        p = Parser(None)
-        for test, expected in tests.items():
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertEqual(p.parse_statement(), expected)
+        for test_contents, expected_contents in tests.items():
+            test = "fn main() {" + test_contents + "}"
+            expected = ast.Program(
+                [
+                    ast.FunctionDeclr(
+                        ast.FunctionSignature(
+                            ast.Identifier("main"),
+                            None,
+                            []
+                        ),
+                        ast.Block([expected_contents])
+                    )
+                ])
+
+            self.assertEqual(translate(test, parse=True), expected)
 
     def test_invalid_stmt(self):
         # TODO: add more variations
@@ -108,16 +113,13 @@ class TestParser(unittest.TestCase):
             "return test",
         ]
 
-        p = Parser(None)
         for test in tests:
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertRaises(AssertionError, p.parse_statement)
+            self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_valid_expr(self):
         tests = {
-            "1": ast.Literal(Token(T.INTEGER, "1", Pos(1, 1))),
-            "true": ast.Literal(Token(T.BOOLEAN, "true", Pos(1, 1))),
+            "1": ast.Literal(Token(T.INTEGER, "1", Pos(1, 21))),
+            "true": ast.Literal(Token(T.BOOLEAN, "true", Pos(1, 21))),
             "test": ast.Identifier("test"),
             "[x:y]": ast.RangeExpr(
                 ast.Identifier("x"),
@@ -140,21 +142,41 @@ class TestParser(unittest.TestCase):
                 ast.Identifier("x"),
             ),
             "!test": ast.UnaryExpr(
-                Token(T.BANG, "!", Pos(1, 1)),
+                Token(T.BANG, "!", Pos(1, 21)),
                 ast.Identifier("test"),
             ),
             "x + y": ast.BinaryExpr(
-                Token(T.PLUS, "+", Pos(1, 3)),
+                Token(T.PLUS, "+", Pos(1, 23)),
                 ast.Identifier("x"),
                 ast.Identifier("y"),
             ),
         }
 
-        p = Parser(None)
-        for test, expected in tests.items():
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertEqual(p.parse_expression(), expected)
+        for test_contents, expected_contents in tests.items():
+            test = "fn main() { var a = " + test_contents + ";}"
+            expected = ast.Program(
+                [
+                    ast.FunctionDeclr(
+                        ast.FunctionSignature(
+                            ast.Identifier("main"),
+                            None,
+                            []
+                        ),
+                        ast.Block(
+                            [
+                                ast.DeclrStmt(
+                                    ast.VariableDeclr(
+                                        ast.Identifier("a"),
+                                        None,
+                                        expected_contents
+                                    )
+                                )
+                            ]
+                        )
+                    )
+                ])
+
+            self.assertEqual(translate(test, parse=True), expected)
 
     def test_invalid_expr(self):
         tests = [
@@ -170,39 +192,36 @@ class TestParser(unittest.TestCase):
             "var + x",
         ]
 
-        p = Parser(None)
         for test in tests:
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertRaises(AssertionError, p.parse_expression)
+            self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_binop_precs(self):
         tests = {
             "a * b - c / d": ast.BinaryExpr(
-                Token(T.MINUS, "-", Pos(1, 7)),
+                Token(T.MINUS, "-", Pos(1, 27)),
                 ast.BinaryExpr(
-                    Token(T.STAR, "*", Pos(1, 3)),
+                    Token(T.STAR, "*", Pos(1, 23)),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    Token(T.SLASH, "/", Pos(1, 11)),
+                    Token(T.SLASH, "/", Pos(1, 31)),
                     ast.Identifier("c"),
                     ast.Identifier("d"),
                 ),
             ),
             "a * b != c - d / e": ast.BinaryExpr(
-                Token(T.BANG_EQUALS, "!=", Pos(1, 7)),
+                Token(T.BANG_EQUALS, "!=", Pos(1, 27)),
                 ast.BinaryExpr(
-                    Token(T.STAR, "*", Pos(1, 3)),
+                    Token(T.STAR, "*", Pos(1, 23)),
                     ast.Identifier("a"),
                     ast.Identifier("b"),
                 ),
                 ast.BinaryExpr(
-                    Token(T.MINUS, "-", Pos(1, 12)),
+                    Token(T.MINUS, "-", Pos(1, 32)),
                     ast.Identifier("c"),
                     ast.BinaryExpr(
-                        Token(T.SLASH, "/", Pos(1, 16)),
+                        Token(T.SLASH, "/", Pos(1, 36)),
                         ast.Identifier("d"),
                         ast.Identifier("e"),
                     ),
@@ -210,11 +229,31 @@ class TestParser(unittest.TestCase):
             ),
         }
 
-        p = Parser(None)
-        for test, expected in tests.items():
-            p.cur = 0
-            p.tokens = tokenise(test)
-            self.assertEqual(p.parse_expression(), expected)
+        for test_contents, expected_contents in tests.items():
+            test = "fn main() { var a = " + test_contents + ";}"
+            expected = ast.Program(
+                [
+                    ast.FunctionDeclr(
+                        ast.FunctionSignature(
+                            ast.Identifier("main"),
+                            None,
+                            []
+                        ),
+                        ast.Block(
+                            [
+                                ast.DeclrStmt(
+                                    ast.VariableDeclr(
+                                        ast.Identifier("a"),
+                                        None,
+                                        expected_contents
+                                    )
+                                )
+                            ]
+                        )
+                    )
+                ])
+
+            self.assertEqual(translate(test, parse=True), expected)
 
     def test_error_reporting(self):
         tests = [
@@ -235,12 +274,9 @@ class TestParser(unittest.TestCase):
             )
         ]
 
-        p = Parser(None, (lambda err: logging.error(err)))
         for test in tests:
-            p.cur = 0
-            p.tokens = tokenise(test[0])
             with self.assertLogs(level=logging.ERROR) as cm:
-                p.parse_program()
+                translate(test[0], parse=True, test=True)
 
                 # Check that the right number of errors were logged
                 self.assertEqual(len(cm.output), len(test[1]))
