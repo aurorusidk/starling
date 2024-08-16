@@ -188,7 +188,7 @@ class IRPrinter:
         match ir:
             case Program(block):
                 block, _ = self._to_string(block)
-                return block
+                string = block
             case Block(instrs):
                 name = self.make_id(ir)
                 if name in self.blocks_seen:
@@ -202,28 +202,28 @@ class IRPrinter:
                 name = f"#{name}"
                 return block, name
             case Declare(ref):
-                return f"DECLARE {self._to_string(ref)}"
+                string = f"DECLARE {self._to_string(ref)}"
             case DeclareMethods(typ, block):
                 block, block_name = self.defer_block(block)
-                return f"DECLARE_METHODS {typ} {block_name}"
+                string = f"DECLARE_METHODS {typ} {block_name}"
             case Assign(target, value):
-                return f"ASSIGN {self._to_string(target)} <- {self._to_string(value)}"
+                string = f"ASSIGN {self._to_string(target)} <- {self._to_string(value)}"
             case Return(value):
-                return f"RETURN {self._to_string(value)}"
+                string = f"RETURN {self._to_string(value)}"
             case Branch(block):
                 block, block_name = self._to_string(block)
-                return f"BRANCH {block_name}{block}"
+                string = f"BRANCH {block_name}{block}"
             case CBranch(condition, t_block, f_block):
                 t_block, t_block_name = self._to_string(t_block)
                 f_block, f_block_name = self._to_string(f_block)
-                return (
+                string = (
                     f"CBRANCH {self._to_string(condition)} "
                     f"{t_block_name} {f_block_name}{t_block}{f_block}"
                 )
             case Constant(value):
                 string += str(value)
             case FieldRef():
-                return f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
+                string = f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
             case FunctionRef():
                 block, block_name = self.defer_block(ir.block)
                 string += f"{ir.name}({', '.join(ir.param_names)}) {block_name}"
@@ -241,7 +241,7 @@ class IRPrinter:
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
             case types.Type():
-                return str(ir)
+                string = str(ir)
             case _:
                 assert False, ir
 
@@ -254,4 +254,4 @@ class IRPrinter:
         # add deferred blocks
         for block in self.blocks_to_add:
             string += block
-        return string
+        return string.lstrip()
