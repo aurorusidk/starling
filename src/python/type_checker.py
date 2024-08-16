@@ -30,11 +30,16 @@ def is_comparison_op(op):
     )
 
 
+class DeferChecking(Exception):
+    pass
+
+
 class TypeChecker:
     def __init__(self, error_handler=None):
         # used to infer return types
         self.function = None
         self.error_handler = error_handler
+        self.deferred = []
 
     def error(self, msg):
         if self.error_handler is None:
@@ -65,8 +70,13 @@ class TypeChecker:
                 for target_p, new_p in zip(target.param_types, new.param_types):
                     p_types.append(self.update_types(target_p, new_p))
                 final = types.FunctionType(r_type, p_types)
+            case types.StructType():
+                for field in target.fields:
+                    ftype = target.fields[field]
+                    new_ftype = new.fields[field]
+                    target.fields[field] = self.update_types(ftype, new_ftype)
             case _:
-                assert False, "Unexpected type {target}"
+                assert False, f"Unexpected type {target}"
         return final
 
     def get_binary_numeric(self, lhs, rhs):
@@ -84,18 +94,34 @@ class TypeChecker:
         if node.progress == progress.UPDATING:
             return
         node.progress = progress.UPDATING
-        match node:
-            case ir.Ref():
-                self.check_ref(node)
-            case ir.Instruction():
-                self.check_instr(node)
-            case ir.Program(block):
-                self.check(block)
-            case ir.Object():
-                # misc
-                self.check_object(node)
-            case _:
-                assert False, f"Unexpected node {node}"
+        try:
+            match node:
+                case ir.Program(block):
+                    self.check(block)
+                    while self.deferred:
+                        node = self.deferred.pop(0)
+                        node.progress = progress.EMPTY
+                        print(node)
+                        self.check(node)
+                        print(node.checked_type)
+                case ir.Ref():
+                    self.check_ref(node)
+                case ir.Instruction():
+                    self.check_instr(node)
+                case ir.Object():
+                    # misc
+                    self.check_object(node)
+                case _:
+                    assert False, f"Unexpected node {node}"
+        except DeferChecking:
+            self.deferred.append(node)
+            if node.is_expr:
+                print("propdefer", node)
+                raise DeferChecking
+        else:
+            if node.progress != progress.COMPLETED:
+                print("incompdefer", node)
+                raise DeferChecking
 
     def check_ref(self, node):
         if node.type_hint is not None and node.checked_type is None:
@@ -107,7 +133,7 @@ class TypeChecker:
             self.check(value)
             node.checked_type = self.update_types(node.checked_type, value.checked_type)
         match node:
-            case ir.FunctionSignatureRef():
+            case ir.FunctionRef():
                 if node.checked_type is None:
                     node.checked_type = types.FunctionType()
                 typ = node.checked_type
@@ -117,28 +143,59 @@ class TypeChecker:
 
                 param_types = []
                 for i, param_name in enumerate(node.param_names):
-                    values = node.param_values.get(param_name)
+                    values = node.param_values.get(param_name, [])
                     new_type = node.checked_type.param_types[i]
                     for value in values:
                         self.check(value)
                         new_type = self.update_types(new_type, value.checked_type)
                     param_types.append(new_type)
                 typ.param_types = param_types
-            case ir.StructTypeRef():
-                raise NotImplementedError
+                self.check(node.block)
+            case ir.StructRef():
+                pass
             case ir.FieldRef():
-                raise NotImplementedError
+                self.check(node.parent)
+                field = None
+                if isinstance(node.parent.checked_type, types.StructType):
+                    field = node.parent.checked_type.fields.get(node.name)
+                method = node.parent.checked_type.methods.get(node.name)
+                if method:
+                    for name, value in zip(method.param_names, node.param_values):
+                        prev_values = method.param_values.get(name, [])
+                        prev_values.append(value)
+                        method.param_values[name] = prev_values
+                    param_types = method.checked_type.param_types
+                    for i, (param, value) in enumerate(zip(method.params, node.param_values)):
+                        self.check(value)
+                        param.values.append(value)
+                        self.check(param)
+                    self.check(method)
+                    method = method.checked_type
+                value = field or method
+                assert value, f"{node.name} is not a field or method of {node.parent.name}"
+                assert not (field and method)
+                node.checked_type = value
             case ir.Ref():
                 pass
             case _:
                 assert False, f"Unexpected ref {node}"
 
-        node.progress = progress.COMPLETED
+        if node.checked_type is not None:
+            node.progress = progress.COMPLETED
+        else:
+            node.progress = progress.EMPTY
+            raise DeferChecking
 
     def check_instr(self, node):
         match node:
             case ir.Declare(ref):
                 self.check(ref)
+            case ir.DeclareMethods(typ, block):
+                if isinstance(typ, types.StructType):
+                    assert all(m not in typ.fields for m in typ.methods)
+                for method in typ.methods.values():
+                    self.check(method)
+                self.check(block)
             case ir.Assign(ref, value):
                 self.check(ref)
                 self.check(value)
@@ -147,8 +204,10 @@ class TypeChecker:
                 node.checked_type = ref.checked_type
             case ir.Call(ref, args):
                 self.check(ref)
-                for arg in args:
+                assert len(args) == len(ref.checked_type.param_types)
+                for i, arg in enumerate(args):
                     self.check(arg)
+                    ref.checked_type.param_types[i] = self.update_types(ref.checked_type.param_types[i], arg.checked_type)
                 node.checked_type = ref.checked_type.return_type
             case ir.Return(value):
                 self.check(value)
@@ -160,9 +219,6 @@ class TypeChecker:
                     self.error("Branch condition must be a boolean")
                 self.check(t_block)
                 self.check(f_block)
-            case ir.DefFunc(target, block):
-                self.check(target)
-                self.check(block)
             case ir.Binary():
                 self.check_binary(node)
             case ir.Unary():
@@ -200,13 +256,14 @@ class TypeChecker:
 
     def check_object(self, node):
         match node:
-            case ir.Block(instrs) | ir.Program(instrs):
+            case ir.Block(instrs):
                 for instr in instrs:
                     self.check(instr)
             case ir.Constant():
-                node.progress = progress.COMPLETED
+                pass
             case _:
                 assert False, f"Unexpected object {node}"
+        node.progress = progress.COMPLETED
 
 
 if __name__ == "__main__":

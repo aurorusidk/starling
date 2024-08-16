@@ -10,17 +10,20 @@ def id_hash(obj):
 
 @dataclass
 class Object:
+    is_expr = False
     progress: object = field(default=None, init=False)
     checked_type: types.Type = field(default=None, init=False)
 
 
 @dataclass
 class Constant(Object):
+    is_expr = True
     value: object
 
 
 @dataclass
 class Ref(Object):
+    is_expr = True
     name: str
     type_hint: Object
     values: list = field(default_factory=list, kw_only=True)
@@ -55,18 +58,9 @@ class Block(Object):
 @dataclass
 class FieldRef(Ref):
     parent: Ref
-
-
-@dataclass
-class StructTypeRef(Type):
-    name: str
-    fields: list[str]
-
-    @property
-    def string(self):
-        if self.checked_type is None:
-            return str(self.type_hint)
-        return str(self.checked_type)
+    # mimic functions for methods
+    return_values: list[Object] = field(default_factory=list, init=False)
+    param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
 
 
 @dataclass
@@ -78,6 +72,12 @@ class FunctionRef(Ref):
     # we do not use `self.values`. maybe for function objects?
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
+
+
+@dataclass
+class StructRef(Ref):
+    name: str
+    fields: list[str]
 
 
 @dataclass
@@ -93,11 +93,13 @@ class Assign(Instruction):
 
 @dataclass
 class Load(Instruction):
+    is_expr = True
     ref: Ref
 
 
 @dataclass
 class Call(Instruction):
+    is_expr = True
     target: FunctionRef
     args: list[Object]
 
@@ -133,12 +135,14 @@ class DeclareMethods(Instruction):
 # for now the op will just be the op string
 @dataclass
 class Unary(Instruction):
+    is_expr = True
     op: str
     rhs: Object
 
 
 @dataclass
 class Binary(Instruction):
+    is_expr = True
     op: str
     lhs: Object
     rhs: Object
@@ -170,6 +174,15 @@ class IRPrinter:
         if test:
             self.make_id = counter()
 
+    def defer_block(self, block):
+        prev_bta = self.blocks_to_add
+        self.blocks_to_add = []
+        block, block_name = self._to_string(block)
+        prev_bta.append(block)
+        prev_bta.extend(self.blocks_to_add)
+        self.blocks_to_add = prev_bta
+        return block, block_name
+
     def _to_string(self, ir, show_type=True):
         string = ""
         match ir:
@@ -186,15 +199,15 @@ class IRPrinter:
                     if not instrs:
                         instrs = " [empty]"
                     block = f"\n{name}:\n{instrs}"
+                name = f"#{name}"
                 return block, name
             case Declare(ref):
                 return f"DECLARE {self._to_string(ref)}"
             case DeclareMethods(typ, block):
-                block, block_name = self._to_string(block)
-                self.blocks_to_add.append(block)
-                return f"DECLARE_METHODS {self._to_string(typ)} {block_name}"
+                block, block_name = self.defer_block(block)
+                return f"DECLARE_METHODS {typ} {block_name}"
             case Assign(target, value):
-                return f"ASSIGN {self._to_string(target)} <- {self.to_string(value)}"
+                return f"ASSIGN {self._to_string(target)} <- {self._to_string(value)}"
             case Return(value):
                 return f"RETURN {self._to_string(value)}"
             case Branch(block):
@@ -207,18 +220,15 @@ class IRPrinter:
                     f"CBRANCH {self._to_string(condition)} "
                     f"{t_block_name} {f_block_name}{t_block}{f_block}"
                 )
-            case StructTypeRef():
-                string += f"{ir.name}{{{', '.join(ir.fields)}}}"
-            case Type(name, value):
-                return name
             case Constant(value):
                 string += str(value)
             case FieldRef():
                 return f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
             case FunctionRef():
-                block, block_name = self._to_string(ir.block)
-                self.blocks_to_add.append(block)
+                block, block_name = self.defer_block(ir.block)
                 string += f"{ir.name}({', '.join(ir.param_names)}) {block_name}"
+            case StructRef():
+                string += f"{ir.name}{{{', '.join(ir.fields)}}}"
             case Ref(name):
                 string += name
             case Load(ref):
@@ -229,12 +239,12 @@ class IRPrinter:
             case Unary(op, rhs):
                 string += f"{op}{self._to_string(rhs)}"
             case Binary(op, lhs, rhs):
-                string += f"({self._to_string(lhs)} {op} {self.to_string(rhs)})"
+                string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
             case _:
                 assert False, ir
 
-        if ir.checked_type is not None:
-            string += f" [{self._to_string(ir.checked_type)}]"
+        if ir.checked_type is not None and show_type:
+            string += f" [{ir.checked_type}]"
         return string
 
     def to_string(self, ir):

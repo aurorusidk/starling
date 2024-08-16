@@ -85,11 +85,11 @@ class FunctionType(Type):
 
 @dataclass(eq=False, repr=False)
 class StructType(Type):
-    fields: list[Type]
+    fields: dict[str, Type]
 
     @property
     def string(self):
-        format_fields = ", ".join(str(f) for f in self.fields)
+        format_fields = ", ".join(str(f) for f in self.fields.values())
         return f"struct {{{format_fields}}}"
 
 

@@ -13,9 +13,7 @@ class IRNoder:
     def __init__(self):
         self.scope = Scope(None)
         for name, typ in builtin.types.items():
-            ref = ir.Type(name, typ)
-            ref.checked_type = typ
-            self.scope.declare(name, ref)
+            self.scope.declare(name, typ)
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
@@ -91,7 +89,7 @@ class IRNoder:
         match node:
             case ast.TypeName(name):
                 typ = self.scope.lookup(name.value)
-                assert isinstance(typ, ir.Type)
+                assert isinstance(typ, types.Type)
                 return typ
             case ast.ArrayType(length, elem_type):
                 raise NotImplementedError
@@ -176,6 +174,10 @@ class IRNoder:
                 values.append(arg)
                 target.param_values[param.name] = values
                 param.values.append(arg)
+        elif isinstance(target, ir.FieldRef):
+            # method so add `self`
+            args.insert(0, target.parent)
+            target.param_values = args
         return ir.Call(target, args)
 
     def make_selector_expr(self, target, name, load=True):
@@ -185,9 +187,8 @@ class IRNoder:
 
         if not ref:
             type_hint = None
-            if isinstance(target.type_hint, ir.StructTypeRef):
-                index = target.type_hint.fields.index(name.value)
-                type_hint = target.type_hint.type_hint.fields[index]
+            if isinstance(target.type_hint, types.StructType):
+                type_hint = target.type_hint.fields.get(name.value)
             ref = ir.FieldRef(field_name, type_hint, target)
             target.members[field_name] = ref
         if load:
@@ -319,16 +320,15 @@ class IRNoder:
             if field.typ is not None:
                 ftype = self.make_type(field.typ)
             field_types.append(ftype)
-        type_hint = types.StructType(field_types)
-        ref = ir.StructTypeRef(name, type_hint, field_names)
-        self.scope.declare(name, ref)
-        self.instrs.append(ir.Declare(ref))
+        type_hint = types.StructType(dict(zip(field_names, field_types)))
+        self.scope.declare(name, type_hint)
+        self.instrs.append(ir.Declare(ir.StructRef(name, type_hint, field_names)))
 
     def make_method(self, target, method):
         def_block = self.block
         func = self.make_type(method.signature)
         func.param_names.insert(0, "self")
-        func.type_hint.param_types.insert(0, target.value)
+        func.type_hint.param_types.insert(0, target)
         prev_func = self.current_func
         self.current_func = func
         self.scope.declare(func.name, func)
@@ -355,7 +355,9 @@ class IRNoder:
             prev_block = self.block
             block = ir.Block([])
             self.block = block
-            target.methods.extend(self.make_method(target, m) for m in methods)
+            for method in methods:
+                method = self.make_method(target, method)
+                target.methods[method.name] = method
             self.block = prev_block
             self.scope = self.scope.parent
             self.instrs.append(ir.DeclareMethods(target, block))
