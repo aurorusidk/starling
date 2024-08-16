@@ -240,6 +240,8 @@ class IRPrinter:
                 string += f"{op}{self._to_string(rhs)}"
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
+            case types.Type():
+                return str(ir)
             case _:
                 assert False, ir
 

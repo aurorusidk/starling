@@ -10,13 +10,13 @@ class TestIR(unittest.TestCase):
                 fn main() {
                 }
                 """:
-                "\n1:\n DECLARE main() 2\n2:\n [empty]",
+                "\n1:\n DECLARE main() #2\n2:\n [empty]",
                 """
                 fn test() {
                 }
                 fn main() {
                 }
-                """: "\n1:\n DECLARE test() 2\n DECLARE main() 3\n2:\n [empty]\n3:\n [empty]",
+                """: "\n1:\n DECLARE test() #2\n DECLARE main() #3\n2:\n [empty]\n3:\n [empty]",
                 """
                 struct test {
                     a int;
@@ -35,12 +35,12 @@ class TestIR(unittest.TestCase):
                 }
 
                 fn main() {
-                    var b = test;
+                    var b test;
                     var c = b.a;
                 }
                 """:
-                ("\n1:\n DECLARE test{a}\n DECLARE main() 2\n2:\n DECLARE b"
-                 "\n ASSIGN b <- LOAD(test{a})\n DECLARE c\n ASSIGN c <- LOAD(b.a)"),
+                ("\n1:\n DECLARE test{a}\n DECLARE main() #2\n2:\n DECLARE b"
+                 "\n DECLARE c\n ASSIGN c <- LOAD(b.a)"),
                 """
                 fn test() {
                 }
@@ -49,7 +49,7 @@ class TestIR(unittest.TestCase):
                     test();
                 }
                 """:
-                "\n1:\n DECLARE test() 2\n DECLARE main() 3\n2:\n [empty]\n3:\n CALL test() 2 ()"
+                "\n1:\n DECLARE test() #2\n DECLARE main() #3\n2:\n [empty]\n3:\n CALL test() #2 ()"
                 }
 
         for test, expected in tests.items():
@@ -59,24 +59,24 @@ class TestIR(unittest.TestCase):
         # CALL instruction tested in test_valid_ref
         tests = {
                 "var a;":
-                "\n1:\n DECLARE main() 2\n2:\n DECLARE a",
+                "\n1:\n DECLARE main() #2\n2:\n DECLARE a",
                 "var a; a = 5;":
-                "\n1:\n DECLARE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]",
+                "\n1:\n DECLARE main() #2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]",
                 "var a; var b = a;":
-                "\n1:\n DECLARE main() 2\n2:\n DECLARE a\n DECLARE b\n ASSIGN b <- LOAD(a)",
+                "\n1:\n DECLARE main() #2\n2:\n DECLARE a\n DECLARE b\n ASSIGN b <- LOAD(a)",
                 "return 0;":
-                "\n1:\n DECLARE main() 2\n2:\n RETURN 0 [int]",
+                "\n1:\n DECLARE main() #2\n2:\n RETURN 0 [int]",
                 "var a; while a < 2 {a = a + 1;}":
-                ("\n1:\n DECLARE main() 2\n2:\n DECLARE a\n BRANCH 3\n3:"
-                 "\n CBRANCH (LOAD(a) < 2 [int]) 4 5\n4:\n ASSIGN a <- (LOAD(a) + 1 [int])"
-                 "\n BRANCH 3\n5:\n [empty]"),
+                ("\n1:\n DECLARE main() #2\n2:\n DECLARE a\n BRANCH #3\n3:"
+                 "\n CBRANCH (LOAD(a) < 2 [int]) #4 #5\n4:\n ASSIGN a <- (LOAD(a) + 1 [int])"
+                 "\n BRANCH #3\n5:\n [empty]"),
                 "if true return 0;":
-                ("\n1:\n DECLARE main() 2\n2:\n CBRANCH True [bool] 3 4\n3:\n RETURN 0 [int]"
+                ("\n1:\n DECLARE main() #2\n2:\n CBRANCH True [bool] #3 #4\n3:\n RETURN 0 [int]"
                  "\n4:\n [empty]"),
                 "fn test() {}":
-                "\n1:\n DECLARE main() 2\n3:\n [empty]\n2:\n DECLARE test() 3",
+                "\n1:\n DECLARE main() #2\n2:\n DECLARE test() #3\n3:\n [empty]",
                 "var a = 5; a = a + 5;":
-                ("\n1:\n DECLARE main() 2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]"
+                ("\n1:\n DECLARE main() #2\n2:\n DECLARE a\n ASSIGN a <- 5 [int]"
                  "\n ASSIGN a <- (LOAD(a) + 5 [int])")
                 }
 

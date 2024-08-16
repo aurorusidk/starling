@@ -104,6 +104,7 @@ class TypeChecker:
                         print(node)
                         self.check(node)
                         print(node.checked_type)
+                    node.progress = progress.COMPLETED
                 case ir.Ref():
                     self.check_ref(node)
                 case ir.Instruction():
@@ -116,12 +117,10 @@ class TypeChecker:
         except DeferChecking:
             self.deferred.append(node)
             if node.is_expr:
-                print("propdefer", node)
-                raise DeferChecking
+                raise DeferChecking("Propagating expr defer")
         else:
             if node.progress != progress.COMPLETED:
-                print("incompdefer", node)
-                raise DeferChecking
+                raise DeferChecking(f"Incomplete type checking for {type(node)} node")
 
     def check_ref(self, node):
         if node.type_hint is not None and node.checked_type is None:
