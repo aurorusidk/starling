@@ -75,6 +75,12 @@ class FunctionRef(Ref):
 
 
 @dataclass
+class InterfaceRef(Ref):
+    name: str
+    methods: list[str]
+
+
+@dataclass
 class StructRef(Ref):
     name: str
     fields: list[str]

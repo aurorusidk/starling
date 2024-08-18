@@ -96,11 +96,11 @@ class StructType(Type):
 @dataclass(eq=False, repr=False)
 class Interface(Type):
     name: str
-    methods: dict[str, FunctionType]
+    funcs: dict[str, FunctionType]
 
     @property
     def string(self):
-        format_methods = ", ".join(str(m) for m in self.methods)
+        format_methods = ", ".join(str(m) for m in self.funcs)
         return f"interface {self.name} {{{format_methods}}}"
 
 

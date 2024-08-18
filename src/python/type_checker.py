@@ -58,6 +58,8 @@ class TypeChecker:
         final = new
         if target is not None and new is not None:
             assert type(new) is type(target), f"{target} doesn't match {new}"
+        if new is None:
+            return target
         match target:
             case None:
                 pass
@@ -101,9 +103,11 @@ class TypeChecker:
                     while self.deferred:
                         node = self.deferred.pop(0)
                         node.progress = progress.EMPTY
-                        print(node)
-                        self.check(node)
-                        print(node.checked_type)
+                        try:
+                            self.check(node)
+                        except DeferChecking:
+                            # probably unable to check this
+                            self.deferred.remove(node)
                     node.progress = progress.COMPLETED
                 case ir.Ref():
                     self.check_ref(node)

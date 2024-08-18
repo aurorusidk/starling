@@ -88,7 +88,7 @@ class IRNoder:
     def make_type(self, node):
         match node:
             case ast.TypeName(name):
-                typ = self.scope.lookup(name.value)
+                typ = self.make_identifier(name.value, load=False)
                 assert isinstance(typ, types.Type)
                 return typ
             case ast.ArrayType(length, elem_type):
@@ -128,7 +128,7 @@ class IRNoder:
             case ast.StructDeclr(name, fields):
                 self.make_struct_declr(name, fields)
             case ast.InterfaceDeclr(name, methods):
-                raise NotImplementedError
+                self.make_interface_declr(name, methods)
             case ast.ImplDeclr(target, interface, methods):
                 self.make_impl_declr(target, interface, methods)
             case ast.VariableDeclr(name, typ, value):
@@ -327,6 +327,7 @@ class IRNoder:
     def make_method(self, target, method):
         def_block = self.block
         func = self.make_type(method.signature)
+        func.name = func.name
         func.param_names.insert(0, "self")
         func.type_hint.param_types.insert(0, target)
         prev_func = self.current_func
@@ -349,21 +350,38 @@ class IRNoder:
         return func
 
     def make_impl_declr(self, target, interface, methods):
+        target = self.make_type(target)
+        self.scope = Scope(self.scope)
+        prev_block = self.block
+        block = ir.Block([])
+        self.block = block
         if interface is None:
-            target = self.make_type(target)
-            self.scope = Scope(self.scope)
-            prev_block = self.block
-            block = ir.Block([])
-            self.block = block
             for method in methods:
                 method = self.make_method(target, method)
                 target.methods[method.name] = method
-            self.block = prev_block
-            self.scope = self.scope.parent
-            self.instrs.append(ir.DeclareMethods(target, block))
-            self.block.deps.append(block)
         else:
-            raise NotImplementedError
+            interface = self.make_expr(interface, load=False)
+            defined_methods = set()
+            for method in methods:
+                method = self.make_method(target, method)
+                target.methods[method.name] = method
+                defined_methods.add(method.name)
+            # TODO: proper errors and should determine the missing/unwanted methods
+            assert defined_methods == set(interface.funcs.keys())
+        self.block = prev_block
+        self.scope = self.scope.parent
+        self.instrs.append(ir.DeclareMethods(target, block))
+        self.block.deps.append(block)
+
+    def make_interface_declr(self, name, methods):
+        name = name.value
+        method_refs = {}
+        for method in methods:
+            method_ref = self.make_type(method)
+            method_refs[method_ref.name] = method_ref
+        interface = types.Interface(name, method_refs)
+        self.scope.declare(name, interface)
+        self.instrs.append(ir.Declare(ir.InterfaceRef(name, interface, list(method_refs.keys()))))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value
