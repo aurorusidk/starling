@@ -32,7 +32,7 @@ logging_levels = (logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)
 
 args = vars(parser.parse_args())
 filename = args.pop("filename")
-verbosity = args.pop("verbosity", 0)
+verbosity = args.pop("verbosity") or 0
 logging_level = logging_levels[verbosity]
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logging.getLogger().setLevel(logging_level)

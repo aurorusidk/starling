@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from fractions import Fraction
 import logging
 
@@ -13,7 +14,8 @@ class IRNoder:
     def __init__(self):
         self.scope = Scope(None)
         for name, typ in builtin.types.items():
-            self.scope.declare(name, typ)
+            ref = ir.Type(name, typ, checked=typ)
+            self.scope.declare(name, ref)
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
@@ -22,6 +24,13 @@ class IRNoder:
     @property
     def instrs(self):
         return self.block.instrs
+
+    @contextmanager
+    def new_scope(self):
+        prev_scope = self.scope
+        self.scope = Scope(prev_scope)
+        yield self.scope
+        self.scope = prev_scope
 
     def new_block(self):
         block = ir.Block([])
@@ -89,7 +98,7 @@ class IRNoder:
         match node:
             case ast.TypeName(name):
                 typ = self.make_identifier(name.value, load=False)
-                assert isinstance(typ, types.Type)
+                assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(length, elem_type):
                 raise NotImplementedError
@@ -140,19 +149,19 @@ class IRNoder:
         match tok.typ:
             case T.INTEGER:
                 val = ir.Constant(int(tok.lexeme))
-                val.checked_type = self.scope.lookup("int")
+                val.typ = self.scope.lookup("int")
             case T.FLOAT:
                 val = ir.Constant(float(tok.lexeme))
-                val.checked_type = self.scope.lookup("float")
+                val.typ = self.scope.lookup("float")
             case T.RATIONAL:
                 val = ir.Constant(Fraction(tok.lexeme.replace("//", "/")))
-                val.checked_type = self.scope.lookup("frac")
+                val.typ = self.scope.lookup("frac")
             case T.STRING:
                 val = ir.Constant(str(tok.lexeme[1:-1]))
-                val.checked_type = self.scope.lookup("str")
+                val.typ = self.scope.lookup("str")
             case T.BOOLEAN:
                 val = ir.Constant(tok.lexeme == "true")
-                val.checked_type = self.scope.lookup("bool")
+                val.typ = self.scope.lookup("bool")
             case _:
                 assert False, f"Unexpected literal token {tok}"
         return val
@@ -187,9 +196,9 @@ class IRNoder:
 
         if not ref:
             type_hint = None
-            if isinstance(target.type_hint, types.StructType):
-                type_hint = target.type_hint.fields.get(name.value)
-            ref = ir.FieldRef(field_name, type_hint, target)
+            if isinstance(target.typ, ir.StructRef):
+                type_hint = target.typ.hint.fields.get(name.value)
+            ref = ir.FieldRef(field_name, target, typ=type_hint)
             target.members[field_name] = ref
         if load:
             return ir.Load(ref)
@@ -274,6 +283,7 @@ class IRNoder:
         self.instrs.append(ir.Assign(target, value))
 
     def make_function_signature(self, name, return_type, params):
+        name = name.value
         if return_type is not None:
             return_type = self.make_type(return_type)
 
@@ -286,29 +296,42 @@ class IRNoder:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
         type_hint = types.FunctionType(return_type, param_types)
-        return ir.FunctionRef(name.value, type_hint, param_names)
+        return ir.FunctionSigRef(name, type_hint, dict(zip(param_names, param_types)), return_type)
 
-    def make_function_declr(self, signature, block):
-        def_block = self.block
-        func = self.make_type(signature)
+    def make_method_signature(self, method, target=None):
+        sig = self.make_type(method)
+        sig.params = {"self": target} | sig.params
+        return sig
+
+    def make_function_body(self, func, block):
+        prev_block = self.block
         prev_func = self.current_func
         self.current_func = func
         self.scope.declare(func.name, func)
-        self.scope = Scope(self.scope)
-        param_refs = []
-        for pname, ptype in zip(func.param_names, func.type_hint.param_types):
-            ref = ir.Ref(pname, ptype)
-            self.scope.declare(pname, ref)
-            param_refs.append(ref)
-        func.params = param_refs
-        block = self.make_stmt(block)
-        self.block = def_block
-        self.scope = self.scope.parent
+        self.instrs.append(ir.Declare(func))
+        with self.new_scope():
+            param_refs = []
+            for pname, ptype in func.typ.params.items():
+                ref = ir.Ref(pname, typ=ptype)
+                self.scope.declare(pname, ref)
+                param_refs.append(ref)
+            func.params = param_refs
+            block = self.make_stmt(block)
+        self.block = prev_block
         self.current_func = prev_func
         func.block = block
-        def_block.instrs.append(ir.Declare(func))
-        def_block.deps.append(block)
+        self.block.deps.append(block)
         return func
+
+    def make_function_declr(self, signature, block):
+        sig = self.make_type(signature)
+        func = ir.FunctionRef(sig.name, typ=sig)
+        return self.make_function_body(func, block)
+
+    def make_method_declr(self, method, target):
+        sig = self.make_method_signature(method.signature, target)
+        func = ir.MethodRef(sig.name, target, typ=sig)
+        return self.make_function_body(func, method.block)
 
     def make_struct_declr(self, name, fields):
         name = name.value
@@ -320,34 +343,11 @@ class IRNoder:
             if field.typ is not None:
                 ftype = self.make_type(field.typ)
             field_types.append(ftype)
-        type_hint = types.StructType(dict(zip(field_names, field_types)))
-        self.scope.declare(name, type_hint)
-        self.instrs.append(ir.Declare(ir.StructRef(name, type_hint, field_names)))
-
-    def make_method(self, target, method):
-        def_block = self.block
-        func = self.make_type(method.signature)
-        func.name = func.name
-        func.param_names.insert(0, "self")
-        func.type_hint.param_types.insert(0, target)
-        prev_func = self.current_func
-        self.current_func = func
-        self.scope.declare(func.name, func)
-        self.scope = Scope(self.scope)
-        param_refs = []
-        for pname, ptype in zip(func.param_names, func.type_hint.param_types):
-            ref = ir.Ref(pname, ptype)
-            self.scope.declare(pname, ref)
-            param_refs.append(ref)
-        func.params = param_refs
-        block = self.make_stmt(method.block)
-        self.block = def_block
-        self.scope = self.scope.parent
-        self.current_func = prev_func
-        func.block = block
-        def_block.instrs.append(ir.Declare(func))
-        def_block.deps.append(block)
-        return func
+        fields = dict(zip(field_names, field_types))
+        type_hint = types.StructType(fields)
+        ref = ir.StructRef(name, type_hint, fields)
+        self.scope.declare(name, ref)
+        self.instrs.append(ir.Declare(ref))
 
     def make_impl_declr(self, target, interface, methods):
         target = self.make_type(target)
@@ -357,17 +357,19 @@ class IRNoder:
         self.block = block
         if interface is None:
             for method in methods:
-                method = self.make_method(target, method)
+                method = self.make_method_declr(method, target)
                 target.methods[method.name] = method
         else:
             interface = self.make_expr(interface, load=False)
             defined_methods = set()
             for method in methods:
-                method = self.make_method(target, method)
+                method = self.make_method_declr(method, target)
                 target.methods[method.name] = method
+                interface.methods[method.name].values.append(method.typ)
+                method.typ = interface.methods[method.name]
                 defined_methods.add(method.name)
             # TODO: proper errors and should determine the missing/unwanted methods
-            assert defined_methods == set(interface.funcs.keys())
+            assert defined_methods == set(interface.methods.keys())
         self.block = prev_block
         self.scope = self.scope.parent
         self.instrs.append(ir.DeclareMethods(target, block))
@@ -377,18 +379,19 @@ class IRNoder:
         name = name.value
         method_refs = {}
         for method in methods:
-            method_ref = self.make_type(method)
+            method_ref = self.make_method_signature(method)
             method_refs[method_ref.name] = method_ref
         interface = types.Interface(name, method_refs)
-        self.scope.declare(name, interface)
-        self.instrs.append(ir.Declare(ir.InterfaceRef(name, interface, list(method_refs.keys()))))
+        ref = ir.InterfaceRef(name, interface, method_refs)
+        self.scope.declare(name, ref)
+        self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value
         type_hint = None
         if typ is not None:
             type_hint = self.make_type(typ)
-        ref = ir.Ref(name, type_hint)
+        ref = ir.Ref(name, typ=type_hint)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
         if value is not None:

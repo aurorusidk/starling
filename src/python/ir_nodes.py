@@ -11,8 +11,8 @@ def id_hash(obj):
 @dataclass
 class Object:
     is_expr = False
-    progress: object = field(default=None, init=False)
-    checked_type: types.Type = field(default=None, init=False)
+    typ: "Type" = field(default=None, kw_only=True)
+    progress: types.progress = field(default=types.progress.EMPTY, kw_only=True)
 
 
 @dataclass
@@ -25,7 +25,6 @@ class Constant(Object):
 class Ref(Object):
     is_expr = True
     name: str
-    type_hint: Object
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
 
@@ -33,7 +32,9 @@ class Ref(Object):
 @dataclass
 class Type(Ref):
     name: str
-    methods: list = field(default_factory=list, kw_only=True)
+    hint: types.Type
+    checked: types.Type = field(default=None, kw_only=True)
+    methods: dict[str, "Type"] = field(default_factory=dict, kw_only=True)
 
 
 class Instruction(Object):
@@ -64,26 +65,33 @@ class FieldRef(Ref):
 
 
 @dataclass
+class FunctionSigRef(Type):
+    params: dict[str, Type]
+    return_type: Type
+
+
+@dataclass
 class FunctionRef(Ref):
-    name: str
-    param_names: list[str]
-    params: list[Ref] = None
-    block: Block = None
+    params: list[Ref] = field(default=None, kw_only=True)
+    block: Block = field(default=None, kw_only=True)
     # we do not use `self.values`. maybe for function objects?
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
 
 
 @dataclass
-class InterfaceRef(Ref):
-    name: str
-    methods: list[str]
+class MethodRef(FunctionRef):
+    parent: Ref
 
 
 @dataclass
-class StructRef(Ref):
-    name: str
-    fields: list[str]
+class InterfaceRef(Type):
+    methods: dict[str, FunctionSigRef]
+
+
+@dataclass
+class StructRef(Type):
+    fields: dict[str, Type]
 
 
 @dataclass
@@ -209,9 +217,11 @@ class IRPrinter:
                 return block, name
             case Declare(ref):
                 string = f"DECLARE {self._to_string(ref)}"
+                if isinstance(ref, StructRef) and show_type:
+                    string += f" [{self._to_string(ref.checked)}]"
             case DeclareMethods(typ, block):
                 block, block_name = self.defer_block(block)
-                string = f"DECLARE_METHODS {typ} {block_name}"
+                string = f"DECLARE_METHODS {self._to_string(typ)} {block_name}"
             case Assign(target, value):
                 string = f"ASSIGN {self._to_string(target)} <- {self._to_string(value)}"
             case Return(value):
@@ -230,11 +240,17 @@ class IRPrinter:
                 string += str(value)
             case FieldRef():
                 string = f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
+            case FunctionSigRef():
+                params = ', '.join(self._to_string(p) for p in ir.params.values())
+                string += f"fn ({params}) -> {self._to_string(ir.return_type)}"
             case FunctionRef():
                 block, block_name = self.defer_block(ir.block)
-                string += f"{ir.name}({', '.join(ir.param_names)}) {block_name}"
+                string += f"{ir.name}({', '.join(ir.typ.params)}) {block_name}"
             case StructRef():
-                string += f"{ir.name}{{{', '.join(ir.fields)}}}"
+                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
+                string += f"{ir.name}{{{fields}}}"
+            case Type():
+                string += self._to_string(ir.checked)
             case Ref(name):
                 string += name
             case Load(ref):
@@ -247,12 +263,14 @@ class IRPrinter:
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
             case types.Type():
-                string = str(ir)
+                return str(ir)
+            case None:
+                return "nil"
             case _:
                 assert False, ir
 
-        if ir.checked_type is not None and show_type:
-            string += f" [{ir.checked_type}]"
+        if ir.typ is not None and show_type:
+            string += f" [{self._to_string(ir.typ)}]"
         return string
 
     def to_string(self, ir):

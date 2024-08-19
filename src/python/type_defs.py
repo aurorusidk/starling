@@ -2,6 +2,11 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
 
 
+progress = Enum("progress", [
+    "COMPLETED", "UPDATING", "EMPTY",
+])
+
+
 BasicTypeKind = Enum("BasicTypeKind", [
     "INT", "FLOAT", "FRAC", "STR", "BOOL",
 ])

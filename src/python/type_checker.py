@@ -6,10 +6,7 @@ from . import builtin
 from . import type_defs as types
 
 
-progress = Enum("progress", [
-    "COMPLETED", "UPDATING", "EMPTY",
-])
-
+progress = types.progress
 
 unary_op_preds = {
     '-': types.is_numeric,
@@ -47,6 +44,22 @@ class TypeChecker:
 
         self.error_handler(msg)
 
+    def get_core_type(self, typ):
+        match typ:
+            case None:
+                return
+            case ir.FunctionSigRef():
+                param_types = [self.get_core_type(p) for p in typ.params.values()]
+                return_type = self.get_core_type(typ.return_type)
+                return types.FunctionType(return_type, param_types)
+            case ir.StructRef():
+                fields = {k: self.get_core_type(v) for k, v in typ.fields.items()}
+                return types.StructType(fields)
+            case ir.Type():
+                return typ.checked
+            case _:
+                assert False
+
     def match_types(self, lhs, rhs):
         if types.is_basic(lhs):
             return lhs == rhs \
@@ -55,31 +68,27 @@ class TypeChecker:
             assert False, f"Unimplemented: cannot match types {lhs}, {rhs}"
 
     def update_types(self, target, new):
-        final = new
-        if target is not None and new is not None:
-            assert type(new) is type(target), f"{target} doesn't match {new}"
-        if new is None:
-            return target
+        if target is None:
+            target = new
         match target:
-            case None:
-                pass
-            case types.BasicType():
-                assert target == new
-            case types.FunctionType():
-                r_type = self.update_types(target.return_type, new.return_type)
-                assert len(target.param_types) == len(new.param_types)
-                p_types = []
-                for target_p, new_p in zip(target.param_types, new.param_types):
-                    p_types.append(self.update_types(target_p, new_p))
-                final = types.FunctionType(r_type, p_types)
-            case types.StructType():
-                for field in target.fields:
-                    ftype = target.fields[field]
-                    new_ftype = new.fields[field]
-                    target.fields[field] = self.update_types(ftype, new_ftype)
+            case ir.FunctionSigRef():
+                typ = self.update_types(target.return_type, new.return_type)
+                new.return_type = target.return_type = typ
+                assert target.params.keys() == new.params.keys(), "Mismatching params"
+                for pname in target.params:
+                    typ = self.update_types(target.params[pname], new.params[pname])
+                    new.params[pname] = target.params[pname] = typ
+            case ir.StructRef():
+                assert target.fields.keys() == new.fields.keys(), "Mismatching fields"
+                for fname in target.fields:
+                    typ = self.update_types(target.fields[fname], new.fields[fname])
+                    new.fields[fname] = target.fields[fname] = typ
+            case ir.Type():
+                assert target == new, f"Mismatching types {target} and {new}"
             case _:
                 assert False, f"Unexpected type {target}"
-        return final
+        target.checked = self.get_core_type(target)
+        return target
 
     def get_binary_numeric(self, lhs, rhs):
         if builtin.types["float"] in (lhs.typ, rhs.typ):
@@ -109,6 +118,8 @@ class TypeChecker:
                             # probably unable to check this
                             self.deferred.remove(node)
                     node.progress = progress.COMPLETED
+                case ir.Type():
+                    self.check_type(node)
                 case ir.Ref():
                     self.check_ref(node)
                 case ir.Instruction():
@@ -121,72 +132,88 @@ class TypeChecker:
         except DeferChecking:
             self.deferred.append(node)
             if node.is_expr:
+                logging.info("raise DeferChecking to propagate")
                 raise DeferChecking("Propagating expr defer")
         else:
             if node.progress != progress.COMPLETED:
+                logging.info(f"raise DeferChecking for incomplete type for {type(node)}")
                 raise DeferChecking(f"Incomplete type checking for {type(node)} node")
 
+    def check_type(self, node):
+        if node.checked is None:
+            node.checked = node.hint
+        match node:
+            case ir.FunctionSigRef():
+                if node.return_type is not None:
+                    self.check_type(node.return_type)
+                for param in node.params.values():
+                    if param is not None:
+                        self.check_type(param)
+            case ir.StructRef():
+                for field in node.fields.values():
+                    if field is not None:
+                        self.check_type(field)
+            case ir.InterfaceRef():
+                for method in node.methods.values():
+                    if method is not None:
+                        self.check_type(method)
+        node.checked = self.get_core_type(node)
+        node.progress = progress.COMPLETED
+
     def check_ref(self, node):
-        if node.type_hint is not None and node.checked_type is None:
-            # this can make the type hint appear wrong
-            # as the checked type now shares an object with the type hint
-            # probably not an issue though?
-            node.checked_type = node.type_hint
+        if node.typ is not None:
+            self.check_type(node.typ)
         for value in node.values:
             self.check(value)
-            node.checked_type = self.update_types(node.checked_type, value.checked_type)
+            if node.typ is None:
+                node.typ = value.typ
+            self.update_types(node.typ, value.typ)
         match node:
             case ir.FunctionRef():
-                if node.checked_type is None:
-                    node.checked_type = types.FunctionType()
-                typ = node.checked_type
+                typ = node.typ
                 for value in node.return_values:
                     self.check(value)
-                    typ.return_type = self.update_types(typ.return_type, value.checked_type)
+                    typ.return_type = self.update_types(typ.return_type, value.typ)
 
-                param_types = []
-                for i, param_name in enumerate(node.param_names):
-                    values = node.param_values.get(param_name, [])
-                    new_type = node.checked_type.param_types[i]
+                for pname, ptype in typ.params.items():
+                    values = node.param_values.get(pname, [])
                     for value in values:
                         self.check(value)
-                        new_type = self.update_types(new_type, value.checked_type)
-                    param_types.append(new_type)
-                typ.param_types = param_types
+                        typ.params[pname] = self.update_types(ptype, value.typ)
+                for param in node.params:
+                    self.check(param)
                 self.check(node.block)
-            case ir.StructRef():
-                pass
             case ir.FieldRef():
                 self.check(node.parent)
                 field = None
-                if isinstance(node.parent.checked_type, types.StructType):
-                    field = node.parent.checked_type.fields.get(node.name)
-                method = node.parent.checked_type.methods.get(node.name)
+                if isinstance(node.parent.typ, ir.StructRef):
+                    field = node.parent.typ.fields.get(node.name)
+                method = node.parent.typ.methods.get(node.name)
                 if method:
-                    for name, value in zip(method.param_names, node.param_values):
-                        prev_values = method.param_values.get(name, [])
-                        prev_values.append(value)
-                        method.param_values[name] = prev_values
-                    param_types = method.checked_type.param_types
-                    for i, (param, value) in enumerate(zip(method.params, node.param_values)):
+                    for name, value in zip(method.typ.params, node.param_values):
+                        values = method.param_values.get(name, [])
+                        values.append(value)
+                        method.param_values[name] = values
+                    for param, value in zip(method.params, node.param_values):
                         self.check(value)
                         param.values.append(value)
                         self.check(param)
                     self.check(method)
-                    method = method.checked_type
+                    method = method.typ
                 value = field or method
                 assert value, f"{node.name} is not a field or method of {node.parent.name}"
                 assert not (field and method)
-                node.checked_type = value
+                node.typ = value
             case ir.Ref():
                 pass
             case _:
                 assert False, f"Unexpected ref {node}"
 
-        if node.checked_type is not None:
+        if node.typ is not None and node.typ.checked is not None:
             node.progress = progress.COMPLETED
         else:
             node.progress = progress.EMPTY
+            logging.info("raise DeferChecking for incomplete type")
             raise DeferChecking
 
     def check_instr(self, node):
@@ -204,21 +231,21 @@ class TypeChecker:
                 self.check(value)
             case ir.Load(ref):
                 self.check(ref)
-                node.checked_type = ref.checked_type
+                node.typ = ref.typ
             case ir.Call(ref, args):
                 self.check(ref)
-                assert len(args) == len(ref.checked_type.param_types)
-                for i, arg in enumerate(args):
+                assert len(args) == len(ref.typ.params)
+                for pname, arg in zip(ref.typ.params, args):
                     self.check(arg)
-                    ref.checked_type.param_types[i] = self.update_types(ref.checked_type.param_types[i], arg.checked_type)
-                node.checked_type = ref.checked_type.return_type
+                    ref.typ.params[pname] = self.update_types(ref.typ.params[pname], arg.typ)
+                node.typ = ref.typ.return_type
             case ir.Return(value):
                 self.check(value)
             case ir.Branch(block):
                 self.check(block)
             case ir.CBranch(condition, t_block, f_block):
                 self.check(condition)
-                if condition.checked_type != builtin.types["bool"]:
+                if condition.typ != builtin.types["bool"]:
                     self.error("Branch condition must be a boolean")
                 self.check(t_block)
                 self.check(f_block)
@@ -234,28 +261,28 @@ class TypeChecker:
         self.check(node.lhs)
         self.check(node.rhs)
 
-        if node.lhs.checked_type != node.rhs.checked_type:
+        if node.lhs.typ != node.rhs.typ:
             self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
         if is_comparison_op(node.op):
-            node.checked_type = builtin.types["bool"]
+            node.typ = builtin.types["bool"]
             return
 
         pred = binary_op_preds[node.op]
-        if not pred(node.lhs.checked_type):
-            self.error(f"Unsupported op '{node.op}' on {node.lhs.checked_type}")
+        if not pred(node.lhs.typ.checked):
+            self.error(f"Unsupported op '{node.op}' on {node.lhs.typ}")
         elif node.op == '/':
-            node.checked_type = builtin.types["float"]
+            node.typ = builtin.types["float"]
         else:
-            node.checked_type = node.lhs.checked_type
+            node.typ = node.lhs.typ
 
     def check_unary(self, node):
         self.check(node.rhs)
 
         pred = unary_op_preds[node.op]
-        if not pred(node.rhs.checked_type):
-            self.error(f"Unsupported op {node.op} on {node.rhs.checked_type}")
+        if not pred(node.rhs.typ.checked):
+            self.error(f"Unsupported op {node.op} on {node.rhs.typ}")
         else:
-            node.checked_type = node.rhs.checked_type
+            node.typ = node.rhs.typ
 
     def check_object(self, node):
         match node:
