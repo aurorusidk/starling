@@ -1,6 +1,7 @@
 import unittest
 from src.python.lexer import Token, TokenType as T
 from src.python import lexer
+from src.python.cmd import translate
 
 
 start_pos = lexer.Pos(1, 1)
@@ -23,7 +24,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
         for keyword in lexer.KEYWORDS:
             self.assertIn(keyword, tests)
@@ -38,7 +39,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
     def test_identifier_kw(self):
         tests = {
@@ -50,7 +51,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
     def test_valid_mg(self):
         tests = {
@@ -75,7 +76,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
         for monograph in lexer.MONOGRAPHS:
             self.assertIn(monograph, tests)
@@ -100,7 +101,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
         for digraph in lexer.DIGRAPHS:
             self.assertIn(digraph, tests)
@@ -127,7 +128,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
     def test_no_space_g(self):
         tests = {
@@ -149,7 +150,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
     def test_ignore_whitespace(self):
         tests = {
@@ -177,7 +178,7 @@ class TestLexer(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(lexer.tokenise(test), expected)
+            self.assertEqual(translate(test, tokenise=True), expected)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 # this shadows a python module name but it hopefully doesn't matter
+import logging
 from .lexer import tokenise
-from .parser import parse
+from .parser import Parser
 from .ir import IRNoder
 from .ir_nodes import IRPrinter, counter
 from .type_checker import TypeChecker
@@ -13,7 +14,11 @@ def translate(src, **flags):
     tokens = tokenise(src)
     if flags.get("tokenise"):
         return tokens
-    ast = parse(tokens)
+    if flags.get("parse") and flags.get("test"):
+        parser = Parser(tokens, (lambda err: logging.error(err)))
+    else:
+        parser = Parser(tokens)
+    ast = parser.parse_program()
     if flags.get("parse"):
         return ast
 
