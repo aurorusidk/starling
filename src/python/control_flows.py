@@ -5,16 +5,16 @@ from schemdraw import flow
 from .ir_nodes import id_hash
 
 
-def create_flows(block):
+def create_flows(block, id_func=id_hash):
     flows = {}
     queue = [block]
     while queue:
         cur = queue.pop(0)
-        cur_id = id_hash(cur)
+        cur_id = id_func(cur)
         if cur_id in flows:
             continue
         queue.extend(cur.deps)
-        flows[id_hash(cur)] = [id_hash(b) for b in cur.deps]
+        flows[id_func(cur)] = [id_func(b) for b in cur.deps]
     return flows
 
 

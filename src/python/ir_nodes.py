@@ -175,8 +175,8 @@ def counter():
         if obj in cache:
             return cache[obj]
         i += 1
-        cache[obj] = i
-        return i
+        cache[obj] = str(i)
+        return cache[obj]
     return inner
 
 

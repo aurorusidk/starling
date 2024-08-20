@@ -2,7 +2,7 @@
 from .lexer import tokenise
 from .parser import parse
 from .ir import IRNoder
-from .ir_nodes import IRPrinter
+from .ir_nodes import IRPrinter, counter
 from .type_checker import TypeChecker
 from .interpreter import Interpreter, StaFunctionReturn
 from .compiler import Compiler, execute_ir
@@ -21,7 +21,7 @@ def translate(src, **flags):
     block = noder.block
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
-        process_cf(block, flags.get("cf_path"), flags.get("cf_show"))
+        process_cf(block, flags.get("cf_path"), flags.get("cf_show"), flags.get("test"))
     printer = IRPrinter(flags.get("test"))
     if flags.get("make_ir"):
         iir_string = printer.to_string(iir)
@@ -60,8 +60,11 @@ def compile_file(path, **flags):
     print("program exited with code:", res)
 
 
-def process_cf(block, path, show):
-    flows = create_flows(block)
+def process_cf(block, path, show, test):
+    if test:
+        flows = create_flows(block, counter())
+    else:
+        flows = create_flows(block)
     cf = ControlFlows(flows)
     cf.draw_flow(show)
     if path is not None:
