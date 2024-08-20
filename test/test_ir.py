@@ -25,7 +25,7 @@ class TestIR(unittest.TestCase):
                 }
 
         for test, expected in tests.items():
-            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
+            self.assertEqual(translate(test, make_ir=True, test=True), expected)
 
     def test_valid_ref(self):
         tests = {
@@ -53,7 +53,7 @@ class TestIR(unittest.TestCase):
                 }
 
         for test, expected in tests.items():
-            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
+            self.assertEqual(translate(test, make_ir=True, test=True), expected)
 
     def test_valid_instr(self):
         # CALL instruction tested in test_valid_ref
@@ -81,7 +81,7 @@ class TestIR(unittest.TestCase):
 
         for test_contents, expected in tests.items():
             test = "fn main() {" + test_contents + "}"
-            self.assertEqual(str(translate(test, make_ir=True, test=True)), expected)
+            self.assertEqual(translate(test, make_ir=True, test=True), expected)
 
     def test_invalid(self):
         # TODO: add more invalid testing where reasonable

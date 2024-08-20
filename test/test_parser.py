@@ -1,7 +1,6 @@
 import logging
 import unittest
-from src.python.lexer import tokenise, Token, TokenType as T, Pos
-from src.python.parser import Parser
+from src.python.lexer import Token, TokenType as T, Pos
 import src.python.ast_nodes as ast
 from src.python.cmd import translate
 
