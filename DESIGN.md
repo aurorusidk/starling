@@ -303,7 +303,11 @@ TBD - Not yet implemented.
 
 The `int` type in Python has infinite precision. It would be good to also implement this in Starling.
 
-We need to research how infinite precision/bit-length integers can be achieved.
+`BigInt`s use arrays to store additional values. This means that standard operations require more complex algorithms, which can negatively impact performance.
+
+Using an `i64` (long) gives a very large range of representable values (around `+/-10^19`) which is more than sufficient for the average use case.
+
+We will still support `BigInt`s, however the default integer type will be a fixed precision integer.
 
 ## Mathematics
 
