@@ -22,6 +22,12 @@ class Constant(Object):
 
 
 @dataclass
+class StructLiteral(Object):
+    is_expr = True
+    fields: dict[str, Object]
+
+
+@dataclass
 class Ref(Object):
     is_expr = True
     name: str
@@ -249,6 +255,9 @@ class IRPrinter:
             case StructRef():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string += f"{ir.name}{{{fields}}}"
+            case StructLiteral():
+                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
+                string = f"{{{fields}}}"
             case Type():
                 string += self._to_string(ir.checked)
             case Ref(name):

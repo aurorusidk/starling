@@ -291,6 +291,11 @@ class TypeChecker:
                     self.check(instr)
             case ir.Constant():
                 pass
+            case ir.StructLiteral():
+                self.check_type(node.typ)
+                for fname, fval in node.fields.items():
+                    self.check(fval)
+                    assert fval.typ == node.typ.fields[fname]
             case _:
                 assert False, f"Unexpected object {node}"
         node.progress = progress.COMPLETED

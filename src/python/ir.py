@@ -187,6 +187,12 @@ class IRNoder:
             # method so add `self`
             args.insert(0, target.parent)
             target.param_values = args
+        elif isinstance(target, ir.StructRef):
+            assert len(args) == len(target.fields)
+            fields = {}
+            for fname, value in zip(target.fields, args):
+                fields[fname] = value
+            return ir.StructLiteral(fields, typ=target)
         return ir.Call(target, args)
 
     def make_selector_expr(self, target, name, load=True):
