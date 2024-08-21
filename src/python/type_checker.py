@@ -190,6 +190,7 @@ class TypeChecker:
                     field = node.parent.typ.fields.get(node.name)
                 method = node.parent.typ.methods.get(node.name)
                 if method:
+                    node.method = method
                     for name, value in zip(method.typ.params, node.param_values):
                         values = method.param_values.get(name, [])
                         values.append(value)

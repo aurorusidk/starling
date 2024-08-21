@@ -35,7 +35,9 @@ class StaParameter:
 
 @dataclass
 class StaFunction:
-    func: ir.FunctionRef
+    sig: ir.FunctionSigRef
+    params: list[ir.Ref]
+    block: ir.Block
 
 
 @dataclass
@@ -46,8 +48,6 @@ class StaMethod(StaFunction):
 
 @dataclass
 class StaStruct:
-    typ: types.StructType
-    name: str
     fields: dict[str, StaVariable]
 
 
@@ -118,24 +118,31 @@ class Interpreter:
         if id(node) not in self.refs:
             # make a new object for the ref
             match node:
-                case ir.FunctionSignatureRef():
-                    obj = StaFunction(node)
-                case ir.StructTypeRef():
-                    raise NotImplementedError
+                case ir.FunctionRef():
+                    obj = StaFunction(node.typ, node.params, node.block)
+                    if obj.sig.name == "main":
+                        self.entry = obj
+                case ir.StructRef():
+                    return
                 case ir.FieldRef():
-                    raise NotImplementedError
+                    if isinstance(node.typ, ir.FunctionSigRef):
+                        obj = self.eval_node(node.method)
+                    else:
+                        obj = self.eval_node(node.parent).value.fields[node.name]
+                    self.refs[id(node)] = obj
                 case ir.Ref():
                     obj = StaVariable(node.name)
             return obj
         else:
             return self.refs[id(node)]
-        raise NotImplementedError
 
     def eval_instr(self, node):
         match node:
             case ir.Declare(ref):
                 var = self.eval_node(ref)
                 self.refs[id(ref)] = var
+            case ir.DeclareMethods(typ, block):
+                self.eval_node(block)
             case ir.Assign(ref, value):
                 var = self.eval_node(ref)
                 val = self.eval_node(value)
@@ -145,10 +152,10 @@ class Interpreter:
                 return var.value
             case ir.Call(ref, args):
                 func = self.eval_node(ref)
-                for param_ref, arg in zip(func.sig.params, args):
+                for param_ref, arg in zip(func.params, args):
                     param = self.eval_node(param_ref)
                     self.refs[id(param_ref)] = param
-                    param.value = self.eval_node(arg)
+                    param.value = self.eval_node(arg).value
                 try:
                     self.eval_node(func.block)
                 except StaFunctionReturn as res:
@@ -164,18 +171,12 @@ class Interpreter:
                     self.eval_node(t_block)
                 else:
                     self.eval_node(f_block)
-            case ir.DefFunc(target, block):
-                func = self.eval_node(target)
-                self.refs[id(target)] = func
-                if func.sig.name == "main":
-                    self.entry = func
-                func.block = block
             case ir.Binary():
                 return self.eval_binary(node)
             case ir.Unary():
                 return self.eval_unary(node)
             case _:
-                assert False, f"Unexpected instruction {node}"
+                assert False, f"Unexpected instruction {type(node)}"
 
     def eval_object(self, node):
         match node:
@@ -186,6 +187,11 @@ class Interpreter:
                 self.eval_node(block)
             case ir.Constant(value):
                 return StaObject(value)
+            case ir.StructLiteral(fields):
+                vars = {}
+                for name, value in fields.items():
+                    vars[name] = StaVariable(name, self.eval_node(value))
+                return StaStruct(vars)
             case _:
                 assert False
 
