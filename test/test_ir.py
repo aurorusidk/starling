@@ -92,7 +92,7 @@ class TestIR(unittest.TestCase):
                 " DECLARE main() #2\n"
                 "2:\n"
                 " DECLARE a\n"
-                " ASSIGN a <- 5 [int]"
+                " ASSIGN a <- 5"
             ),
             "var a; var b = a;": (
                 "1:\n"
@@ -106,7 +106,7 @@ class TestIR(unittest.TestCase):
                 "1:\n"
                 " DECLARE main() #2\n"
                 "2:\n"
-                " RETURN 0 [int]"
+                " RETURN 0"
             ),
             "var a; while a < 2 {a = a + 1;}": (
                 "1:\n"
@@ -115,9 +115,9 @@ class TestIR(unittest.TestCase):
                 " DECLARE a\n"
                 " BRANCH #3\n"
                 "3:\n"
-                " CBRANCH (LOAD(a) < 2 [int]) #4 #5\n"
+                " CBRANCH (LOAD(a) < 2) #4 #5\n"
                 "4:\n"
-                " ASSIGN a <- (LOAD(a) + 1 [int])\n"
+                " ASSIGN a <- (LOAD(a) + 1)\n"
                 " BRANCH #3\n"
                 "5:\n"
                 " [empty]"
@@ -126,9 +126,9 @@ class TestIR(unittest.TestCase):
                 "1:\n"
                 " DECLARE main() #2\n"
                 "2:\n"
-                " CBRANCH True [bool] #3 #4\n"
+                " CBRANCH True #3 #4\n"
                 "3:\n"
-                " RETURN 0 [int]\n"
+                " RETURN 0\n"
                 "4:\n"
                 " [empty]"
             ),
@@ -145,8 +145,8 @@ class TestIR(unittest.TestCase):
                 " DECLARE main() #2\n"
                 "2:\n"
                 " DECLARE a\n"
-                " ASSIGN a <- 5 [int]\n"
-                " ASSIGN a <- (LOAD(a) + 5 [int])"
+                " ASSIGN a <- 5\n"
+                " ASSIGN a <- (LOAD(a) + 5)"
             ),
         }
 

@@ -188,7 +188,8 @@ def counter():
 
 
 class IRPrinter:
-    def __init__(self, test=False):
+    def __init__(self, test=False, show_types=True):
+        self.show_types = show_types
         self.blocks_seen = []
         self.blocks_to_add = []
         self.make_id = id_hash
@@ -204,7 +205,9 @@ class IRPrinter:
         self.blocks_to_add = prev_bta
         return block, block_name
 
-    def _to_string(self, ir, show_type=True):
+    def _to_string(self, ir, show_types=None):
+        if show_types is None:
+            show_types = self.show_types
         string = ""
         match ir:
             case Program(block):
@@ -224,7 +227,7 @@ class IRPrinter:
                 return block, name
             case Declare(ref):
                 string = f"DECLARE {self._to_string(ref)}"
-                if isinstance(ref, StructRef) and show_type:
+                if isinstance(ref, StructRef) and show_types:
                     string += f" [{self._to_string(ref.checked)}]"
             case DeclareMethods(typ, block):
                 block, block_name = self.defer_block(block)
@@ -246,7 +249,7 @@ class IRPrinter:
             case Constant(value):
                 string += str(value)
             case FieldRef():
-                string = f"{self._to_string(ir.parent, show_type=False)}.{ir.name}"
+                string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
             case FunctionSigRef():
                 params = ', '.join(self._to_string(p) for p in ir.params.values())
                 string += f"fn ({params}) -> {self._to_string(ir.return_type)}"
@@ -254,7 +257,7 @@ class IRPrinter:
                 block, block_name = self.defer_block(ir.block)
                 string += f"{ir.name}({', '.join(ir.typ.params)}) {block_name}"
             case StructRef():
-                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
+                fields = ', '.join(ir.fields)
                 string += f"{ir.name}{{{fields}}}"
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
@@ -279,7 +282,7 @@ class IRPrinter:
             case _:
                 assert False, ir
 
-        if ir.typ is not None and show_type:
+        if ir.typ is not None and show_types:
             string += f" [{self._to_string(ir.typ)}]"
         return string
 

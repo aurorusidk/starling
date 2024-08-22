@@ -27,8 +27,9 @@ def translate(src, **flags):
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
         process_cf(block, flags.get("cf_path"), flags.get("cf_show"), flags.get("test"))
-    printer = IRPrinter(flags.get("test"))
+    printer = IRPrinter(test=flags.get("test"))
     if flags.get("make_ir"):
+        printer.show_types = False
         iir_string = printer.to_string(iir)
         return iir_string
     tc = TypeChecker()
