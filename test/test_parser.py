@@ -48,7 +48,8 @@ class TestParser(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            self.assertEqual(translate(test, parse=True), ast.Program([expected]))
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, parse=True), ast.Program([expected]))
 
     def test_invalid_declr(self):
         # TODO: implement correct parser errors, so test works correctly
@@ -61,7 +62,8 @@ class TestParser(unittest.TestCase):
         ]
 
         for test in tests:
-            self.assertRaises(AssertionError, translate, test, parse=True)
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_valid_stmt(self):
         # skips declr and expr stmts; blocks are implicitly tested throughout
@@ -102,7 +104,8 @@ class TestParser(unittest.TestCase):
                     )
                 ])
 
-            self.assertEqual(translate(test, parse=True), expected)
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, parse=True), expected)
 
     def test_invalid_stmt(self):
         # TODO: add more variations
@@ -113,7 +116,8 @@ class TestParser(unittest.TestCase):
         ]
 
         for test in tests:
-            self.assertRaises(AssertionError, translate, test, parse=True)
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_valid_expr(self):
         tests = {
@@ -175,7 +179,8 @@ class TestParser(unittest.TestCase):
                     )
                 ])
 
-            self.assertEqual(translate(test, parse=True), expected)
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, parse=True), expected)
 
     def test_invalid_expr(self):
         tests = [
@@ -192,7 +197,8 @@ class TestParser(unittest.TestCase):
         ]
 
         for test in tests:
-            self.assertRaises(AssertionError, translate, test, parse=True)
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, parse=True)
 
     def test_binop_precs(self):
         tests = {
@@ -252,7 +258,8 @@ class TestParser(unittest.TestCase):
                     )
                 ])
 
-            self.assertEqual(translate(test, parse=True), expected)
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, parse=True), expected)
 
     def test_error_reporting(self):
         tests = [
@@ -274,11 +281,12 @@ class TestParser(unittest.TestCase):
         ]
 
         for test in tests:
-            with self.assertLogs(level=logging.ERROR) as cm:
-                translate(test[0], parse=True, test=True)
+            with self.subTest(test=test):
+                with self.assertLogs(level=logging.ERROR) as cm:
+                    translate(test[0], parse=True, test=True)
 
-                # Check that the right number of errors were logged
-                self.assertEqual(len(cm.output), len(test[1]))
+                    # Check that the right number of errors were logged
+                    self.assertEqual(len(cm.output), len(test[1]))
 
-                for log, expected in zip(cm.output, test[1]):
-                    self.assertRegex(log, expected)
+                    for log, expected in zip(cm.output, test[1]):
+                        self.assertRegex(log, expected)

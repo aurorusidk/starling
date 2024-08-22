@@ -66,8 +66,9 @@ class TestInterpreter(unittest.TestCase):
 
         for test, expected in tests.items():
             test = self.global_declrs + "fn test() {return " + test + ";}"
-            res = cmd.exec_src(test, entry_name="test")
-            self.assertEqual(res, expected)
+            with self.subTest(test=test):
+                res = cmd.exec_src(test, entry_name="test")
+                self.assertEqual(res, expected)
 
     def test_stmt_eval(self):
         tests = {
@@ -87,8 +88,9 @@ class TestInterpreter(unittest.TestCase):
 
         for test, expected in tests.items():
             test = self.global_declrs + "fn test() {" + test + "}"
-            res = cmd.exec_src(test, entry_name="test")
-            self.assertEqual(res, expected)
+            with self.subTest(test=test):
+                res = cmd.exec_src(test, entry_name="test")
+                self.assertEqual(res, expected)
 
     def test_declr_eval(self):
         tests = {
@@ -170,10 +172,11 @@ class TestInterpreter(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            tc.check(tree)
-            interpreter = Interpreter()
-            interpreter.eval_node(tree)
-            self.assertEqual(interpreter.scope.lookup("test"), expected)
+            with self.subTest(test=test):
+                tokens = tokenise(test)
+                tree = parse(tokens)
+                tc = TypeChecker(tree)
+                tc.check(tree)
+                interpreter = Interpreter()
+                interpreter.eval_node(tree)
+                self.assertEqual(interpreter.scope.lookup("test"), expected)
