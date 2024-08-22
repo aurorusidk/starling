@@ -41,9 +41,7 @@ def translate(src, **flags):
     return iir
 
 
-def exec_file(path, **flags):
-    with open(path) as f:
-        src = f.read()
+def exec_src(src, **flags):
     iir = translate(src, **flags)
     interpreter = Interpreter()
     interpreter.eval_node(iir)
@@ -52,18 +50,15 @@ def exec_file(path, **flags):
         try:
             interpreter.eval_node(fn.block)
         except StaFunctionReturn as res:
-            print(f"program returned with value {res.value}")
+            return res.value
 
-
-def compile_file(path, **flags):
-    with open(path) as f:
-        src = f.read()
+def compile_src(src, **flags):
     iir = translate(src, **flags)
     compiler = Compiler()
     compiler.build_node(iir)
     print(compiler.module)
     res = execute_ir(str(compiler.module))
-    print("program exited with code:", res)
+    print("program exited with value", res)
 
 
 def process_cf(block, path, show, test):

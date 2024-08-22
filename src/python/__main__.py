@@ -37,11 +37,13 @@ logging_level = logging_levels[verbosity]
 logging.basicConfig(format="%(levelname)s: %(message)s")
 logging.getLogger().setLevel(logging_level)
 
+with open(filename) as f:
+    src = f.read()
 if args.get("interpret"):
-    cmd.exec_file(filename, **args)
+    res = cmd.exec_src(src, **args)
+    print(f"program exited with value {res}")
 elif args.get("compile"):
-    cmd.compile_file(filename, **args)
+    res = cmd.compile_src(src, **args)
+    print(f"program exited with value {res}")
 else:
-    with open(filename) as f:
-        src = f.read()
     print(cmd.translate(src, **args))
