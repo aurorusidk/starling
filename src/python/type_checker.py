@@ -1,4 +1,3 @@
-from enum import Enum
 import logging
 
 from . import ir_nodes as ir
@@ -70,6 +69,8 @@ class TypeChecker:
     def update_types(self, target, new):
         if target is None:
             target = new
+        if new is None:
+            return target
         match target:
             case ir.FunctionSigRef():
                 typ = self.update_types(target.return_type, new.return_type)
@@ -91,15 +92,20 @@ class TypeChecker:
         return target
 
     def check(self, node):
-        if node.progress == progress.UPDATING:
+        if node.progress in (progress.UPDATING, progress.COMPLETED):
             return
         node.progress = progress.UPDATING
         try:
             match node:
                 case ir.Program(block):
                     self.check(block)
+                    already_deferred = []
                     while self.deferred:
+                        logging.debug(self.deferred)
                         node = self.deferred.pop(0)
+                        if node in already_deferred:
+                            continue
+                        already_deferred.append(node)
                         node.progress = progress.EMPTY
                         try:
                             self.check(node)
@@ -124,7 +130,10 @@ class TypeChecker:
                 logging.info("raise DeferChecking to propagate")
                 raise DeferChecking("Propagating expr defer")
         else:
+            if node.is_expr and node.typ is None:
+                node.progress = progress.EMPTY
             if node.progress != progress.COMPLETED:
+                node.progress = progress.EMPTY
                 logging.info(f"raise DeferChecking for incomplete type for {type(node)}")
                 raise DeferChecking(f"Incomplete type checking for {type(node)} node")
 
