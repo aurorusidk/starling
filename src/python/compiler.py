@@ -5,7 +5,7 @@ from ctypes import CFUNCTYPE, c_int
 from dataclasses import dataclass
 
 from .lexer import TokenType as T
-from .type_checker import Scope
+from .scope import Scope
 from . import ast_nodes as ast
 from . import builtin
 
@@ -458,8 +458,6 @@ def execute_ir(ir, entry="main", return_type=c_int):
 
 if __name__ == "__main__":
     import sys
-    from ctypes import CFUNCTYPE, c_int
-    import llvmlite.binding as llvm
 
     from .lexer import tokenise
     from .parser import parse

@@ -145,7 +145,7 @@ class FieldDeclr(Declr):
 
 
 @dataclass
-class FunctionSignature(Declr):
+class FunctionSignature(Type):
     name: Identifier
     return_type: Type | None
     params: list[FieldDeclr]

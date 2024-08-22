@@ -1,49 +1,195 @@
 import unittest
-from src.python.lexer import tokenise
-from src.python.parser import Parser
-from src.python.type_checker import TypeChecker
-from src.python import builtin
-from src.python import type_defs as types
+from src.python.cmd import translate
 
 
 class TestTypeChecker(unittest.TestCase):
-    global_declrs = [
-        "var x int;",
-        "fn test(n float) frac {}",
-    ]
-
-    def testing_prerequisites(self, tc=None):
-        for declr in self.global_declrs:
-            tokens = tokenise(declr)
-            ast = Parser(tokens).parse(tokens)
-            if tc is None:
-                # for when this is run as a test
-                tc = TypeChecker(ast)
-            tc.check(ast)
-
-    def test_valid_expr_check(self):
+    def test_globals(self):
+        # TODO: add interfaces once fully implemented
         tests = {
-            "1 + 1": builtin.types["int"],
-            "1 + 1//2": builtin.types["frac"],
-            "1 + 1.5": builtin.types["float"],
-            "\"a\" + \"b\"": builtin.types["str"],
-            "3 / 2": builtin.types["float"],  # in tc should this be rational?
-            "x + 1": builtin.types["int"],
-            "x * 0.5": builtin.types["float"],
-            "!true": builtin.types["bool"],
-            "[1:10][0]": builtin.types["int"],
-            "[0:x + 1][x]": builtin.types["int"],
-            "test(1.5)": builtin.types["frac"],
-            "test(x + 0.5)": builtin.types["frac"],
+            "fn main() {}": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " [empty]"
+            ),
+            """
+            fn test() {}
+            fn main() {}
+            """: (
+                "1:\n"
+                " DECLARE test() #2 [fn () -> nil]\n"
+                " DECLARE main() #3 [fn () -> nil]\n"
+                "2:\n"
+                " [empty]\n"
+                "3:\n"
+                " [empty]"
+            ),
+            """
+            struct test {
+                a int;
+            }
+            """: (
+                "1:\n"
+                " DECLARE test{a} [struct {int}]"
+            ),
         }
 
         for test, expected in tests.items():
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_expression()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.check(tc.root)
-            self.assertEqual(tc.root.typ, expected)
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, typecheck=True, test=True), expected)
+
+    def test_valid_ref(self):
+        tests = {
+            """
+            struct test {
+                a int;
+            }
+
+            fn main() {
+                var b test;
+                var c = b.a;
+            }
+            """: (
+                "1:\n"
+                " DECLARE test{a} [struct {int}]\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE b [test{a}]\n"
+                " DECLARE c [int]\n"
+                " ASSIGN c [int] <- LOAD(b.a [int]) [int]"
+            ),
+            """
+            fn test() {
+            }
+
+            fn main() {
+                test();
+            }
+            """: (
+                "1:\n"
+                " DECLARE test() #2 [fn () -> nil]\n"
+                " DECLARE main() #3 [fn () -> nil]\n"
+                "2:\n"
+                " [empty]\n"
+                "3:\n"
+                " CALL test() #2 [fn () -> nil] ()"
+            ),
+        }
+
+        for test, expected in tests.items():
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, typecheck=True, test=True), expected)
+
+    def test_valid_instr(self):
+        # check while loops
+        tests = {
+            "var a;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE a"
+            ),
+            "var a; var b = a;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE a\n"
+                " DECLARE b\n"
+                " ASSIGN b <- LOAD(a)"
+            ),
+            "var a; a = 5;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE a [int]\n"
+                " ASSIGN a [int] <- 5 [int]"
+            ),
+            "return 0;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> int]\n"
+                "2:\n"
+                " RETURN 0 [int]"
+            ),
+            "if true return 0;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> int]\n"
+                "2:\n"
+                " CBRANCH True [bool] #3 #4\n"
+                "3:\n"
+                " RETURN 0 [int]\n"
+                "4:\n"
+                " [empty]"
+            ),
+            "var x int; while x > 0 {}": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE x [int]\n"
+                " BRANCH #3\n"
+                "3:\n"
+                " CBRANCH (LOAD(x [int]) [int] > 0 [int]) [bool] #4 #5\n"
+                "4:\n"
+                " BRANCH #3\n"
+                "5:\n"
+                " [empty]"
+            ),
+            "fn test() {}": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE test() #3 [fn () -> nil]\n"
+                "3:\n"
+                " [empty]"
+            ),
+            "var a = 5; a = a + 5;": (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+                " DECLARE a [int]\n"
+                " ASSIGN a [int] <- 5 [int]\n"
+                " ASSIGN a [int] <- (LOAD(a [int]) [int] + 5 [int]) [int]"
+            ),
+        }
+
+        for test_contents, expected in tests.items():
+            test = "fn main() {" + test_contents + "}"
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, typecheck=True, test=True), expected)
+
+    def test_valid_expr_check(self):
+        tests = {
+            "a = 1 + 1": (
+                " DECLARE a [int]\n"
+                " ASSIGN a [int] <- (1 [int] + 1 [int]) [int]"
+            ),
+            "a = \"a\" + \"b\"": (
+                " DECLARE a [str]\n"
+                " ASSIGN a [str] <- (a [str] + b [str]) [str]"
+            ),
+            "a = 3 / 2": (
+                " DECLARE a [float]\n"
+                " ASSIGN a [float] <- (3 [int] / 2 [int]) [float]"
+            ),  # in tc should this be rational?
+            "var x int; a = x + 1": (
+                " DECLARE a [int]\n"
+                " DECLARE x [int]\n"
+                " ASSIGN a [int] <- (LOAD(x [int]) [int] + 1 [int]) [int]"
+            ),
+            "a = !true": (
+                " DECLARE a [bool]\n"
+                " ASSIGN a [bool] <- !True [bool] [bool]"
+            ),
+        }
+
+        for test_contents, expected_contents in tests.items():
+            test = "fn main() { var a; " + test_contents + ";}"
+            expected = (
+                "1:\n"
+                " DECLARE main() #2 [fn () -> nil]\n"
+                "2:\n"
+            ) + expected_contents
+            with self.subTest(test=test):
+                self.assertEqual(translate(test, typecheck=True, test=True), expected)
 
     def test_invalid_expr_check(self):
         tests = [
@@ -51,189 +197,37 @@ class TestTypeChecker(unittest.TestCase):
             "\"a\" * \"b\"",
             "true / false",
             "x - \"a\"",
-            "test(x)",
-            "test(1, 2)",
-            "test(\"foo\")",
-            "test(1.5)[x]",
-            "[1:10][1.5]",
-            "[0:4.5]",
             "!1.5",
             "-\"a\"",
         ]
 
-        for test in tests:
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_expression()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            self.assertRaises(AssertionError, tc.check, tc.root)
-
-    def test_valid_stmt_check(self):
-        tests = [
-            "if x == 1 {} else {}",
-            "while x > 0 {}",
-            "return 1//2;",
-            "x = 1;",
-        ]
-
-        for test in tests:
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_statement()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.function = tc.scope.lookup("test")
-            tc.check(tc.root)
+        for test_contents in tests:
+            test = "fn main() { var a; " + test_contents + ";}"
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, typecheck=True, test=True)
 
     def test_invalid_stmt_check(self):
         tests = [
             "if x {} else {}",
             "if 1 {}",
             "while x {}",
-            "return 1.5;",
+            "while 7 {}",
             "return x;",
-            "x = 1//2;",
-            "x = \"test\";",
         ]
 
-        for test in tests:
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_statement()
-            tc = TypeChecker(ast)
-            self.testing_prerequisites(tc)
-            tc.function = tc.scope.lookup("test")
-            self.assertRaises(AssertionError, tc.check, tc.root)
-
-    def test_valid_declr_check(self):
-        tests = {
-            "fn test(x float) frac {}": types.FunctionType(
-                builtin.types["frac"],
-                [
-                    builtin.types["float"],
-                ]
-            ),
-            "struct test {x int; y str;}": types.StructType(
-                "test",
-                {
-                    "x": builtin.types["int"],
-                    "y": builtin.types["str"],
-                }
-            ),
-            "var test int = 1;": builtin.types["int"],
-        }
-
-        for test, expected, in tests.items():
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            tc.check(tc.root)
-            self.assertEqual(ast.checked_type, expected)
+        for test_contents in tests:
+            test = "fn main() {" + test_contents + "}"
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, typecheck=True, test=True)
 
     def test_invalid_declr_check(self):
         tests = [
-            # TODO: are there any other possible errors here?
-            "var test str = 1.5;",
+            "var x int = 1//2;",
+            "var x int = \"test\";",
+            "var a int; var b bool = a;",
         ]
 
-        for test in tests:
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            self.assertRaises(AssertionError, tc.check, tc.root)
-
-    def test_valid_inference(self):
-        tests = {
-            "var test = 1;": builtin.types["int"],
-            "var test = 5/2;": builtin.types["float"],
-            "var test = 1 + 1.5;": builtin.types["float"],
-            "var test = \"a\";": builtin.types["str"],
-            "var test = true;": builtin.types["bool"],
-            "var test = \"true\";": builtin.types["str"],
-            "var test = 5//2;": builtin.types["frac"],
-            """fn test(x int) {
-                    return x + 1
-                }
-            """: types.FunctionType(
-                builtin.types["int"],
-                [
-                    builtin.types["int"],
-                ]
-            ),
-            """fn test(x int) {
-                    return x + 2.5
-                }
-            """: types.FunctionType(
-                builtin.types["float"],
-                [
-                    builtin.types["int"],
-                ]
-            ),
-            """fn test() {
-                    return "a"
-                }
-            """: types.FunctionType(
-                builtin.types["str"], []),
-        }
-        # TODO: add type inference between numeric types for a single var
-        #        (i.e. like the first tests for invalid, but for int to float)
-
-        for test, expected, in tests.items():
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            tc.check(tc.root)
-            self.assertEqual(ast.checked_type, expected)
-
-    def test_invalid_inference(self):
-        tests = [
-            """fn test() {
-            var x;
-            x = 1;
-            x="a";
-            }
-            """,
-            """fn test() {
-            var x;
-            x = true;
-            x="true";
-            }
-            """,
-            """fn test() {
-            var x;
-            x = 1.5;
-            x= "1.5";
-            }
-            """,
-            """fn test(x int) {
-                if x == 1 {
-                return 1
-                }
-                else {
-                return 1.5
-                }
-            }
-            """,
-            """fn test(x int) {
-                if x == 1 {
-                return 1
-                }
-                else {
-                return "a"
-                }
-            }
-            """,
-            """fn test(x int) {
-                if x == 1 {
-                return true
-                }
-                else {
-                return "true"
-                }
-            }
-            """,
-        ]
-
-        for test in tests:
-            tokens = tokenise(test)
-            ast = Parser(tokens).parse_declaration()
-            tc = TypeChecker(ast)
-            self.assertRaises(AssertionError, tc.check, tc.root)
+        for test_contents in tests:
+            test = "fn main() {" + test_contents + "}"
+            with self.subTest(test=test):
+                self.assertRaises(AssertionError, translate, test, typecheck=True, test=True)
