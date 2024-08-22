@@ -11,6 +11,7 @@ from . import builtin
 
 @dataclass
 class StaObject:
+    typ: types.Type
     value: object
 
 
@@ -47,8 +48,8 @@ class StaMethod(StaFunction):
 
 
 @dataclass
-class StaStruct:
-    fields: dict[str, StaVariable]
+class StaStruct(StaObject):
+    value: dict[str, StaVariable]
 
 
 class StaBuiltinFunction(StaFunction):
@@ -98,12 +99,15 @@ def sta_print(string):
 
 
 class Interpreter:
-    def __init__(self):
+    def __init__(self, entry_name="main"):
         self.refs = {}
+        self.entry_name = entry_name
         self.entry = None
 
     def eval_node(self, node, **kwargs):
         match node:
+            case ir.Type():
+                return self.eval_type(node)
             case ir.Ref():
                 return self.eval_ref(node)
             case ir.Instruction():
@@ -113,6 +117,9 @@ class Interpreter:
             case _:
                 assert False, f"Unreachable: {node}"
 
+    def eval_type(self, node):
+        return node.checked
+
     def eval_ref(self, node):
         # using id() to get a unique hashable object for refs
         if id(node) not in self.refs:
@@ -120,7 +127,7 @@ class Interpreter:
             match node:
                 case ir.FunctionRef():
                     obj = StaFunction(node.typ, node.params, node.block)
-                    if obj.sig.name == "main":
+                    if obj.sig.name == self.entry_name:
                         self.entry = obj
                 case ir.StructRef():
                     return
@@ -128,7 +135,8 @@ class Interpreter:
                     if isinstance(node.typ, ir.FunctionSigRef):
                         obj = self.eval_node(node.method)
                     else:
-                        obj = self.eval_node(node.parent).value.fields[node.name]
+                        struct = self.eval_node(node.parent).value
+                        obj = struct.value[node.name]
                     self.refs[id(node)] = obj
                 case ir.Ref():
                     obj = StaVariable(node.name)
@@ -155,7 +163,8 @@ class Interpreter:
                 for param_ref, arg in zip(func.params, args):
                     param = self.eval_node(param_ref)
                     self.refs[id(param_ref)] = param
-                    param.value = self.eval_node(arg).value
+                    arg = self.eval_node(arg)
+                    param.value = self.eval_node(arg)
                 try:
                     self.eval_node(func.block)
                 except StaFunctionReturn as res:
@@ -186,12 +195,12 @@ class Interpreter:
             case ir.Program(block):
                 self.eval_node(block)
             case ir.Constant(value):
-                return StaObject(value)
+                return StaObject(self.eval_node(node.typ), value)
             case ir.StructLiteral(fields):
                 vars = {}
                 for name, value in fields.items():
                     vars[name] = StaVariable(name, self.eval_node(value))
-                return StaStruct(vars)
+                return StaStruct(self.eval_node(node.typ), vars)
             case _:
                 assert False
 
@@ -200,27 +209,39 @@ class Interpreter:
         rhs = self.eval_node(node.rhs).value
         match node.op:
             case '+':
-                return StaObject(lhs + rhs)
+                value = lhs + rhs
             case '-':
-                return StaObject(lhs - rhs)
+                value = lhs - rhs
             case '*':
-                return StaObject(lhs * rhs)
+                value = lhs * rhs
             case '/':
-                return StaObject(lhs / rhs)
+                value = lhs / rhs
             case '==':
-                return StaObject(lhs == rhs)
+                value = lhs == rhs
             case '!=':
-                return StaObject(lhs != rhs)
+                value = lhs != rhs
             case '>':
-                return StaObject(lhs > rhs)
+                value = lhs > rhs
             case '<':
-                return StaObject(lhs < rhs)
+                value = lhs < rhs
             case '>=':
-                return StaObject(lhs >= rhs)
+                value = lhs >= rhs
             case '<=':
-                return StaObject(lhs <= rhs)
+                value = lhs <= rhs
             case _:
                 assert False
+        return StaObject(self.eval_node(node.typ), value)
+
+    def eval_unary(self, node):
+        rhs = self.eval_node(node.rhs).value
+        match node.op:
+            case '-':
+                value = -rhs
+            case '!':
+                value = not rhs
+            case _:
+                assert False
+        return StaObject(self.eval_node(node.typ), value)
 
 
 def repl(interpreter=None):

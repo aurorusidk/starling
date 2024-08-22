@@ -43,7 +43,7 @@ def translate(src, **flags):
 
 def exec_src(src, **flags):
     iir = translate(src, **flags)
-    interpreter = Interpreter()
+    interpreter = Interpreter(entry_name=flags.get("entry_name", "main"))
     interpreter.eval_node(iir)
     # define entry point
     if (fn := interpreter.entry):

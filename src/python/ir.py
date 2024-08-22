@@ -182,7 +182,7 @@ class IRNoder:
                 param.values.append(arg)
         elif isinstance(target, ir.FieldRef):
             # method so add `self`
-            args.insert(0, target.parent)
+            args.insert(0, ir.Load(target.parent))
             target.param_values = args
         elif isinstance(target, ir.StructRef):
             assert len(args) == len(target.fields)

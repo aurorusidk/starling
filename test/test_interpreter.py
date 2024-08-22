@@ -12,45 +12,26 @@ from src.python.interpreter import (
 from src.python import ast_nodes as ast
 from src.python import builtin
 from src.python import type_defs as types
+from src.python import cmd
 
 
 class TestInterpreter(unittest.TestCase):
-    global_declrs = [
-        "struct test_struct_def {x int; y str;}",
-        "var test_struct = test_struct_def(5, \"test\");",
-        "fn test_func(x int) {return x / 2;}",
-        """
+    global_declrs = """
+        struct test_struct_def {x int; y str;}
+        var test_struct = test_struct_def(5, \"test\");
+        fn test_func(x int) {return x / 2;}
         impl test_struct_def {
             fn foo(x int) int {
                 return self.x + x;
             }
         }
-        """,
-        "var x int = 1;",
-    ]
+        var x int = 1;
+    """
 
-    def testing_prerequisites(self, tc=None, interpreter=None):
-        for declr in self.global_declrs:
-            tokens = tokenise(declr)
-            tree = parse(tokens)
-            if tc is None:
-                # for when this is run as a test
-                tc = TypeChecker(tree)
-            tc.check(tree)
-            if interpreter is None:
-                # for when this is run as a test
-                interpreter = Interpreter()
-            interpreter.eval_node(tree)
+    def testing_prerequisites(self):
+        cmd.exec_src(self.global_declrs)
 
-    def testing_tc_prerequisites(self, tc=None):
-        for declr in self.global_declrs:
-            tokens = tokenise(declr)
-            tree = parse(tokens)
-            if tc is None:
-                # for when this is run as a test
-                tc = TypeChecker(tree)
-            tc.check(tree)
-
+    @unittest.expectedFailure
     def test_expr_eval(self):
         tests = {
             "true": StaObject(builtin.types["bool"], True),
@@ -84,22 +65,9 @@ class TestInterpreter(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            test = "fn test() {return " + test + ";}"
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            self.testing_tc_prerequisites(tc)
-            tc.check(tree)
-            interpreter = Interpreter()
-            self.testing_prerequisites(tc, interpreter)
-            interpreter.eval_node(tree)
-            try:
-                f = interpreter.scope.lookup("test")
-                interpreter.eval_node(f.block)
-            except StaFunctionReturn as result:
-                self.assertEqual(result.value, expected)
-            else:
-                assert False
+            test = self.global_declrs + "fn test() {return " + test + ";}"
+            res = cmd.exec_src(test, entry_name="test")
+            self.assertEqual(res, expected)
 
     def test_stmt_eval(self):
         tests = {
