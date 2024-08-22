@@ -235,7 +235,7 @@ class TypeChecker:
                 self.check(block)
             case ir.CBranch(condition, t_block, f_block):
                 self.check(condition)
-                if condition.typ != builtin.types["bool"]:
+                if condition.typ != builtin.scope.lookup("bool"):
                     self.error("Branch condition must be a boolean")
                 self.check(t_block)
                 self.check(f_block)

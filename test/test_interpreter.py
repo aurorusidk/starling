@@ -86,22 +86,9 @@ class TestInterpreter(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            test = "fn test() {" + test + "}"
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            self.testing_tc_prerequisites(tc)
-            tc.check(tree)
-            interpreter = Interpreter()
-            self.testing_prerequisites(tc, interpreter)
-            interpreter.eval_node(tree)
-            try:
-                f = interpreter.scope.lookup("test")
-                interpreter.eval_node(f.block)
-            except StaFunctionReturn as result:
-                self.assertEqual(result.value, expected)
-            else:
-                assert False
+            test = self.global_declrs + "fn test() {" + test + "}"
+            res = cmd.exec_src(test, entry_name="test")
+            self.assertEqual(res, expected)
 
     def test_declr_eval(self):
         tests = {
