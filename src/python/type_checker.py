@@ -90,17 +90,6 @@ class TypeChecker:
         target.checked = self.get_core_type(target)
         return target
 
-    def get_binary_numeric(self, lhs, rhs):
-        if builtin.types["float"] in (lhs.typ, rhs.typ):
-            return builtin.types["float"]
-        elif builtin.types["frac"] in (lhs.typ, rhs.typ):
-            return builtin.types["frac"]
-        elif builtin.types["int"] in (lhs.typ, rhs.typ):
-            return builtin.types["int"]
-        else:
-            assert False, f"Unimplemented: cannot get numeric" \
-                f"from {lhs.typ}, {rhs.typ}"
-
     def check(self, node):
         if node.progress == progress.UPDATING:
             return
@@ -265,14 +254,14 @@ class TypeChecker:
         if node.lhs.typ != node.rhs.typ:
             self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
         if is_comparison_op(node.op):
-            node.typ = builtin.types["bool"]
+            node.typ = builtin.scope.lookup("bool")
             return
 
         pred = binary_op_preds[node.op]
         if not pred(node.lhs.typ.checked):
             self.error(f"Unsupported op '{node.op}' on {node.lhs.typ}")
         elif node.op == '/':
-            node.typ = builtin.types["float"]
+            node.typ = builtin.scope.lookup("float")
         else:
             node.typ = node.lhs.typ
 

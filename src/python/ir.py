@@ -12,10 +12,7 @@ from . import ir_nodes as ir
 
 class IRNoder:
     def __init__(self):
-        self.scope = Scope(None)
-        for name, typ in builtin.types.items():
-            ref = ir.Type(name, typ, checked=typ)
-            self.scope.declare(name, ref)
+        self.scope = Scope(builtin.scope)
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
