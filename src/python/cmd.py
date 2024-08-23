@@ -1,5 +1,5 @@
-# this shadows a python module name but it hopefully doesn't matter
 import logging
+
 from .lexer import tokenise
 from .parser import Parser
 from .ir import IRNoder
@@ -55,10 +55,10 @@ def exec_src(src, **flags):
 def compile_src(src, **flags):
     iir = translate(src, **flags)
     compiler = Compiler()
-    compiler.build_node(iir)
-    print(compiler.module)
-    res = execute_ir(str(compiler.module))
-    print("program exited with value", res)
+    compiler.build(iir)
+    logging.debug(compiler.module)
+    res = execute_ir(str(compiler.module), entry=flags.get("entry_name", "main"))
+    return res
 
 
 def process_cf(block, path, show, test):

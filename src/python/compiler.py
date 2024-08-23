@@ -1,378 +1,287 @@
 import logging
-from llvmlite import ir
-import llvmlite.binding as llvm
+from llvmlite import ir as llvm
+from llvmlite import binding
 from ctypes import CFUNCTYPE, c_int
 from dataclasses import dataclass
 
-from .lexer import TokenType as T
-from .scope import Scope
-from . import ast_nodes as ast
+from . import ir_nodes as ir
+from . import type_defs as types
 from . import builtin
 
 
 type_map = {
-    builtin.types["int"]: ir.IntType(32),
-    builtin.types["float"]: ir.DoubleType(),
-    builtin.types["bool"]: ir.IntType(1),
+    builtin.types["int"]: llvm.IntType(32),
+    builtin.types["float"]: llvm.DoubleType(),
+    builtin.types["bool"]: llvm.IntType(1),
 }
 
 
 @dataclass
 class StaVariable:
     name: str
-    typ: ir.Type
-    ptr: ir.PointerType
+    typ: llvm.Type
+    ptr: llvm.PointerType
 
 
 @dataclass
 class StaStruct:
     name: str
-    typ: ir.IdentifiedStructType
+    typ: llvm.IdentifiedStructType
     field_map: dict[str, int]
 
 
 class Compiler:
     def __init__(self):
-        self.scope = Scope(None)
-        self.module = ir.Module()
+        self.refs = {}
+        self.module = llvm.Module()
         self.builder = None
 
-        self.load_ids = True
-        # TODO: builtins
+    def get_block(self, block):
+        if id(block) not in self.refs:
+            b = self.builder.append_basic_block()
+            self.refs[id(block)] = b
+            return b
+        else:
+            return self.refs[id(block)]
 
-    def build_node(self, node, **kwargs):
+    def build(self, node, **kwargs):
         match node:
-            case ast.Literal(tok):
-                return self.build_literal(tok, node.typ)
-            case ast.Identifier(name):
-                return self.build_identifier(name, **kwargs)
-            case ast.RangeExpr(start, end):
-                return self.build_range_expr(start, end)
-            case ast.GroupExpr(expr):
-                return self.build_group_expr(expr)
-            case ast.CallExpr(target, args):
-                return self.build_call_expr(target, args)
-            case ast.IndexExpr(target, index):
-                return self.build_index_expr(target, index)
-            case ast.SelectorExpr(target, name):
-                return self.build_selector_expr(target, name)
-            case ast.UnaryExpr(op, rhs):
-                return self.build_unary_expr(op, rhs)
-            case ast.BinaryExpr(op, lhs, rhs):
-                return self.build_binary_expr(op, lhs, rhs)
-
-            case ast.TypeName(name):
-                return self.build_type(name)
-            case ast.ArrayType(length, elem_type):
-                return self.build_array_type(length, elem_type)
-
-            case ast.Block(stmts):
-                return self.build_block(stmts)
-            case ast.DeclrStmt(declr):
-                return self.build_node(declr)
-            case ast.ExprStmt(expr):
-                return self.build_node(expr)
-            case ast.IfStmt(condition, if_block, else_block):
-                return self.build_if_stmt(condition, if_block, else_block)
-            case ast.WhileStmt(condition, block):
-                return self.build_while_stmt(condition, block)
-            case ast.ReturnStmt(value):
-                return self.build_return_stmt(value)
-            case ast.AssignmentStmt(target, value):
-                return self.build_assignment_stmt(target, value)
-
-            case ast.FunctionDeclr(signature, block):
-                return self.build_function_declr(
-                    signature, node.checked_type, block
-                )
-            case ast.StructDeclr(name, fields):
-                return self.build_struct_declr(name, node.checked_type, fields)
-            case ast.InterfaceDeclr(name, methods):
-                return self.build_interface_declr(
-                    name, node.checked_type, methods
-                )
-            case ast.ImplDeclr(target, interface, methods):
-                return self.build_impl_declr(
-                    target, interface, node.checked_type, methods
-                )
-            case ast.VariableDeclr(name, _, value):
-                return self.build_variable_declr(name, node.checked_type, value)
-
-            case ast.Program(declrs):
-                return self.build_program(declrs)
-
+            case ir.Type():
+                return self.build_type(node)
+            case ir.Ref():
+                return self.build_ref(node)
+            case ir.Instruction():
+                return self.build_instr(node)
+            case ir.Object():
+                return self.build_object(node)
             case _:
                 assert False, f"Unreachable: {node}"
 
-    def build_program(self, declrs):
-        logging.debug(f"{declrs}")
-        for declr in declrs:
-            self.build_node(declr)
+    def build_type(self, node):
+        match node:
+            case ir.FunctionSigRef():
+                param_types = [self.build(p) for p in node.params]
+                return_type = self.build(node.return_type)
+                return llvm.FunctionType(return_type, param_types)
+            case ir.Type():
+                return type_map[node.checked]
+            case _:
+                assert False, f"Unexpected type {type(typ)}"
 
-    def build_function_inst(self, signature, ftype, block, is_method=False):
-        logging.debug(f"{signature}")
-        if is_method:
-            raise NotImplementedError
+    def build_ref(self, node):
+        # using id() to get a unique hashable object for refs
+        if id(node) not in self.refs:
+            # make a new object for the ref
+            match node:
+                case ir.FunctionRef():
+                    ftype = self.build(node.typ)
+                    func = llvm.Function(self.module, ftype, name=node.name)
+                    block = func.append_basic_block("entry")
+                    self.refs[id(node.block)] = block
+                    prev_builder = self.builder
+                    self.builder = llvm.IRBuilder(block)
+                    for param, arg in zip(node.params, func.args):
+                        self.refs[id(param)] = arg
+                    self.build(node.block)
+                    self.builder = prev_builder
+                    obj = func
+                case ir.FieldRef():
+                    if isinstance(node.typ, ir.FunctionSigRef):
+                        obj = self.eval_node(node.method)
+                    else:
+                        raise NotImplementedError
+                    self.refs[id(node)] = obj
+                case ir.Ref():
+                    typ = self.build(node.typ)
+                    ptr = self.builder.alloca(typ)
+                    obj = StaVariable(node.name, typ, ptr)
+            return obj
         else:
-            return_type = type_map[ftype.return_type]
-            param_types = (type_map[p] for p in ftype.param_types)
+            return self.refs[id(node)]
 
-            ftype = ir.FunctionType(return_type, param_types)
-            func = ir.Function(self.module, ftype, name=signature.name.value)
-            return func
+    def build_instr(self, node):
+        match node:
+            case ir.Declare(ref):
+                var = self.build(ref)
+                self.refs[id(ref)] = var
+            case ir.DeclareMethods(typ, block):
+                self.build(block)
+            case ir.Assign(ref, value):
+                var = self.build(ref)
+                val = self.build(value)
+                self.builder.store(val, var.ptr)
+            case ir.Load(ref):
+                var = self.build(ref)
+                return self.builder.load(var.ptr)
+            case ir.Call(ref, args):
+                func = self.build(ref)
+                args = [self.build(a) for a in args]
+                return self.builder.call(func, args)
+            case ir.Return(value):
+                val = self.build(value)
+                self.builder.ret(val)
+            case ir.Branch(block):
+                self.builder.branch(self.get_block(block))
+                self.build(block)
+            case ir.CBranch(condition, t_block, f_block):
+                cond = self.build(condition)
+                self.builder.cbranch(
+                    cond,
+                    self.get_block(t_block),
+                    self.get_block(f_block)
+                )
+                self.build(t_block)
+                self.build(f_block)
+            case ir.Binary():
+                return self.build_binary(node)
+            case ir.Unary():
+                return self.build_unary(node)
+            case _:
+                assert False, f"Unexpected instruction {type(node)}"
 
-    def build_function_declr(self, signature, ftype, block):
-        func = self.build_function_inst(signature, ftype, block)
-        fblock = func.append_basic_block("entry")
-        prev_builder = self.builder
-        self.builder = ir.IRBuilder(fblock)
+    def build_object(self, node):
+        match node:
+            case ir.Block(instrs):
+                block = self.get_block(node)
+                self.builder.position_at_start(block)
+                for instr in instrs:
+                    self.build(instr)
+            case ir.Program(block):
+                # cannot build the block because no IRBuilder is set
+                # perhaps there should be a global func/block
+                for instr in block.instrs:
+                    self.build(instr)
+            case ir.Constant(value):
+                typ = self.build(node.typ)
+                return llvm.Constant(typ, value)
+            case ir.StructLiteral(fields):
+                raise NotImplementedError
+            case _:
+                assert False
 
-        for arg, param in zip(func.args, signature.params):
-            self.scope.declare(param.name, arg)
-        self.build_node(block)
-
-        self.builder = prev_builder
-
-    def build_struct_declr(self, name, typ, members):
-        logging.debug(f"{name}, {members}")
-        stype = self.module.context.get_identified_type(f"struct.{typ.name}")
-
-        field_map = {}
-        field_types = []
-        for i, (fname, ftype) in enumerate(typ.fields.items()):
-            field_map[fname] = i
-            field_types.append(type_map[ftype])
-        stype.set_body(*field_types)
-        struct = StaStruct(name.value, stype, field_map)
-        # TODO: proper type scope declaration needed
-        type_map[typ] = stype
-        self.scope.declare(name, struct)
-
-    def build_interface_declr(self, name, typ, methods):
-        logging.debug(f"{name}, {methods}")
-        raise NotImplementedError
-
-    def build_impl_declr(self, target, interface, typ, methods):
-        logging.debug(f"{target}<{interface}>, {methods}")
-        raise NotImplementedError
-
-    def build_variable_declr(self, name, typ, value):
-        typ = type_map[typ]
-        ptr = self.builder.alloca(typ)
-        if value is not None:
-            value = self.build_node(value)
-            self.builder.store(value, ptr)
-        var = StaVariable(name.value, typ, ptr)
-        self.scope.declare(name, var)
-
-    def build_type(self, name):
-        raise NotImplementedError
-
-    def build_array_type(self, length, elem_type):
-        raise NotImplementedError
-
-    def build_block(self, stmts):
-        for stmt in stmts:
-            self.build_node(stmt)
-
-    def build_if_stmt(self, condition, if_block, else_block):
-        # TODO: Fully implement expression building
-        condition = self.build_node(condition)
-
-        end_bb = None
-        if else_block is None:
-            then_bb = self.builder.append_basic_block("then")
-            end_bb = self.builder.append_basic_block("end")
-
-            self.builder.cbranch(condition, then_bb, end_bb)
-
-            self.builder.position_at_start(then_bb)
-            self.build_node(if_block)
-            if_terminated = self.builder.block.is_terminated
-            if not if_terminated:
-                self.builder.branch(end_bb)
-
-        else:
-            then_bb = self.builder.append_basic_block("then")
-            else_bb = self.builder.append_basic_block("else")
-
-            self.builder.cbranch(condition, then_bb, else_bb)
-
-            self.builder.position_at_start(then_bb)
-            self.build_node(if_block)
-            then_bb = self.builder.block
-            if_terminated = self.builder.block.is_terminated
-
-            self.builder.position_at_start(else_bb)
-            self.build_node(else_block)
-            else_bb = self.builder.block
-            else_terminated = self.builder.block.is_terminated
-
-            if not (if_terminated and else_terminated):
-                end_bb = self.builder.append_basic_block("end")
-
-                if not if_terminated:
-                    self.builder.position_at_end(then_bb)
-                    self.builder.branch(end_bb)
-
-                if not else_terminated:
-                    self.builder.position_at_end(else_bb)
-                    self.builder.branch(end_bb)
-            else:
-                end_bb = else_bb
-        self.builder.position_at_start(end_bb)
-
-    def build_while_stmt(self, condition, while_block):
-        cond_bb = self.builder.append_basic_block("cond")
-        loop_bb = self.builder.append_basic_block("loop")
-        end_bb = self.builder.append_basic_block("end")
-
-        self.builder.branch(cond_bb)
-
-        self.builder.position_at_start(cond_bb)
-        condition = self.build_node(condition)
-        self.builder.cbranch(condition, loop_bb, end_bb)
-
-        self.builder.position_at_start(loop_bb)
-        self.build_node(while_block)
-        self.builder.branch(cond_bb)
-        self.builder.position_at_start(end_bb)
-
-    def build_return_stmt(self, value):
-        value = self.build_node(value)
-        self.builder.ret(value)
-
-    def build_assignment_stmt(self, target, value):
-        self.load_ids = False
-        var = self.build_node(target)
-        self.load_ids = True
-        value = self.build_node(value)
-        self.builder.store(value, var.ptr)
-
-    def build_binary_expr(self, op, left, right):
-        left = self.build_node(left)
-        right = self.build_node(right)
-        assert left.type == right.type, "Type coercion not implemented"
-        match op.typ:
-            case T.PLUS:
+    def build_binary(self, node):
+        left = self.build(node.lhs)
+        right = self.build(node.rhs)
+        match node.op:
+            case '+':
                 return self.build_add(left, right)
-            case T.MINUS:
+            case '-':
                 return self.build_sub(left, right)
-            case T.STAR:
+            case '*':
                 return self.build_mul(left, right)
-            case T.SLASH:
+            case '/':
                 return self.build_div(left, right)
-            case T.EQUALS_EQUALS:
+            case '==':
                 return self.build_equal(left, right)
-            case T.BANG_EQUALS:
+            case '!=':
                 return self.build_not_equal(left, right)
-            case T.LESS_THAN:
+            case '<':
                 return self.build_less_than(left, right)
-            case T.GREATER_THAN:
+            case '>':
                 return self.build_greater_than(left, right)
-            case T.LESS_EQUALS:
+            case '<=':
                 return self.build_less_than_equal(left, right)
-            case T.GREATER_EQUALS:
+            case '>=':
                 return self.build_greater_than_equal(left, right)
             case _:
                 assert False, f"Unimplemented operator: {op.typ}"
 
     def build_add(self, left, right):
         # Type coercion not implemented, so only left.typ needs checking
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.add(left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fadd(left, right)
         else:
             raise NotImplementedError
 
     def build_sub(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.sub(left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fsub(left, right)
         else:
             raise NotImplementedError
 
     def build_mul(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.mul(left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fmul(left, right)
         else:
             raise NotImplementedError
 
     def build_div(self, left, right):
-        if left.type == ir.IntType(32):
-            left = self.builder.sitofp(left, ir.DoubleType())
-            right = self.builder.sitofp(right, ir.DoubleType())
+        if left.type == llvm.IntType(32):
+            left = self.builder.sitofp(left, llvm.DoubleType())
+            right = self.builder.sitofp(right, llvm.DoubleType())
             return self.builder.fdiv(left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fdiv(left, right)
         else:
             raise NotImplementedError
 
     def build_equal(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed("==", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered("==", left, right)
-        elif left.type == ir.IntType(1):
+        elif left.type == llvm.IntType(1):
             return self.builder.icmp_unsigned("==", left, right)
         else:
             raise NotImplementedError
 
     def build_not_equal(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed("!=", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered("!=", left, right)
-        elif left.type == ir.IntType(1):
+        elif left.type == llvm.IntType(1):
             return self.builder.icmp_unsigned("!=", left, right)
         else:
             raise NotImplementedError
 
     def build_less_than(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed("<", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered("<", left, right)
         else:
             raise NotImplementedError
 
     def build_greater_than(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed(">", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered(">", left, right)
         else:
             raise NotImplementedError
 
     def build_less_than_equal(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed("<=", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered("<=", left, right)
         else:
             raise NotImplementedError
 
     def build_greater_than_equal(self, left, right):
-        if left.type == ir.IntType(32):
+        if left.type == llvm.IntType(32):
             return self.builder.icmp_signed(">=", left, right)
-        elif left.type == ir.DoubleType():
+        elif left.type == llvm.DoubleType():
             return self.builder.fcmp_ordered(">=", left, right)
         else:
             raise NotImplementedError
 
-    def build_unary_expr(self, op, right):
-        right = self.build_node(right)
-        match op.typ:
-            case T.BANG:
+    def build_unary(self, node):
+        right = self.build(node.right)
+        match node.op:
+            case '!':
                 return self.build_not(right)
-            case T.MINUS:
+            case '-':
                 return self.build_neg(right)
             case _:
-                assert False, f"Unimplemented operator: {op.typ}"
+                assert False, f"Unimplemented operator: {node.op}"
 
     def build_not(self, right):
         raise NotImplementedError
@@ -380,73 +289,26 @@ class Compiler:
     def build_neg(self, right):
         raise NotImplementedError
 
-    def build_selector_expr(self, target, name):
-        logging.debug(f"{target}.{name}")
-        load_field = self.load_ids
-        self.load_ids = False
-        struct = self.build_node(target).ptr
-        self.load_ids = True
-        print(struct)
-        stype = self.scope.lookup(target.typ.name)
-        field_offset = stype.field_map[name.value]
-        index = ir.Constant(ir.IntType(32), field_offset)
-        field = self.builder.gep(struct, [ir.Constant(ir.IntType(32), 0), index])
-        field_type = target.typ.fields[name.value]
-        if load_field:
-            return self.builder.load(field)
-        else:
-            return StaVariable(name.value, field_type, field)
 
-    def build_index_expr(self, target, index):
-        raise NotImplementedError
-
-    def build_call_expr(self, callee, args):
-        logging.debug("building call")
-        raise NotImplementedError
-
-    def build_literal(self, value, typ):
-        if typ == builtin.types["int"]:
-            return ir.Constant(ir.IntType(32), int(value.lexeme))
-        elif typ == builtin.types["float"]:
-            return ir.Constant(ir.DoubleType(), float(value.lexeme))
-        elif typ == builtin.types["bool"]:
-            return ir.Constant(ir.IntType(1), value.lexeme == "true")
-        else:
-            raise NotImplementedError
-
-    def build_identifier(self, name):
-        obj = self.scope.lookup(name)
-        if isinstance(obj, StaVariable):
-            if self.load_ids:
-                return self.builder.load(obj.ptr)
-        return obj
-
-    def build_group_expr(self, expr):
-        return self.build_node(expr)
-
-    def build_range_expr(self, start, end):
-        raise NotImplementedError
-
-
-def compile_ir(ir):
-    mod = llvm.parse_assembly(ir)
+def compile_ir(llvmir):
+    mod = binding.parse_assembly(llvmir)
     mod.verify()
     return mod
 
 
 def create_execution_engine():
-    target = llvm.Target.from_default_triple()
+    target = binding.Target.from_default_triple()
     target_machine = target.create_target_machine()
-    backing_mod = llvm.parse_assembly("")
-    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
+    backing_mod = binding.parse_assembly("")
+    engine = binding.create_mcjit_compiler(backing_mod, target_machine)
     return engine
 
 
-def execute_ir(ir, entry="main", return_type=c_int):
-    llvm.initialize()
-    llvm.initialize_native_target()
-    llvm.initialize_native_asmprinter()
-    mod = compile_ir(ir)
+def execute_ir(llvmir, entry="main", return_type=c_int):
+    binding.initialize()
+    binding.initialize_native_target()
+    binding.initialize_native_asmprinter()
+    mod = compile_ir(llvmir)
     engine = create_execution_engine()
     engine.add_module(mod)
     engine.finalize_object()
