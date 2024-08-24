@@ -387,7 +387,7 @@ class IRNoder:
         interface = types.Interface(name, method_refs)
         ref = ir.InterfaceRef(name, interface, method_refs)
         self.scope.declare(name, ref)
-        self.instrs.append(ir.Declare(ref))
+        #self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value

@@ -47,7 +47,7 @@ class Compiler:
             return t
         match node:
             case ir.FunctionSigRef():
-                param_types = [self.build(p) for p in node.params]
+                param_types = [self.build(p) for p in node.params.values()]
                 return_type = self.build(node.return_type)
                 return llvm.FunctionType(return_type, param_types)
             case ir.StructRef():
@@ -67,26 +67,30 @@ class Compiler:
             match node:
                 case ir.FunctionRef():
                     ftype = self.build(node.typ)
-                    func = llvm.Function(self.module, ftype, name=node.name)
+                    name = node.name
+                    if isinstance(node, ir.MethodRef):
+                        name = node.parent.name + "." + node.name
+                    func = llvm.Function(self.module, ftype, name=name)
                     block = func.append_basic_block("entry")
                     self.refs[id(node.block)] = block
                     prev_builder = self.builder
                     self.builder = llvm.IRBuilder(block)
                     for param, arg in zip(node.params, func.args):
-                        self.refs[id(param)] = arg
+                        ptr = self.build(param)
+                        self.builder.store(arg, ptr)
+                        self.refs[id(param)] = ptr
                     self.build(node.block)
                     self.builder = prev_builder
                     obj = func
                 case ir.FieldRef():
                     if isinstance(node.typ, ir.FunctionSigRef):
-                        obj = self.eval_node(node.method)
+                        obj = self.build(node.method)
                     else:
                         idx = list(node.parent.typ.fields.keys()).index(node.name)
                         parent = self.build(node.parent)
                         ptr_idx = llvm.Constant(llvm.IntType(32), 0)
                         field_idx = llvm.Constant(llvm.IntType(32), idx)
                         return self.builder.gep(parent, [ptr_idx, field_idx])
-                        raise NotImplementedError
                     self.refs[id(node)] = obj
                 case ir.Ref():
                     typ = self.build(node.typ)
@@ -102,7 +106,8 @@ class Compiler:
                 var = self.build(ref)
                 self.refs[id(ref)] = var
             case ir.DeclareMethods(typ, block):
-                self.build(block)
+                for instr in block.instrs:
+                    self.build(instr)
             case ir.Assign(ref, value):
                 var = self.build(ref)
                 val = self.build(value)
@@ -140,7 +145,7 @@ class Compiler:
         match node:
             case ir.Block(instrs):
                 block = self.get_block(node)
-                self.builder.position_at_start(block)
+                self.builder.position_at_end(block)
                 for instr in instrs:
                     self.build(instr)
             case ir.Program(block):
@@ -153,7 +158,6 @@ class Compiler:
                 return llvm.Constant(typ, value)
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
-                print(typ.elements)
                 fields = [self.build(f) for f in fields.values()]
                 return llvm.Constant(typ, fields)
                 raise NotImplementedError
