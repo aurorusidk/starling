@@ -279,7 +279,7 @@ class Compiler:
             raise NotImplementedError
 
     def build_unary(self, node):
-        right = self.build(node.right)
+        right = self.build(node.rhs)
         match node.op:
             case '!':
                 return self.build_not(right)

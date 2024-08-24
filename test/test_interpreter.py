@@ -1,15 +1,7 @@
 import unittest
 from fractions import Fraction
 
-from src.python.lexer import tokenise
-from src.python.parser import parse
-from src.python.type_checker import TypeChecker
-from src.python.interpreter import (
-    Interpreter,
-    StaObject, StaVariable, StaArray,
-    StaStruct, StaFunction, StaFunctionReturn, StaMethod
-)
-from src.python import ast_nodes as ast
+from src.python.interpreter import StaObject, StaArray
 from src.python import builtin
 from src.python import type_defs as types
 from src.python import cmd
