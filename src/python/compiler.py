@@ -2,7 +2,6 @@ import logging
 from llvmlite import ir as llvm
 from llvmlite import binding
 from ctypes import CFUNCTYPE, c_int
-from dataclasses import dataclass
 
 from . import ir_nodes as ir
 from . import type_defs as types
@@ -14,20 +13,6 @@ type_map = {
     builtin.types["float"]: llvm.DoubleType(),
     builtin.types["bool"]: llvm.IntType(1),
 }
-
-
-@dataclass
-class StaVariable:
-    name: str
-    typ: llvm.Type
-    ptr: llvm.PointerType
-
-
-@dataclass
-class StaStruct:
-    name: str
-    typ: llvm.IdentifiedStructType
-    field_map: dict[str, int]
 
 
 class Compiler:
@@ -58,15 +43,22 @@ class Compiler:
                 assert False, f"Unreachable: {node}"
 
     def build_type(self, node):
+        if (t := self.refs.get(id(node))):
+            return t
         match node:
             case ir.FunctionSigRef():
                 param_types = [self.build(p) for p in node.params]
                 return_type = self.build(node.return_type)
                 return llvm.FunctionType(return_type, param_types)
+            case ir.StructRef():
+                field_types = [self.build(f) for f in node.fields.values()]
+                typ = self.module.context.get_identified_type(node.name)
+                typ.set_body(*field_types)
+                return typ
             case ir.Type():
                 return type_map[node.checked]
             case _:
-                assert False, f"Unexpected type {type(typ)}"
+                assert False, f"Unreachable: {node}"
 
     def build_ref(self, node):
         # using id() to get a unique hashable object for refs
@@ -89,12 +81,17 @@ class Compiler:
                     if isinstance(node.typ, ir.FunctionSigRef):
                         obj = self.eval_node(node.method)
                     else:
+                        idx = list(node.parent.typ.fields.keys()).index(node.name)
+                        parent = self.build(node.parent)
+                        ptr_idx = llvm.Constant(llvm.IntType(32), 0)
+                        field_idx = llvm.Constant(llvm.IntType(32), idx)
+                        return self.builder.gep(parent, [ptr_idx, field_idx])
                         raise NotImplementedError
                     self.refs[id(node)] = obj
                 case ir.Ref():
                     typ = self.build(node.typ)
                     ptr = self.builder.alloca(typ)
-                    obj = StaVariable(node.name, typ, ptr)
+                    return ptr
             return obj
         else:
             return self.refs[id(node)]
@@ -109,10 +106,10 @@ class Compiler:
             case ir.Assign(ref, value):
                 var = self.build(ref)
                 val = self.build(value)
-                self.builder.store(val, var.ptr)
+                self.builder.store(val, var)
             case ir.Load(ref):
                 var = self.build(ref)
-                return self.builder.load(var.ptr)
+                return self.builder.load(var)
             case ir.Call(ref, args):
                 func = self.build(ref)
                 args = [self.build(a) for a in args]
@@ -155,6 +152,10 @@ class Compiler:
                 typ = self.build(node.typ)
                 return llvm.Constant(typ, value)
             case ir.StructLiteral(fields):
+                typ = self.build(node.typ)
+                print(typ.elements)
+                fields = [self.build(f) for f in fields.values()]
+                return llvm.Constant(typ, fields)
                 raise NotImplementedError
             case _:
                 assert False
@@ -184,7 +185,7 @@ class Compiler:
             case '>=':
                 return self.build_greater_than_equal(left, right)
             case _:
-                assert False, f"Unimplemented operator: {op.typ}"
+                assert False, f"Unimplemented operator: {node.op}"
 
     def build_add(self, left, right):
         # Type coercion not implemented, so only left.typ needs checking
