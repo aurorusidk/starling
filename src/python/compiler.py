@@ -1,6 +1,5 @@
 import logging
-from llvmlite import ir as llvm
-from llvmlite import binding
+from llvmcpy import llvm
 from ctypes import CFUNCTYPE, c_int
 
 from . import ir_nodes as ir
@@ -9,17 +8,23 @@ from . import builtin
 
 
 type_map = {
-    builtin.types["int"]: llvm.IntType(32),
-    builtin.types["float"]: llvm.DoubleType(),
-    builtin.types["bool"]: llvm.IntType(1),
+    builtin.types["int"]: llvm.int32_type(),
+    builtin.types["float"]: llvm.double_type(),
+    builtin.types["bool"]: llvm.int1_type(),
 }
 
 
 class Compiler:
     def __init__(self):
         self.refs = {}
-        self.module = llvm.Module()
-        self.builder = None
+        self.module = llvm.module_create_with_name("main")
+        self.builder = llvm.create_builder()
+        self.i = 0
+
+    def name(self):
+        name = "test" + str(self.i)
+        self.i += 1
+        return name
 
     def get_block(self, block):
         if id(block) not in self.refs:
@@ -49,11 +54,12 @@ class Compiler:
             case ir.FunctionSigRef():
                 param_types = [self.build(p) for p in node.params.values()]
                 return_type = self.build(node.return_type)
+                return return_type.function(param_types, 0)
                 return llvm.FunctionType(return_type, param_types)
             case ir.StructRef():
                 field_types = [self.build(f) for f in node.fields.values()]
-                typ = self.module.context.get_identified_type(node.name)
-                typ.set_body(*field_types)
+                typ = self.module.context.struct_create_named(node.name)
+                typ.struct_set_body(field_types, 0)
                 return typ
             case ir.Type():
                 return type_map[node.checked]
@@ -70,17 +76,15 @@ class Compiler:
                     name = node.name
                     if isinstance(node, ir.MethodRef):
                         name = node.parent.name + "." + node.name
-                    func = llvm.Function(self.module, ftype, name=name)
+                    func = self.module.add_function(name, ftype)
                     block = func.append_basic_block("entry")
                     self.refs[id(node.block)] = block
-                    prev_builder = self.builder
-                    self.builder = llvm.IRBuilder(block)
-                    for param, arg in zip(node.params, func.args):
+                    self.builder.position_builder_at_end(block)
+                    for param, arg in zip(node.params, func.iter_params()):
                         ptr = self.build(param)
-                        self.builder.store(arg, ptr)
+                        self.builder.build_store(arg, ptr)
                         self.refs[id(param)] = ptr
                     self.build(node.block)
-                    self.builder = prev_builder
                     obj = func
                 case ir.FieldRef():
                     if isinstance(node.typ, ir.FunctionSigRef):
@@ -88,13 +92,12 @@ class Compiler:
                     else:
                         idx = list(node.parent.typ.fields.keys()).index(node.name)
                         parent = self.build(node.parent)
-                        ptr_idx = llvm.Constant(llvm.IntType(32), 0)
-                        field_idx = llvm.Constant(llvm.IntType(32), idx)
-                        return self.builder.gep(parent, [ptr_idx, field_idx])
+                        parent_type = self.build(node.parent.typ)
+                        return self.builder.build_struct_ge2(parent_type, parent, idx, "")
                     self.refs[id(node)] = obj
                 case ir.Ref():
                     typ = self.build(node.typ)
-                    ptr = self.builder.alloca(typ)
+                    ptr = self.builder.build_alloca(typ, node.name)
                     return ptr
             return obj
         else:
@@ -111,23 +114,23 @@ class Compiler:
             case ir.Assign(ref, value):
                 var = self.build(ref)
                 val = self.build(value)
-                self.builder.store(val, var)
+                self.builder.build_store(val, var)
             case ir.Load(ref):
                 var = self.build(ref)
-                return self.builder.load(var)
+                return self.builder.build_load2(self.build(ref.typ), var, "")
             case ir.Call(ref, args):
                 func = self.build(ref)
                 args = [self.build(a) for a in args]
-                return self.builder.call(func, args)
+                return self.builder.build_call2(self.build(ref.typ), func, args, "")
             case ir.Return(value):
                 val = self.build(value)
-                self.builder.ret(val)
+                self.builder.build_ret(val)
             case ir.Branch(block):
-                self.builder.branch(self.get_block(block))
+                self.builder.build_branch(self.get_block(block))
                 self.build(block)
             case ir.CBranch(condition, t_block, f_block):
                 cond = self.build(condition)
-                self.builder.cbranch(
+                self.builder.build_cbranch(
                     cond,
                     self.get_block(t_block),
                     self.get_block(f_block)
@@ -145,7 +148,7 @@ class Compiler:
         match node:
             case ir.Block(instrs):
                 block = self.get_block(node)
-                self.builder.position_at_end(block)
+                self.builder.position_builder_at_end(block)
                 for instr in instrs:
                     self.build(instr)
             case ir.Program(block):
@@ -155,12 +158,14 @@ class Compiler:
                     self.build(instr)
             case ir.Constant(value):
                 typ = self.build(node.typ)
+                match typ.get_kind():
+                    case llvm.IntegerTypeKind:
+                        return typ.const_int(value, 0)
                 return llvm.Constant(typ, value)
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]
-                return llvm.Constant(typ, fields)
-                raise NotImplementedError
+                return typ.const_named_struct(fields)
             case _:
                 assert False
 
@@ -295,32 +300,14 @@ class Compiler:
         raise NotImplementedError
 
 
-def compile_ir(llvmir):
-    mod = binding.parse_assembly(llvmir)
-    mod.verify()
-    return mod
-
-
-def create_execution_engine():
-    target = binding.Target.from_default_triple()
-    target_machine = target.create_target_machine()
-    backing_mod = binding.parse_assembly("")
-    engine = binding.create_mcjit_compiler(backing_mod, target_machine)
-    return engine
-
-
-def execute_ir(llvmir, entry="main", return_type=c_int):
-    binding.initialize()
-    binding.initialize_native_target()
-    binding.initialize_native_asmprinter()
-    mod = compile_ir(llvmir)
-    engine = create_execution_engine()
-    engine.add_module(mod)
-    engine.finalize_object()
-    engine.run_static_constructors()
-    func_ptr = engine.get_function_address(entry)
-    cfunc = CFUNCTYPE(return_type)(func_ptr)
-    return cfunc()
+def execute_module(mod, entry="main", return_type=c_int):
+    mod.dump()
+    mod.verify(llvm.AbortProcessAction)
+    llvm.link_in_mcjit()
+    engine = llvm.create_execution_engine_for_module(mod)
+    entrypoint = engine.find_function(entry)
+    res = engine.run_function_as_main(entrypoint, 0, [], [])
+    return res
 
 
 if __name__ == "__main__":
