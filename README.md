@@ -46,11 +46,11 @@ This will likely be done only in Python as a simple starting point.
     - [x] Methods/Impls
     - [ ] Arrays/Vectors
     - [ ] Strings
-    - [ ] Optionals/nil
 
 ## Core Development
 - [ ] Import System
 - [ ] Errors
+- [ ] Optionals/nil
 - [ ] Generic Typing
 - [ ] Functions as expressions
 - [ ] Higher-Order Functions
