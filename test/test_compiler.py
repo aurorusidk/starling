@@ -3,7 +3,7 @@ import unittest
 from src.python import cmd
 
 
-class TestInterpreter(unittest.TestCase):
+class TestCompiler(unittest.TestCase):
     global_declrs = """
         struct test_struct_def {x int; y str;}
         var test_struct = test_struct_def(5, \"test\");
@@ -19,7 +19,7 @@ class TestInterpreter(unittest.TestCase):
     def testing_prerequisites(self):
         cmd.compile_src(self.global_declrs)
 
-    def test_expr_eval(self):
+    def test_expr_build(self):
         tests = {
             "true": 1,
             "false": 0,
@@ -49,7 +49,7 @@ class TestInterpreter(unittest.TestCase):
                 res = cmd.compile_src(test, entry_name="test")
                 self.assertEqual(res, expected)
 
-    def test_stmt_eval(self):
+    def test_stmt_build(self):
         tests = {
             "if true {return 1;} else {return 0;}": 1,
             "if false {return 1;} else {return 0;}": 0,
