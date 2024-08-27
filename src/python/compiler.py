@@ -55,7 +55,6 @@ class Compiler:
                 param_types = [self.build(p) for p in node.params.values()]
                 return_type = self.build(node.return_type)
                 return return_type.function(param_types, 0)
-                return llvm.FunctionType(return_type, param_types)
             case ir.StructRef():
                 field_types = [self.build(f) for f in node.fields.values()]
                 typ = self.module.context.struct_create_named(node.name)
@@ -309,7 +308,6 @@ def execute_module(mod, entry="main", return_type=c_int):
     llvm.initialize_x86_asm_parser()
     llvm.initialize_x86_target_mc()
     llvm.initialize_x86_target_info()
-    llvm.initialize_all_targets()
     engine = llvm.create_execution_engine_for_module(mod)
     entrypoint = engine.find_function(entry)
     res = engine.run_function_as_main(entrypoint, 0, [], [])
