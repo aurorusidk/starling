@@ -27,23 +27,23 @@ This will likely be done only in Python as a simple starting point.
 - [x] Create initial language design goals
 - [x] Create initial roadmap
 - [x] Language grammar
-- [ ] Codegen framework and support for different backends (compiled/interpreted)
-    - [ ] Intemediate Representation (IR)
+- [x] Codegen framework and support for different backends (compiled/interpreted)
+    - [x] Intemediate Representation (IR)
     - [x] Interpreter
-    - [ ] Compiler
-- [ ] Testing suite
+    - [x] Compiler
+- [x] Testing suite
     - [x] Lexer Tests
     - [x] Parser Tests
-    - [ ] IR Testing
+    - [x] IR Testing
     - [x] Type Checker Tests
     - [x] Interpreter Tests
-    - [ ] Compiler Tests
+    - [x] Compiler Tests
 - [ ] Base Feature Implementation
     - [x] Variables
     - [x] Functions
     - [x] Structures
-    - [ ] Interfaces
-    - [ ] Methods/Impls
+    - [x] Interfaces
+    - [x] Methods/Impls
     - [ ] Arrays/Vectors
     - [ ] Strings
     - [ ] Optionals/nil
