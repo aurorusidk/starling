@@ -6,7 +6,7 @@ from .ir import IRNoder
 from .ir_nodes import IRPrinter, counter
 from .type_checker import TypeChecker
 from .interpreter import Interpreter, StaFunctionReturn
-from .compiler import Compiler, execute_ir
+from .compiler import Compiler, execute_module
 from .control_flows import ControlFlows, create_flows
 
 
@@ -58,7 +58,7 @@ def compile_src(src, **flags):
     compiler = Compiler()
     compiler.build(iir)
     logging.debug(compiler.module)
-    res = execute_ir(str(compiler.module), entry=flags.get("entry_name", "main"))
+    res = execute_module(compiler.module, entry=flags.get("entry_name", "main"))
     return res
 
 
