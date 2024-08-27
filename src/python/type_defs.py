@@ -2,6 +2,11 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
 
 
+progress = Enum("progress", [
+    "COMPLETED", "UPDATING", "EMPTY",
+])
+
+
 BasicTypeKind = Enum("BasicTypeKind", [
     "INT", "FLOAT", "FRAC", "STR", "BOOL",
 ])
@@ -17,7 +22,7 @@ class BasicTypeFlag(Flag):
     NUMERIC = INTEGER | FLOAT | RATIONAL
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class Type:
     methods: dict = field(default_factory=dict, kw_only=True)
 
@@ -29,8 +34,20 @@ class Type:
     def __str__(self):
         return self.string
 
+    def __repr__(self):
+        return self.string
 
-@dataclass
+    def __eq__(self, other):
+        if not isinstance(other, Type):
+            return False
+        return self.string == other.string
+
+    def __hash__(self):
+        # the type string should be unique
+        return hash(self.string)
+
+
+@dataclass(eq=False, repr=False)
 class BasicType(Type):
     kind: BasicTypeKind
     flags: BasicTypeFlag
@@ -41,7 +58,7 @@ class BasicType(Type):
         return self._string
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class ArrayType(Type):
     elem_type: Type
     length: int
@@ -51,7 +68,7 @@ class ArrayType(Type):
         return f"arr[{self.elem_type}, {self.length}]"
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class VectorType(Type):
     elem_type: Type
 
@@ -60,7 +77,7 @@ class VectorType(Type):
         return f"vec[{self.elem_type}]"
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class FunctionType(Type):
     return_type: Type
     param_types: list[Type]
@@ -71,25 +88,24 @@ class FunctionType(Type):
         return f"fn ({format_ptypes}) -> {self.return_type}"
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class StructType(Type):
-    name: str
     fields: dict[str, Type]
 
     @property
     def string(self):
-        format_fields = ", ".join(str(f) for f in self.fields)
+        format_fields = ", ".join(str(f) for f in self.fields.values())
         return f"struct {{{format_fields}}}"
 
 
-@dataclass
+@dataclass(eq=False, repr=False)
 class Interface(Type):
     name: str
-    methods: dict[str, FunctionType]
+    funcs: dict[str, FunctionType]
 
     @property
     def string(self):
-        format_methods = ", ".join(str(m) for m in self.methods)
+        format_methods = ", ".join(str(m) for m in self.funcs)
         return f"interface {self.name} {{{format_methods}}}"
 
 

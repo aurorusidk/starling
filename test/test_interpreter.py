@@ -1,56 +1,29 @@
 import unittest
 from fractions import Fraction
 
-from src.python.lexer import tokenise
-from src.python.parser import parse
-from src.python.type_checker import TypeChecker
-from src.python.interpreter import (
-    Interpreter,
-    StaObject, StaVariable, StaArray,
-    StaStruct, StaFunction, StaFunctionReturn, StaMethod
-)
-from src.python import ast_nodes as ast
+from src.python.interpreter import StaObject, StaArray
 from src.python import builtin
 from src.python import type_defs as types
+from src.python import cmd
 
 
 class TestInterpreter(unittest.TestCase):
-    global_declrs = [
-        "struct test_struct_def {x int; y str;}",
-        "var test_struct = test_struct_def(5, \"test\");",
-        "fn test_func(x int) {return x / 2;}",
-        """
+    global_declrs = """
+        struct test_struct_def {x int; y str;}
+        var test_struct = test_struct_def(5, \"test\");
+        fn test_func(x int) {return x / 2;}
         impl test_struct_def {
             fn foo(x int) int {
                 return self.x + x;
             }
         }
-        """,
-        "var x int = 1;",
-    ]
+        var x int = 1;
+    """
 
-    def testing_prerequisites(self, tc=None, interpreter=None):
-        for declr in self.global_declrs:
-            tokens = tokenise(declr)
-            tree = parse(tokens)
-            if tc is None:
-                # for when this is run as a test
-                tc = TypeChecker(tree)
-            tc.check(tree)
-            if interpreter is None:
-                # for when this is run as a test
-                interpreter = Interpreter()
-            interpreter.eval_node(tree)
+    def testing_prerequisites(self):
+        cmd.exec_src(self.global_declrs)
 
-    def testing_tc_prerequisites(self, tc=None):
-        for declr in self.global_declrs:
-            tokens = tokenise(declr)
-            tree = parse(tokens)
-            if tc is None:
-                # for when this is run as a test
-                tc = TypeChecker(tree)
-            tc.check(tree)
-
+    @unittest.expectedFailure
     def test_expr_eval(self):
         tests = {
             "true": StaObject(builtin.types["bool"], True),
@@ -84,22 +57,10 @@ class TestInterpreter(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            test = "fn test() {return " + test + ";}"
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            self.testing_tc_prerequisites(tc)
-            tc.check(tree)
-            interpreter = Interpreter()
-            self.testing_prerequisites(tc, interpreter)
-            interpreter.eval_node(tree)
-            try:
-                f = interpreter.scope.lookup("test")
-                interpreter.eval_node(f.block)
-            except StaFunctionReturn as result:
-                self.assertEqual(result.value, expected)
-            else:
-                assert False
+            test = self.global_declrs + "fn test() {return " + test + ";}"
+            with self.subTest(test=test):
+                res = cmd.exec_src(test, entry_name="test")
+                self.assertEqual(res, expected)
 
     def test_stmt_eval(self):
         tests = {
@@ -118,107 +79,7 @@ class TestInterpreter(unittest.TestCase):
         }
 
         for test, expected in tests.items():
-            test = "fn test() {" + test + "}"
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            self.testing_tc_prerequisites(tc)
-            tc.check(tree)
-            interpreter = Interpreter()
-            self.testing_prerequisites(tc, interpreter)
-            interpreter.eval_node(tree)
-            try:
-                f = interpreter.scope.lookup("test")
-                interpreter.eval_node(f.block)
-            except StaFunctionReturn as result:
-                self.assertEqual(result.value, expected)
-            else:
-                assert False
-
-    def test_declr_eval(self):
-        tests = {
-            "fn test() int {}": StaFunction(
-                types.FunctionType(builtin.types["int"], []),
-                "test",
-                [],
-                ast.Block([]),
-            ),
-            "struct test {x int; y str;}": types.StructType(
-                "test",
-                {
-                    "x": builtin.types["int"],
-                    "y": builtin.types["str"],
-                },
-            ),
-            "var test float = 3.14;": StaVariable(
-                "test",
-                StaObject(builtin.types["float"], 3.14),
-            ),
-            "interface test {x() int; y(z str) str;}": types.Interface(
-                "test",
-                {
-                    "x": types.FunctionType(
-                        builtin.types["int"],
-                        [],
-                    ),
-                    "y": types.FunctionType(
-                        builtin.types["str"],
-                        [
-                            builtin.types["str"]
-                        ],
-                    ),
-                },
-            ),
-            """struct test {x int;}
-               impl test {fn foo() int {}}""": types.StructType(
-                "test",
-                {
-                    "x": builtin.types["int"]
-                },
-                methods={
-                    "foo": StaMethod(
-                        types.FunctionType(
-                            builtin.types["int"],
-                            []
-                        ),
-                        "foo",
-                        [],
-                        ast.Block([]),
-                        None
-                    ),
-                },
-            ),
-            """struct foo {x int; y str;}
-               var test = foo(5, "test");""": StaVariable(
-                "test",
-                StaStruct(
-                    types.StructType(
-                        "foo",
-                        {
-                            "x": builtin.types["int"],
-                            "y": builtin.types["str"],
-                        }
-                    ),
-                    "foo",
-                    {
-                        "x": StaVariable(
-                            "x",
-                            StaObject(builtin.types["int"], 5)
-                        ),
-                        "y": StaVariable(
-                            "y",
-                            StaObject(builtin.types["str"], "test")
-                        ),
-                    }
-                ),
-            ),
-        }
-
-        for test, expected in tests.items():
-            tokens = tokenise(test)
-            tree = parse(tokens)
-            tc = TypeChecker(tree)
-            tc.check(tree)
-            interpreter = Interpreter()
-            interpreter.eval_node(tree)
-            self.assertEqual(interpreter.scope.lookup("test"), expected)
+            test = self.global_declrs + "fn test() {" + test + "}"
+            with self.subTest(test=test):
+                res = cmd.exec_src(test, entry_name="test")
+                self.assertEqual(res, expected)

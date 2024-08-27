@@ -70,7 +70,7 @@ Lines of code in Starling are terminated using semicolons `;`.
 
 However, Starling also features semicolon insertion, and will insert a semicolon in place of a newline character, if appropriate.
 
-Semicolons are inserted after any literal, identifier, return statemnt, or closing bracket. Semicolons are **not** inserted anywhere else.
+Semicolons are inserted after any literal, identifier, return statement, or closing bracket. Semicolons are **not** inserted anywhere else.
 
 For example, semicolons will **not** be inserted after an operation, an open bracket, or a declaration keyword. This allows code to span multiple lines, for convenience.
 
@@ -86,7 +86,7 @@ Examples of invalid identifiers include `my-function`, `3rdNumber`, and `/secret
 Reserved keyword names also may not be used as identifiers.
 
 ## Data types
-Starling currently supports four basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. One is non-numeric: strings `str`.
+Starling currently supports five basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. Two are non-numeric: booleans `bool`, and strings `str`.
 
 Starling will not aggressively coerce between data types, and operators can (in general) not be used on different types. For example, this means that a number would need to be explicitly converted into a string in order to perform string operations on it.
 
@@ -104,7 +104,9 @@ TBD - All numeric types will be able to be coerced between each other implicitly
 
 ### Non-numeric types
 
-Strings are surrounded by double quotes `" "`.
+Boolean literals are one of two values, either `true` or `false`.
+
+String literals are surrounded by double quotes `" "`.
 
 TBD - Single quotes `' '` may be used for a `char` data type, but this is not implemented.
 
@@ -128,7 +130,7 @@ Operators may also be "grouped" using brackets `( )`. This allows the order of o
 
 In addition to these, there are some special operations that may be performed on certain types.
 * Call `foo(params)` - for callables, such as functions; also used for creating new objects of structs
-* Index `foo[index]` - for iterables, such as arrays and vectors
+* Index `foo[index]` - for iterables, such as arrays and vectors; the given index must be an `int`
 * Selector `foo.bar` `foo.baz(params)` - for accessing attributes or methods of types such as structs
 
 ## Code blocks
@@ -189,7 +191,7 @@ The main entry point implicitly returns 0, unless an error occurs.
 TBD - Starling will also feature "anonymous" or "lambda" functions, but this is not yet implemented.
 
 ## If statements
-If statments are formed of a condition, an executing block, and an optional else statement. If statments utilise the keywords: `if` and `else`.
+If statements are formed of a condition, an executing block, and an optional else statement. If statements utilise the keywords: `if` and `else`.
 
 ```
 if true {}
@@ -348,7 +350,11 @@ TBD - Starling will not feature traditional `for` loops.
 
 The `int` type in Python has infinite precision. It would be good to also implement this in Starling.
 
-We need to research how infinite precision/bit-length integers can be achieved.
+`BigInt`s use arrays to store additional values. This means that standard operations require more complex algorithms, which can negatively impact performance.
+
+Using an `i64` (long) gives a very large range of representable values (around `+/-10^19`) which is more than sufficient for the average use case.
+
+We will still support `BigInt`s, however the default integer type will be a fixed precision integer.
 
 ## Mathematics
 

@@ -1,5 +1,7 @@
 from .type_defs import BasicType, BasicTypeKind, BasicTypeFlag
 from . import type_defs
+from . import ir_nodes as ir
+from .scope import Scope
 
 
 types = {
@@ -12,5 +14,11 @@ types = {
 
 # TODO: builtin name definitions (vars and funcs)
 names = {
-    "print": type_defs.FunctionType(None, [types["str"]]),
 }
+
+scope = Scope(None)
+for name, value in types.items():
+    ref = ir.Type(name, value, checked=value)
+    scope.declare(name, ref)
+for name, value in names.items():
+    scope.declare(name, value)
