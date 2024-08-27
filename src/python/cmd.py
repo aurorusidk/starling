@@ -11,18 +11,17 @@ from .control_flows import ControlFlows, create_flows
 
 
 def translate(src, **flags):
-    tokens = tokenise(src)
+    error_handler = flags.get("error_handler")
+    tokens = tokenise(src, error_handler)
     if flags.get("tokenise"):
         return tokens
-    if flags.get("parse") and flags.get("test"):
-        parser = Parser(tokens, (lambda err: logging.error(err)))
-    else:
-        parser = Parser(tokens)
+
+    parser = Parser(tokens, error_handler)
     ast = parser.parse_program()
     if flags.get("parse"):
         return ast
 
-    noder = IRNoder()
+    noder = IRNoder(error_handler)
     block = noder.block
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
@@ -32,7 +31,8 @@ def translate(src, **flags):
         printer.show_types = False
         iir_string = printer.to_string(iir)
         return iir_string
-    tc = TypeChecker()
+
+    tc = TypeChecker(error_handler)
     tc.check(iir)
     if flags.get("typecheck"):
         iir_string = printer.to_string(iir)
@@ -51,6 +51,7 @@ def exec_src(src, **flags):
             interpreter.eval_node(fn.block)
         except StaFunctionReturn as res:
             return res.value
+
 
 def compile_src(src, **flags):
     iir = translate(src, **flags)

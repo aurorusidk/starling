@@ -283,7 +283,7 @@ class TestParser(unittest.TestCase):
         for test in tests:
             with self.subTest(test=test):
                 with self.assertLogs(level=logging.ERROR) as cm:
-                    translate(test[0], parse=True, test=True)
+                    translate(test[0], parse=True)
 
                     # Check that the right number of errors were logged
                     self.assertEqual(len(cm.output), len(test[1]))
