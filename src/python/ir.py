@@ -11,12 +11,21 @@ from . import ir_nodes as ir
 
 
 class IRNoder:
-    def __init__(self):
+    def __init__(self, error_handler=None):
         self.scope = Scope(builtin.scope)
         self.exprs = []
         self.block = ir.Block([])
         self.current_func = None
         self.blocks = {}
+        self.error_handler = error_handler
+
+    def error(self, msg):
+        # add position info
+        msg = f"Syntax error: {msg}"
+        if self.error_handler is None:
+            assert False, msg
+
+        self.error_handler(msg)
 
     @property
     def instrs(self):
