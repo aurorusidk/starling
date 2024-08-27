@@ -84,6 +84,13 @@ def get(src, index, length=1):
         return ""
 
 
+def error(errh, msg):
+    if errh is None:
+        assert False, msg
+    else:
+        errh(msg)
+
+
 def tokenise(src, error_handler=None):
     cur = 0
     pos = Pos(1, 1)
@@ -138,6 +145,9 @@ def tokenise(src, error_handler=None):
             i = 1
             while get(src, cur + i) != '"':
                 i += 1
+                if i > len(src):
+                    msg = "Syntax error: unterminated string literal"
+                    error(error_handler, msg)
             i += 1
             lexeme = src[cur:cur + i]
             typ = T.STRING
@@ -157,10 +167,7 @@ def tokenise(src, error_handler=None):
         if not lexeme:
             # syntax error (unexpected char)
             msg = f"Syntax error: unexpected character '{char}'"
-            if error_handler is None:
-                assert False, msg
-            else:
-                error_handler(msg)
+            error(error_handler, msg)
         tokens.append(Token(typ, lexeme, cur_pos))
         pos += len(lexeme)
         cur += len(lexeme)

@@ -24,21 +24,38 @@ This will likely be done only in Python as a simple starting point.
 - [x] Basic codegen (maybe just an interpreter)
 
 ## Initial Design
-- [x] Create language design goals
-- [x] Determine necessary features and main focuses
-- [x] Begin language grammar
-- [x] Implement new grammar features into lexer and parser
+- [x] Create initial language design goals
+- [x] Create initial roadmap
+- [x] Language grammar
 - [ ] Codegen framework and support for different backends (compiled/interpreted)
+    - [ ] Intemediate Representation (IR)
     - [x] Interpreter
     - [ ] Compiler
 - [ ] Testing suite
     - [x] Lexer Tests
     - [x] Parser Tests
+    - [ ] IR Testing
     - [x] Type Checker Tests
     - [x] Interpreter Tests
     - [ ] Compiler Tests
+- [ ] Base Feature Implementation
+    - [x] Variables
+    - [x] Functions
+    - [x] Structures
+    - [ ] Interfaces
+    - [ ] Methods/Impls
+    - [ ] Arrays/Vectors
+    - [ ] Strings
+    - [ ] Optionals/nil
+
+## Core Development
+- [ ] Import System
+- [ ] Errors
+- [ ] Generic Typing
+- [ ] Functions as expressions
+- [ ] Higher-Order Functions
+- [ ] Standard Library
 - [ ] Zig implementation
-- [ ] Feature Implementation
 
 ## Built-in and Plug-in Features
 - [ ] Data Set Handling
@@ -52,7 +69,16 @@ This will likely be done only in Python as a simple starting point.
     - [ ] Statistical Functions
     - [ ] Rational Number Handling
     - [ ] Complex Number Handling
+    - [ ] Randomness
 - [ ] Visualisation Tools
     - [ ] Graphing
-        - [ ] ...
-- [ ] Data Structures (?)
+    - [ ] Flowcharts
+    - [ ] Schematics
+- [ ] Extended Data Structures
+    - [ ] Deques
+    - [ ] Queues
+    - [ ] Linked Lists
+- [ ] System API
+    - [ ] File System
+    - [ ] Processes
+    - [ ] System Info
