@@ -6,7 +6,6 @@ from .parser import Parser, parse
 from .type_checker import TypeChecker
 from . import ir_nodes as ir
 from . import type_defs as types
-from . import builtin
 
 
 @dataclass
@@ -86,18 +85,6 @@ def sta_print(string):
     print(string.value)
 
 
-#StaPrintFunc = StaBuiltinFunction(
-#    builtin.names["print"],
-#    "print",
-#    [StaParameter(builtin.types["str"], ast.Identifier("string"))],
-#    sta_print,
-#)
-
-#StaBuiltins = {
-#    "print": StaPrintFunc,
-#}
-
-
 class Interpreter:
     def __init__(self, entry_name="main"):
         self.refs = {}
@@ -149,7 +136,7 @@ class Interpreter:
             case ir.Declare(ref):
                 var = self.eval_node(ref)
                 self.refs[id(ref)] = var
-            case ir.DeclareMethods(typ, block):
+            case ir.DeclareMethods(block):
                 self.eval_node(block)
             case ir.Assign(ref, value):
                 var = self.eval_node(ref)

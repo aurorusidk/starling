@@ -1,9 +1,6 @@
-import logging
 from llvmcpy import llvm
-from ctypes import CFUNCTYPE, c_int
 
 from . import ir_nodes as ir
-from . import type_defs as types
 from . import builtin
 
 
@@ -107,7 +104,7 @@ class Compiler:
             case ir.Declare(ref):
                 var = self.build(ref)
                 self.refs[id(ref)] = var
-            case ir.DeclareMethods(typ, block):
+            case ir.DeclareMethods(block):
                 for instr in block.instrs:
                     self.build(instr)
             case ir.Assign(ref, value):
@@ -299,7 +296,7 @@ class Compiler:
         raise NotImplementedError
 
 
-def execute_module(mod, entry="main", return_type=c_int):
+def execute_module(mod, entry="main"):
     mod.dump()
     mod.verify(llvm.AbortProcessAction)
     llvm.link_in_mcjit()
@@ -312,26 +309,3 @@ def execute_module(mod, entry="main", return_type=c_int):
     entrypoint = engine.find_function(entry)
     res = engine.run_function_as_main(entrypoint, 0, [], [])
     return res
-
-
-if __name__ == "__main__":
-    import sys
-
-    from .lexer import tokenise
-    from .parser import parse
-    from .type_checker import TypeChecker
-
-    logging.basicConfig(format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    assert len(sys.argv) == 2, "no input file"
-    with open(sys.argv[1]) as f:
-        src = f.read()
-    tokens = tokenise(src)
-    tree = parse(tokens)
-    tc = TypeChecker(tree)
-    tc.check(tree)
-    compiler = Compiler()
-    compiler.build_node(tree)
-    res = execute_ir(str(compiler.module))
-    print("program exited with code:", res)

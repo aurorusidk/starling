@@ -1,5 +1,4 @@
 from .type_defs import BasicType, BasicTypeKind, BasicTypeFlag
-from . import type_defs
 from . import ir_nodes as ir
 from .scope import Scope
 

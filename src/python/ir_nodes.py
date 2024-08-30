@@ -177,6 +177,7 @@ class Program(Object):
 def counter():
     i = 0
     cache = {}
+
     def inner(obj):
         nonlocal i
         if obj in cache:

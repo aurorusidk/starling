@@ -83,13 +83,13 @@ class IRNoder:
                 return self.make_literal(tok)
             case ast.Identifier(name):
                 return self.make_identifier(name, load)
-            case ast.RangeExpr(start, end):
+            case ast.RangeExpr():
                 raise NotImplementedError
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
-            case ast.IndexExpr(target, index):
+            case ast.IndexExpr():
                 raise NotImplementedError
             case ast.SelectorExpr(target, name):
                 return self.make_selector_expr(target, name, load)
@@ -106,7 +106,7 @@ class IRNoder:
                 typ = self.make_identifier(name.value, load=False)
                 assert isinstance(typ, ir.Type)
                 return typ
-            case ast.ArrayType(length, elem_type):
+            case ast.ArrayType():
                 raise NotImplementedError
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
@@ -396,7 +396,7 @@ class IRNoder:
         interface = types.Interface(name, method_refs)
         ref = ir.InterfaceRef(name, interface, method_refs)
         self.scope.declare(name, ref)
-        #self.instrs.append(ir.Declare(ref))
+        # self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value
