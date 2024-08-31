@@ -59,8 +59,16 @@ class BasicType(Type):
 
 
 @dataclass(eq=False, repr=False)
-class ArrayType(Type):
+class SequenceType(Type):
     elem_type: Type
+
+    @property
+    def string(self):
+        return f"sequence[{self.elem_type}]"
+
+
+@dataclass(eq=False, repr=False)
+class ArrayType(SequenceType):
     length: int
 
     @property
@@ -69,9 +77,7 @@ class ArrayType(Type):
 
 
 @dataclass(eq=False, repr=False)
-class VectorType(Type):
-    elem_type: Type
-
+class VectorType(SequenceType):
     @property
     def string(self):
         return f"vec[{self.elem_type}]"
@@ -110,7 +116,11 @@ class Interface(Type):
 
 
 def is_basic(typ, flag=None):
-    return isinstance(typ, BasicType) and typ.flags & flag if flag else True
+    if flag:
+        return isinstance(typ, BasicType) and (typ.flags & flag)
+    else:
+        return isinstance(typ, BasicType)
+    return isinstance(typ, BasicType) and (typ.flags & (flag if flag else True))
 
 
 def is_numeric(typ):
@@ -126,4 +136,4 @@ def is_bool(typ):
 
 
 def is_iterable(typ):
-    return isinstance(typ, (ArrayType, VectorType))
+    return isinstance(typ, (SequenceType))

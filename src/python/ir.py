@@ -112,14 +112,17 @@ class IRNoder:
                 assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(elem_type, length):
-                return ir.Type(
+                length = self.make(length).value  # TODO: fails if length isn't constant
+                return ir.SequenceType(
                     f"arr[{elem_type},{length}]",
-                    types.ArrayType(elem_type, length)
+                    types.ArrayType(elem_type, length),
+                    self.make_type(elem_type) if elem_type else None
                 )
             case ast.VectorType(elem_type):
-                return ir.Type(
+                return ir.SequenceType(
                     f"vec[{elem_type}]",
-                    types.VectorType(elem_type)
+                    types.VectorType(elem_type),
+                    self.make_type(elem_type) if elem_type else None
                 )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
@@ -195,13 +198,12 @@ class IRNoder:
 
     def make_sequence_expr(self, node, elements):
         elements = [self.make(element) for element in elements]
-        match node:
-            case ast.ArrayExpr():
-                return ir.Array(elements)
-            case ast.VectorExpr():
-                return ir.Vector(elements)
-            case _:
-                return ir.Sequence(elements)
+        if isinstance(node, ast.ArrayExpr):
+            return ir.Array(elements)
+        elif isinstance(node, ast.ArrayExpr):
+            return ir.Vector(elements)
+        else:
+            return ir.Sequence(elements)
 
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)
@@ -230,8 +232,8 @@ class IRNoder:
 
         if isinstance(index, ir.Constant):
             index_name = f"{target.name}[{str(index.value)}]"
-        elif isinstance(index, ir.Ref):
-            index_name = f"{target.name}[{index.name}]"
+        elif isinstance(index, ir.Load):
+            index_name = f"{target.name}[{index.ref.name}]"
         else:
             assert False, "Unreachable"
 

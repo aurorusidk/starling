@@ -94,6 +94,11 @@ class FieldRef(Ref):
 
 
 @dataclass
+class SequenceType(Type):
+    elem_type: Type
+
+
+@dataclass
 class FunctionSigRef(Type):
     params: dict[str, Type]
     return_type: Type
@@ -277,7 +282,14 @@ class IRPrinter:
                     string += "arr"
                 elif isinstance(ir, Vector):
                     string += "vec"
-                string += "[" + ",".join(self._to_string(i) for i in elements) + "]"
+                string += "["
+                string += ",".join(self._to_string(i, show_types=False) for i in elements)
+                string += "]"
+            case IndexRef():
+                string = (
+                    f"{self._to_string(ir.parent, show_types=False)}"
+                    f"[{self._to_string(ir.index, show_types=False)}]"
+                )
             case FieldRef():
                 string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
             case FunctionSigRef():

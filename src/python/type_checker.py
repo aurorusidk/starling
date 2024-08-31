@@ -59,13 +59,6 @@ class TypeChecker:
             case _:
                 assert False
 
-    def match_types(self, lhs, rhs):
-        if types.is_basic(lhs):
-            return lhs == rhs \
-                or types.is_numeric(lhs) and types.is_numeric(rhs)
-        else:
-            assert False, f"Unimplemented: cannot match types {lhs}, {rhs}"
-
     def update_types(self, target, new):
         if target is None:
             target = new
@@ -84,6 +77,10 @@ class TypeChecker:
                 for fname in target.fields:
                     typ = self.update_types(target.fields[fname], new.fields[fname])
                     new.fields[fname] = target.fields[fname] = typ
+            case ir.SequenceType():
+                target.elem_type = self.update_types(target.elem_type, new.elem_type)
+                target.hint.elem_type = target.elem_type.checked
+                self.check_type(target)
             case ir.Type():
                 assert target == new, f"Mismatching types {target} and {new}"
             case _:
@@ -110,8 +107,7 @@ class TypeChecker:
                         try:
                             self.check(node)
                         except DeferChecking:
-                            # probably unable to check this
-                            self.deferred.remove(node)
+                            pass
                     node.progress = progress.COMPLETED
                 case ir.Type():
                     self.check_type(node)
@@ -163,9 +159,7 @@ class TypeChecker:
             self.check_type(node.typ)
         for value in node.values:
             self.check(value)
-            if node.typ is None:
-                node.typ = value.typ
-            self.update_types(node.typ, value.typ)
+            node.typ = self.update_types(node.typ, value.typ)
         match node:
             case ir.FunctionRef():
                 typ = node.typ
@@ -203,6 +197,14 @@ class TypeChecker:
                 assert value, f"{node.name} is not a field or method of {node.parent.name}"
                 assert not (field and method)
                 node.typ = value
+            case ir.IndexRef():
+                self.check(node.parent)
+                assert isinstance(node.parent.typ, ir.SequenceType), \
+                    f"{node.parent.name} cannot be indexed"
+                self.check(node.index)
+                assert types.is_basic(node.index.typ.checked, types.BasicTypeFlag.INTEGER), \
+                    f"Index {node.index} is not an integer"
+                node.typ = node.parent.typ.elem_type
             case ir.Ref():
                 pass
             case _:
@@ -291,7 +293,31 @@ class TypeChecker:
             case ir.Constant():
                 pass
             case ir.Sequence(elements):
-                raise NotImplementedError
+                length = len(elements)
+                elem_type = None
+                for i in range(length):
+                    self.check(elements[i])
+                    elem_type = self.update_types(elem_type, elements[i].typ)
+                if node.typ is None:
+                    if isinstance(node, ir.Vector):
+                        node.typ = ir.SequenceType(
+                            str(node.typ),
+                            types.VectorType(elem_type.checked),
+                            elem_type
+                        )
+                    elif isinstance(node, ir.Array):
+                        node.typ = ir.SequenceType(
+                            str(node.typ),
+                            types.ArrayType(elem_type.checked, length),
+                            elem_type
+                        )
+                    else:
+                        node.typ = ir.SequenceType(
+                            str(node.typ),
+                            types.SequenceType(elem_type.checked),
+                            elem_type
+                        )
+                self.check_type(node.typ)
             case ir.StructLiteral():
                 self.check_type(node.typ)
                 for fname, fval in node.fields.items():
