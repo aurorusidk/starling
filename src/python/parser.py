@@ -187,7 +187,7 @@ class Parser:
             else:
                 length = self.parse_expression()
             self.expect(T.RIGHT_SQUARE)
-        return ast.ArrayType(length, typ)
+        return ast.ArrayType(typ, length)
 
     def parse_vector_type(self):
         typ = None

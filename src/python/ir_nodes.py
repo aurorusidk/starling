@@ -22,6 +22,22 @@ class Constant(Object):
 
 
 @dataclass
+class Sequence(Object):
+    is_expr = True
+    elements: list[Object]
+
+
+@dataclass
+class Array(Sequence):
+    pass
+
+
+@dataclass
+class Vector(Sequence):
+    pass
+
+
+@dataclass
 class StructLiteral(Object):
     is_expr = True
     fields: dict[str, Object]
@@ -177,6 +193,7 @@ class Program(Object):
 def counter():
     i = 0
     cache = {}
+
     def inner(obj):
         nonlocal i
         if obj in cache:
@@ -184,6 +201,7 @@ def counter():
         i += 1
         cache[obj] = str(i)
         return cache[obj]
+
     return inner
 
 
@@ -248,6 +266,12 @@ class IRPrinter:
                 )
             case Constant(value):
                 string += str(value)
+            case Sequence(elements):
+                if isinstance(ir, Array):
+                    string += "arr"
+                elif isinstance(ir, Vector):
+                    string += "vec"
+                string += "[" + ",".join(self._to_string(i) for i in elements) + "]"
             case FieldRef():
                 string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
             case FunctionSigRef():

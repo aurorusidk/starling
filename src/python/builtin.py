@@ -14,6 +14,19 @@ types = {
 
 # TODO: builtin name definitions (vars and funcs)
 names = {
+    "range_constructor@builtin": ir.FunctionSigRef(
+        "range_constructor@builtin",
+        type_defs.FunctionType(
+            type_defs.ArrayType(types["int"], None),
+            [types["int"], types["int"]]
+        ),
+        {"start": types["int"], "end": types["int"]},
+        ir.Type(
+            "arr[int,None]",
+            hint=type_defs.ArrayType(types["int"], None),
+            checked=type_defs.ArrayType(types["int"], None)
+        )
+    ),
 }
 
 scope = Scope(None)

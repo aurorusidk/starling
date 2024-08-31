@@ -84,7 +84,12 @@ class IRNoder:
             case ast.Identifier(name):
                 return self.make_identifier(name, load)
             case ast.RangeExpr(start, end):
-                raise NotImplementedError
+                return self.make_call_expr(
+                    ast.Identifier("range_constructor@builtin"),
+                    [start, end]
+                )
+            case ast.SequenceExpr(elements):
+                return self.make_sequence_expr(node, elements)
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
             case ast.CallExpr(target, args):
@@ -106,8 +111,16 @@ class IRNoder:
                 typ = self.make_identifier(name.value, load=False)
                 assert isinstance(typ, ir.Type)
                 return typ
-            case ast.ArrayType(length, elem_type):
-                raise NotImplementedError
+            case ast.ArrayType(elem_type, length):
+                return ir.Type(
+                    f"arr[{elem_type},{length}]",
+                    types.ArrayType(elem_type, length)
+                )
+            case ast.VectorType(elem_type):
+                return ir.Type(
+                    f"vec[{elem_type}]",
+                    types.VectorType(elem_type)
+                )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
             case _:
@@ -179,6 +192,16 @@ class IRNoder:
         if load:
             return ir.Load(ref)
         return ref
+
+    def make_sequence_expr(self, node, elements):
+        elements = [self.make(element) for element in elements]
+        match node:
+            case ast.ArrayExpr():
+                return ir.Array(elements)
+            case ast.VectorExpr():
+                return ir.Vector(elements)
+            case _:
+                return ir.Sequence(elements)
 
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)
@@ -396,7 +419,7 @@ class IRNoder:
         interface = types.Interface(name, method_refs)
         ref = ir.InterfaceRef(name, interface, method_refs)
         self.scope.declare(name, ref)
-        #self.instrs.append(ir.Declare(ref))
+        # self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value

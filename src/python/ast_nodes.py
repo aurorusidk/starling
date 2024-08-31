@@ -110,8 +110,8 @@ class TypeName(Type):
 
 @dataclass
 class ArrayType(Type):
-    length: Expr
     elem_type: Type
+    length: Expr
 
 
 @dataclass
