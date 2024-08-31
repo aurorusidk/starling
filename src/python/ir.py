@@ -95,7 +95,7 @@ class IRNoder:
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
-                raise NotImplementedError
+                return self.make_index_expr(target, index, load)
             case ast.SelectorExpr(target, name):
                 return self.make_selector_expr(target, name, load)
             case ast.UnaryExpr(op, rhs):
@@ -223,6 +223,22 @@ class IRNoder:
                 fields[fname] = value
             return ir.StructLiteral(fields, typ=target)
         return ir.Call(target, args)
+
+    def make_index_expr(self, target, index, load=True):
+        target = self.make_expr(target, load=False)
+        index = self.make_expr(index)
+
+        if isinstance(index, ir.Constant):
+            index_name = f"{target.name}[{str(index.value)}]"
+        elif isinstance(index, ir.Ref):
+            index_name = f"{target.name}[{index.name}]"
+        else:
+            assert False, "Unreachable"
+
+        ref = ir.IndexRef(index_name, target, index)
+        if load:
+            return ir.Load(ref)
+        return ref
 
     def make_selector_expr(self, target, name, load=True):
         target = self.make_expr(target, load=False)

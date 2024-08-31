@@ -290,6 +290,8 @@ class TypeChecker:
                     self.check(instr)
             case ir.Constant():
                 pass
+            case ir.Sequence(elements):
+                raise NotImplementedError
             case ir.StructLiteral():
                 self.check_type(node.typ)
                 for fname, fval in node.fields.items():

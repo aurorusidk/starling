@@ -79,6 +79,12 @@ class Block(Object):
 
 
 @dataclass
+class IndexRef(Ref):
+    parent: Ref
+    index: Constant | Ref
+
+
+@dataclass
 class FieldRef(Ref):
     parent: Ref
     # mimic functions for methods
