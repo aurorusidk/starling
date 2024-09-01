@@ -130,7 +130,7 @@ Operators may also be "grouped" using brackets `( )`. This allows the order of o
 
 In addition to these, there are some special operations that may be performed on certain types.
 * Call `foo(params)` - for callables, such as functions; also used for creating new objects of structs
-* Index `foo[index]` - for iterables, such as arrays and vectors; the given index must be an `int`
+* Index `foo[index]` - for iterables, such as arrays and vectors; the given index must be a positive `int`
 * Selector `foo.bar` `foo.baz(params)` - for accessing attributes or methods of types such as structs
 
 ## Code blocks

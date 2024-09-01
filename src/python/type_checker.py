@@ -160,6 +160,8 @@ class TypeChecker:
         for value in node.values:
             self.check(value)
             node.typ = self.update_types(node.typ, value.typ)
+            if isinstance(value.typ, ir.SequenceType):
+                value.typ = node.typ
         match node:
             case ir.FunctionRef():
                 typ = node.typ
@@ -174,7 +176,8 @@ class TypeChecker:
                         typ.params[pname] = self.update_types(ptype, value.typ)
                 for param in node.params:
                     self.check(param)
-                self.check(node.block)
+                if not node.builtin:
+                    self.check(node.block)
             case ir.FieldRef():
                 self.check(node.parent)
                 field = None

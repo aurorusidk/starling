@@ -111,6 +111,7 @@ class FunctionRef(Ref):
     # we do not use `self.values`. maybe for function objects?
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
+    builtin: bool = field(default=False, kw_only=True)
 
 
 @dataclass

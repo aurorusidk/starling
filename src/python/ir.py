@@ -112,7 +112,8 @@ class IRNoder:
                 assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(elem_type, length):
-                length = self.make(length).value  # TODO: fails if length isn't constant
+                # TODO: fails if length isn't constant
+                length = self.make(length).value if length else None
                 return ir.SequenceType(
                     f"arr[{elem_type},{length}]",
                     types.ArrayType(elem_type, length),
@@ -229,15 +230,8 @@ class IRNoder:
     def make_index_expr(self, target, index, load=True):
         target = self.make_expr(target, load=False)
         index = self.make_expr(index)
-
-        if isinstance(index, ir.Constant):
-            index_name = f"{target.name}[{str(index.value)}]"
-        elif isinstance(index, ir.Load):
-            index_name = f"{target.name}[{index.ref.name}]"
-        else:
-            assert False, "Unreachable"
-
-        ref = ir.IndexRef(index_name, target, index)
+        # TODO: no good way to get a name for every possible index type
+        ref = ir.IndexRef(f"{target.name}[]", target, index)
         if load:
             return ir.Load(ref)
         return ref
