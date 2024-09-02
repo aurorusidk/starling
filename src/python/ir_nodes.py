@@ -99,6 +99,16 @@ class SequenceType(Type):
 
 
 @dataclass
+class ArrayType(SequenceType):
+    length: int
+
+
+@dataclass
+class VectorType(SequenceType):
+    pass
+
+
+@dataclass
 class FunctionSigRef(Type):
     params: dict[str, Type]
     return_type: Type
