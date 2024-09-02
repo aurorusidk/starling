@@ -78,7 +78,17 @@ class TypeChecker:
                     typ = self.update_types(target.fields[fname], new.fields[fname])
                     new.fields[fname] = target.fields[fname] = typ
             case ir.SequenceType():
-                target.elem_type = self.update_types(target.elem_type, new.elem_type)
+                if type(target.checked) is types.SequenceType \
+                   and type(new.checked) is not types.SequenceType:
+                    new.elem_type = self.update_types(target.elem_type, new.elem_type)
+                    target.checked = new.checked
+                else:
+                    assert type(target.checked) is type(new.checked) \
+                        or type(new.checked) is types.SequenceType, \
+                        f"Cannot assign {new.checked} to {target.checked}"
+                    target.elem_type = self.update_types(target.elem_type, new.elem_type)
+                    # Necessary to ensure the ref's elem_type updates correctly
+                    target.checked.elem_type = target.elem_type.checked
             case ir.Type():
                 assert target == new, f"Mismatching types {target} and {new}"
             case _:

@@ -145,10 +145,14 @@ class Interpreter:
                         obj = struct.value[node.name]
                     self.refs[id(node)] = obj
                 case ir.IndexRef():
-                    sequence = self.eval_node(node.parent).value
+                    sequence = self.eval_node(node.parent)
+                    if isinstance(sequence, StaVariable):
+                        sequence = sequence.value
+                    # TODO: no good way to get string repr of raw sequence (i.e. [x:y][z])
+                    seq_name = node.parent.name if isinstance(node.parent, ir.Ref) else None
                     index = self.eval_node(node.index).value
                     assert index >= 0 and index < len(sequence.value), \
-                        f"Index {index} out of bounds for {node.parent.name}"
+                        f"Index {index} out of bounds for {seq_name}"
                     obj = sequence.value[index]
                 case ir.Ref():
                     obj = StaVariable(node.name)

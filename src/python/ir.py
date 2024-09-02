@@ -112,13 +112,13 @@ class IRNoder:
                 assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(elem_type, length):
-                # TODO: fails if length isn't constant
                 if elem_type is not None:
                     elem_type = self.make_type(elem_type)
+                # TODO: fails if length isn't constant
                 if length is not None:
-                    length = self.make(length)
+                    length = self.make(length).value
                 return ir.SequenceType(
-                    f"arr[{elem_type.hint}]",
+                    f"arr[{elem_type.hint if elem_type else None}]",
                     types.ArrayType(elem_type, length),
                     elem_type
                 )
@@ -126,7 +126,7 @@ class IRNoder:
                 if elem_type is not None:
                     elem_type = self.make_type(elem_type)
                 return ir.SequenceType(
-                    f"vec[{elem_type}]",
+                    f"vec[{elem_type.hint if elem_type else None}]",
                     types.VectorType(elem_type),
                     elem_type
                 )
@@ -235,8 +235,10 @@ class IRNoder:
     def make_index_expr(self, target, index, load=True):
         target = self.make_expr(target, load=False)
         index = self.make_expr(index)
-        # TODO: no good way to get a name for every possible index type
-        ref = ir.IndexRef(f"{target.name}[]", target, index)
+        # TODO: no good way to get a name for every possible target or index type
+        target_name = target.name if isinstance(target, ir.Ref) else None
+        index_name = index.ref.name if isinstance(index, ir.Load) else None
+        ref = ir.IndexRef(f"{target_name}[{index_name}]", target, index)
         if load:
             return ir.Load(ref)
         return ref
