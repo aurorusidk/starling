@@ -313,36 +313,7 @@ All methods of an `interface` must be implemented within a single `impl` block f
 Interfaces can be implemented on types declared in other files, but the `impl` block must still have the same scope as the type definition.
 
 ## Optionals
-The below example function returns 1 if `true` is passed in, and returns no value if `false` is passed in.
-
-```
-fn optional_func(x bool) Optional<int> {
-    if (x) {
-        return some(1)
-    } else {
-        return nil
-    }
-}
-```
-
-The value of a `some()` return must match the type specified in the `Optional<>`. So you can't put a rat in a headphone box.
-
-The return value of an optional can be handled as follows:
-
-```
-var ret_val Optional<int> = optional_func(true)
-if (ret_val.is_some()) {
-    print(ret_val.unbox())
-} 
-```
-
-`unbox()` will error if the value is `nil`.
-
-## Ranges
-Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
-
-## Loops
-TBD - Starling will not feature traditional `for` loops.
+TBD - Not yet implemented.
 
 # Further research required
 
