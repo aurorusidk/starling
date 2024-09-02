@@ -83,6 +83,7 @@ class Compiler:
                         ptr = self.build(param)
                         self.builder.build_store(arg, ptr)
                         self.refs[id(param)] = ptr
+                    # TODO: builtins
                     self.build(node.block)
                     obj = func
                 case ir.FieldRef():
@@ -94,6 +95,9 @@ class Compiler:
                         parent_type = self.build(node.parent.typ)
                         return self.builder.build_struct_ge2(parent_type, parent, idx, "")
                     self.refs[id(node)] = obj
+                case ir.IndexRef():
+                    raise NotImplementedError
+                    # TODO: indexing
                 case ir.Ref():
                     typ = self.build(node.typ)
                     ptr = self.builder.build_alloca(typ, node.name)
@@ -161,6 +165,9 @@ class Compiler:
                     case llvm.IntegerTypeKind:
                         return typ.const_int(value, 0)
                 return llvm.Constant(typ, value)
+            case ir.Sequence(value):
+                raise NotImplementedError
+                # TODO: sequence values
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]
