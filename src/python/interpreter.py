@@ -211,7 +211,7 @@ class Interpreter:
             case ir.Constant(value):
                 return StaObject(self.eval_node(node.typ), value)
             case ir.Sequence(elements):
-                elems = [self.eval_object(element) for element in elements]
+                elems = [self.eval_node(element) for element in elements]
                 if isinstance(node.typ.checked, types.VectorType):
                     return StaVector(node.typ.checked, elems)
                 else:
@@ -269,9 +269,9 @@ class Interpreter:
                 start = self.refs[id(func.params[0])].value.value
                 end = self.refs[id(func.params[1])].value.value
                 assert start < end, f"Range end {end} must be greater than start {start}"
-                elements = [StaObject(builtin.types["int"], i) for i in range(start, end)]
+                elements = [StaObject(builtin.scope.lookup("int"), i) for i in range(start, end)]
                 raise StaFunctionReturn(
-                    StaArray(types.ArrayType(builtin.types["int"], end-start), elements)
+                    StaArray(types.ArrayType(builtin.scope.lookup("int"), end-start), elements)
                 )
             case _:
                 assert False, f"Unknown builtin function {func.sig.name}"

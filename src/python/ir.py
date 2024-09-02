@@ -113,17 +113,22 @@ class IRNoder:
                 return typ
             case ast.ArrayType(elem_type, length):
                 # TODO: fails if length isn't constant
-                length = self.make(length).value if length else None
+                if elem_type is not None:
+                    elem_type = self.make_type(elem_type)
+                if length is not None:
+                    length = self.make(length)
                 return ir.SequenceType(
-                    f"arr[{elem_type},{length}]",
+                    f"arr[{elem_type.hint}]",
                     types.ArrayType(elem_type, length),
-                    self.make_type(elem_type) if elem_type else None
+                    elem_type
                 )
             case ast.VectorType(elem_type):
+                if elem_type is not None:
+                    elem_type = self.make_type(elem_type)
                 return ir.SequenceType(
                     f"vec[{elem_type}]",
                     types.VectorType(elem_type),
-                    self.make_type(elem_type) if elem_type else None
+                    elem_type
                 )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
@@ -201,7 +206,7 @@ class IRNoder:
         elements = [self.make(element) for element in elements]
         if isinstance(node, ast.ArrayExpr):
             return ir.Array(elements)
-        elif isinstance(node, ast.ArrayExpr):
+        elif isinstance(node, ast.VectorExpr):
             return ir.Vector(elements)
         else:
             return ir.Sequence(elements)

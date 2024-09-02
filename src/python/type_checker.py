@@ -79,8 +79,6 @@ class TypeChecker:
                     new.fields[fname] = target.fields[fname] = typ
             case ir.SequenceType():
                 target.elem_type = self.update_types(target.elem_type, new.elem_type)
-                target.hint.elem_type = target.elem_type.checked
-                self.check_type(target)
             case ir.Type():
                 assert target == new, f"Mismatching types {target} and {new}"
             case _:
