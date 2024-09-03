@@ -185,8 +185,21 @@ class IRNoder:
                 val = ir.Constant(Fraction(tok.lexeme.replace("//", "/")))
                 val.typ = self.scope.lookup("frac")
             case T.STRING:
+                string = []
+                for char in tok.lexeme[1:-1]:
+                    val = ir.Constant(char)
+                    val.typ = self.scope.lookup("char")
+                    string.append(val)
+                val = ir.Array(string)
+                val.typ = ir.ArrayType(
+                    "str",
+                    types.ArrayType(builtin.types["char"], len(string)),
+                    self.scope.lookup("char"),
+                    len(string)
+                    )
+            case T.CHAR:
                 val = ir.Constant(str(tok.lexeme[1:-1]))
-                val.typ = self.scope.lookup("str")
+                val.typ = self.scope.lookup("char")
             case T.BOOLEAN:
                 val = ir.Constant(tok.lexeme == "true")
                 val.typ = self.scope.lookup("bool")

@@ -11,6 +11,7 @@ types = {
     "float": BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
     "frac": BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
     "str": BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str"),
+    "char": BasicType(BasicTypeKind.CHAR, BasicTypeFlag.STRING, "char"),
     "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
 }
 for name, value in types.items():

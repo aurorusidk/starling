@@ -147,6 +147,7 @@ class Interpreter:
                 case ir.IndexRef():
                     sequence = self.eval_node(node.parent)
                     if isinstance(sequence, StaVariable):
+                        logging.debug(sequence.value)
                         sequence = sequence.value
                     # TODO: no good way to get string repr of raw sequence (i.e. [x:y][z])
                     seq_name = node.parent.name if isinstance(node.parent, ir.Ref) else None
@@ -154,6 +155,7 @@ class Interpreter:
                     assert index >= 0 and index < len(sequence.value), \
                         f"Index {index} out of bounds for {seq_name}"
                     obj = sequence.value[index]
+                    logging.debug(obj)
                 case ir.Ref():
                     obj = StaVariable(node.name)
             return obj
@@ -215,7 +217,7 @@ class Interpreter:
             case ir.Constant(value):
                 return StaObject(self.eval_node(node.typ), value)
             case ir.Sequence(elements):
-                elems = [self.eval_node(element) for element in elements]
+                elems = [StaVariable("", self.eval_node(element)) for element in elements]
                 if isinstance(node.typ.checked, types.VectorType):
                     return StaVector(node.typ.checked, elems)
                 else:
@@ -229,6 +231,7 @@ class Interpreter:
                 assert False
 
     def eval_binary(self, node):
+        logging.debug(self.eval_node(node.lhs))
         lhs = self.eval_node(node.lhs).value
         rhs = self.eval_node(node.rhs).value
         match node.op:

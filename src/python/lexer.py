@@ -1,10 +1,11 @@
 from collections import namedtuple
 from dataclasses import dataclass
 from enum import Enum
+import logging
 
 
 TokenType = Enum("TokenType", [
-    "INTEGER", "FLOAT", "RATIONAL", "STRING", "BOOLEAN", "IDENTIFIER",
+    "INTEGER", "FLOAT", "RATIONAL", "STRING", "CHAR", "BOOLEAN", "IDENTIFIER",
     "EQUALS_EQUALS", "BANG_EQUALS",
     "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
     "EQUALS", "STAR", "SLASH", "PLUS", "MINUS", "BANG",
@@ -74,7 +75,7 @@ MONOGRAPHS = {
 }
 
 SEMICOLON_INSERT = [
-    T.INTEGER, T.FLOAT, T.RATIONAL, T.STRING, T.BOOLEAN, T.IDENTIFIER,
+    T.INTEGER, T.FLOAT, T.RATIONAL, T.STRING, T.CHAR, T.BOOLEAN, T.IDENTIFIER,
     T.RIGHT_BRACKET, T.RIGHT_SQUARE,
     T.RETURN,
 ]
@@ -154,6 +155,14 @@ def tokenise(src, error_handler=None):
             i += 1
             lexeme = src[cur:cur + i]
             typ = T.STRING
+        elif char == "'":
+            # character
+            logging.debug(src[cur:cur + 2])
+            if get(src, cur + 2) != "'":
+                msg = "Syntax error: invalid char literal"
+                error(error_handler, msg)
+            lexeme = src[cur:cur + 3]
+            typ = T.CHAR
         else:
             # all the easy tokens
             for monograph, token in MONOGRAPHS.items():

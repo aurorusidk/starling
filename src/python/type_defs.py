@@ -8,7 +8,7 @@ progress = Enum("progress", [
 
 
 BasicTypeKind = Enum("BasicTypeKind", [
-    "INT", "FLOAT", "FRAC", "STR", "BOOL",
+    "INT", "FLOAT", "FRAC", "STR", "CHAR", "BOOL",
 ])
 
 
