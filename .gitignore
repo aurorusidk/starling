@@ -10,6 +10,11 @@ input.*
 
 __pycache__/
 
+# Zig
+
+.zig-cache/
+zig-out/
+
 ## environments
 .env
 .venv
