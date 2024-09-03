@@ -104,7 +104,7 @@ class Compiler:
             case ir.Declare(ref):
                 var = self.build(ref)
                 self.refs[id(ref)] = var
-            case ir.DeclareMethods(block):
+            case ir.DeclareMethods(_, block):
                 for instr in block.instrs:
                     self.build(instr)
             case ir.Assign(ref, value):

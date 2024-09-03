@@ -116,8 +116,6 @@ class Interpreter:
                     obj = StaFunction(node.typ, node.params, node.block)
                     if obj.sig.name == self.entry_name:
                         self.entry = obj
-                case ir.StructRef():
-                    return
                 case ir.FieldRef():
                     if isinstance(node.typ, ir.FunctionSigRef):
                         obj = self.eval_node(node.method)
@@ -136,7 +134,7 @@ class Interpreter:
             case ir.Declare(ref):
                 var = self.eval_node(ref)
                 self.refs[id(ref)] = var
-            case ir.DeclareMethods(block):
+            case ir.DeclareMethods(_, block):
                 self.eval_node(block)
             case ir.Assign(ref, value):
                 var = self.eval_node(ref)
@@ -150,7 +148,6 @@ class Interpreter:
                 for param_ref, arg in zip(func.params, args):
                     param = self.eval_node(param_ref)
                     self.refs[id(param_ref)] = param
-                    arg = self.eval_node(arg)
                     param.value = self.eval_node(arg)
                 try:
                     self.eval_node(func.block)
