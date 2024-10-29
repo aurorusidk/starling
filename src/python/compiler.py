@@ -11,6 +11,7 @@ type_map = {
     builtin.types["int"]: llvm.int32_type(),
     builtin.types["float"]: llvm.double_type(),
     builtin.types["bool"]: llvm.int1_type(),
+    builtin.types["char"]: llvm.int8_type(),
 }
 
 
@@ -20,6 +21,19 @@ class Compiler:
         self.module = llvm.module_create_with_name("main")
         self.builder = llvm.create_builder()
         self.i = 0
+
+        self.init_builtins()
+
+    def init_builtins(self):
+        # string type
+        # assume c-style \00 terminated for now
+        string_type = self.module.context.struct_create_named("@String")
+        # TODO: include dynamic memory allocation
+        string_field_types = [
+            self.module.context.pointer_type(0)
+        ]
+        string_type.struct_set_body(string_field_types, 0)
+        type_map[builtin.types["str"]] = string_type
 
     def name(self):
         name = "test" + str(self.i)
@@ -96,8 +110,18 @@ class Compiler:
                         return self.builder.build_struct_ge2(parent_type, parent, idx, "")
                     self.refs[id(node)] = obj
                 case ir.IndexRef():
-                    raise NotImplementedError
-                    # TODO: indexing
+                    # this expects a struct with the sequence ptr inside
+                    parent = self.build(node.parent)
+                    parent_type = self.build(node.parent.typ)
+                    elem_type = self.build(node.parent.typ.elem_type)
+                    idx = self.build(node.index)
+                    inner_ptr = self.builder.build_struct_ge2(
+                        parent_type, parent, 0, ""
+                    )
+                    ptr = self.builder.build_load2(inner_ptr.type_of(), inner_ptr, "")
+                    return self.builder.build_in_bounds_ge2(
+                        elem_type, ptr, [idx], ""
+                    )
                 case ir.Ref():
                     typ = self.build(node.typ)
                     ptr = self.builder.build_alloca(typ, node.name)
@@ -164,9 +188,21 @@ class Compiler:
                 match typ.get_kind():
                     case llvm.IntegerTypeKind:
                         return typ.const_int(value, 0)
-                return llvm.Constant(typ, value)
+                    case _:
+                        raise NotImplementedError
             case ir.Sequence(value):
-                raise NotImplementedError
+                if node.typ == builtin.scope.lookup("str"):
+                    typ = self.build(node.typ)
+                    literal = "".join(c.value for c in value)
+                    const_cstr = llvm.const_string(literal, len(value), 0)
+                    cstr_ptr = self.module.add_global(const_cstr.type_of(), "")
+                    cstr_ptr.set_initializer(const_cstr)
+                    const_str = typ.const_named_struct([cstr_ptr])
+                    str_ptr = self.module.add_global(typ, "")
+                    str_ptr.set_initializer(const_str)
+                    return const_str
+                else:
+                    raise NotImplementedError
                 # TODO: sequence values
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
