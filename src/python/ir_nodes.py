@@ -11,6 +11,7 @@ def id_hash(obj):
 @dataclass
 class Object:
     is_expr = False
+    is_const = False
     typ: "Type" = field(default=None, kw_only=True)
     progress: types.progress = field(default=types.progress.EMPTY, kw_only=True)
 

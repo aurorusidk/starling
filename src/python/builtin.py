@@ -10,13 +10,22 @@ types = {
     "int": BasicType(BasicTypeKind.INT, BasicTypeFlag.INTEGER, "int"),
     "float": BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
     "frac": BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
-    "str": BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str"),
     "char": BasicType(BasicTypeKind.CHAR, BasicTypeFlag.STRING, "char"),
     "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
 }
 for name, value in types.items():
     ref = ir.Type(name, value, checked=value)
     scope.declare(name, ref)
+
+string_type = type_defs.BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str")
+types["str"] = string_type
+string_type_ref = ir.SequenceType(
+    name="str",
+    elem_type=scope.lookup("char"),
+    hint=string_type,
+    checked=string_type
+)
+scope.declare("str", string_type_ref)
 
 int_type = scope.lookup("int")
 names = {

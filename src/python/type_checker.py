@@ -114,6 +114,9 @@ class TypeChecker:
         return target
 
     def check(self, node):
+        if node.is_const:
+            # ir constants should have a defined type
+            node.progress = progress.COMPLETED
         if node.progress in (progress.UPDATING, progress.COMPLETED):
             return
         node.progress = progress.UPDATING
@@ -350,7 +353,7 @@ class TypeChecker:
                 self.check_type(node.typ)
                 for fname, fval in node.fields.items():
                     self.check(fval)
-                    assert fval.typ == node.typ.fields[fname]
+                    node.typ.fields[fname] = self.update_types(node.typ.fields[fname], fval.typ)
             case _:
                 assert False, f"Unexpected object {node}"
         node.progress = progress.COMPLETED

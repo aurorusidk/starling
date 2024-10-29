@@ -190,13 +190,9 @@ class IRNoder:
                     val = ir.Constant(char)
                     val.typ = self.scope.lookup("char")
                     string.append(val)
-                val = ir.Array(string)
-                val.typ = ir.ArrayType(
-                    "str",
-                    types.ArrayType(builtin.types["char"], len(string)),
-                    self.scope.lookup("char"),
-                    len(string)
-                    )
+                val = ir.Sequence(string)
+                val.is_const = True
+                val.typ = self.scope.lookup("str")
             case T.CHAR:
                 val = ir.Constant(str(tok.lexeme[1:-1]))
                 val.typ = self.scope.lookup("char")
