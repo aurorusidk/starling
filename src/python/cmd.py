@@ -10,7 +10,10 @@ from .compiler import Compiler, execute_module
 from .control_flows import ControlFlows, create_flows
 
 
-def translate(src, **flags):
+def translate(filename, **flags):
+    with open(filename) as f:
+        src = f.read()
+
     error_handler = flags.get("error_handler")
     tokens = tokenise(src, error_handler)
     if flags.get("tokenise"):
@@ -21,7 +24,7 @@ def translate(src, **flags):
     if flags.get("parse"):
         return ast
 
-    noder = IRNoder(error_handler)
+    noder = IRNoder(filename, error_handler)
     block = noder.block
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):

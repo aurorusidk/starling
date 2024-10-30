@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from fractions import Fraction
 import logging
+from pathlib import Path
 
 from .lexer import TokenType as T
 from .scope import Scope
@@ -10,8 +11,9 @@ from . import builtin
 from . import ir_nodes as ir
 
 
+
 class IRNoder:
-    def __init__(self, error_handler=None):
+    def __init__(self, filename, error_handler=None):
         self.scope = Scope(builtin.scope)
         self.exprs = []
         self.block = ir.Block([])
@@ -19,7 +21,9 @@ class IRNoder:
         self.blocks = {}
         self.error_handler = error_handler
 
+        self.filename = Path(filename)
         self.imports = set()
+        self.imports_seen = set()
 
     def error(self, msg):
         # add position info
@@ -28,6 +32,9 @@ class IRNoder:
             assert False, msg
 
         self.error_handler(msg)
+
+    def resolve_filepath(self, path):
+        return self.filename.parent.joinpath(path).with_suffix(".sta").resolve()
 
     @property
     def instrs(self):
@@ -72,12 +79,29 @@ class IRNoder:
             case ast.Declr():
                 self.make_declr(node)
             case ast.Module(declrs):
-                block = self.block
-                for declr in declrs:
-                    self.make_declr(declr)
-                return ir.Module(block)
+                return self.make_module(declrs)
             case _:
                 assert False, f"Unexpected node {node}"
+
+    def make_module(self, declrs):
+        from .cmd import translate
+        block = self.block
+        for declr in declrs:
+            self.make_declr(declr)
+        # import loop
+        for path in self.imports - self.imports_seen:
+            self.imports_seen.add(path)
+            prev_path = self.filename
+            parse_tree = translate(path, parse=True)
+            self.filename = path
+            with self.new_scope():
+                module_block = self.new_block()
+                self.block = module_block
+                mod = self.make(parse_tree)
+            self.scope.declare(path.stem, mod)
+            self.filename = prev_path
+            self.block = block
+        return ir.Module(block)
 
     def make_expr(self, node, load=True):
         match node:
@@ -234,7 +258,7 @@ class IRNoder:
                 assert isinstance(node, ast.Literal)
                 tok = node.value
                 assert tok.typ == T.STRING
-                filename = tok.lexeme
+                filename = self.resolve_filepath(tok.lexeme[1:-1])
                 self.imports.add(filename)
             case _:
                 raise NotImplementedError
