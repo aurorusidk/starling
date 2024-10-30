@@ -178,7 +178,7 @@ class Compiler:
                 self.builder.position_builder_at_end(block)
                 for instr in instrs:
                     self.build(instr)
-            case ir.Program(block):
+            case ir.Module(block):
                 # cannot build the block because no IRBuilder is set
                 # perhaps there should be a global func/block
                 for instr in block.instrs:

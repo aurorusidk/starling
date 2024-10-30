@@ -122,7 +122,7 @@ class TypeChecker:
         node.progress = progress.UPDATING
         try:
             match node:
-                case ir.Program(block):
+                case ir.Module(block):
                     self.check(block)
                     already_deferred = []
                     while self.deferred:

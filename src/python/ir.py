@@ -71,11 +71,11 @@ class IRNoder:
                 self.make_stmt(node)
             case ast.Declr():
                 self.make_declr(node)
-            case ast.Program(declrs):
+            case ast.Module(declrs):
                 block = self.block
                 for declr in declrs:
                     self.make_declr(declr)
-                return ir.Program(block)
+                return ir.Module(block)
             case _:
                 assert False, f"Unexpected node {node}"
 

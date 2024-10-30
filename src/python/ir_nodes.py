@@ -209,7 +209,7 @@ class Binary(Instruction):
 
 
 @dataclass
-class Program(Object):
+class Module(Object):
     block: Block
 
 
@@ -251,7 +251,7 @@ class IRPrinter:
             show_types = self.show_types
         string = ""
         match ir:
-            case Program(block):
+            case Module(block):
                 block, _ = self._to_string(block)
                 string = block
             case Block(instrs):

@@ -32,7 +32,7 @@ class Type(Node):
 
 
 @dataclass
-class Program(Node):
+class Module(Node):
     declrs: list[Declr]
 
 

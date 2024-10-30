@@ -212,7 +212,7 @@ class Interpreter:
             case ir.Block(instrs):
                 for instr in instrs:
                     self.eval_node(instr)
-            case ir.Program(block):
+            case ir.Module(block):
                 self.eval_node(block)
             case ir.Constant(value):
                 return StaObject(self.eval_node(node.typ), value)

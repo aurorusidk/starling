@@ -73,7 +73,7 @@ class Parser:
         while self.cur < len(self.tokens):
             logging.debug(f"declrs: {declarations}")
             declarations.append(self.parse_declaration())
-        return ast.Program(declarations)
+        return ast.Module(declarations)
 
     def parse_declaration(self):
         if self.check(T.FUNC):
