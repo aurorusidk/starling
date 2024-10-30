@@ -19,6 +19,8 @@ class IRNoder:
         self.blocks = {}
         self.error_handler = error_handler
 
+        self.imports = set()
+
     def error(self, msg):
         # add position info
         msg = f"Syntax error: {msg}"
@@ -92,6 +94,8 @@ class IRNoder:
                 return self.make_sequence_expr(node, elements)
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
+            case ast.BuiltinCall():
+                assert False
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
@@ -170,6 +174,8 @@ class IRNoder:
                 self.make_impl_declr(target, interface, methods)
             case ast.VariableDeclr(name, typ, value):
                 self.make_variable_declr(name, typ, value)
+            case ast.BuiltinCall(target, args):
+                self.make_builtin_call(target, args)
             case _:
                 assert False, f"Unexpected declr {node}"
 
@@ -219,6 +225,19 @@ class IRNoder:
             return ir.Vector(elements)
         else:
             return ir.Sequence(elements)
+
+    def make_builtin_call(self, target, args):
+        match target.value:
+            case "import":
+                assert len(args) == 1
+                node = args[0]
+                assert isinstance(node, ast.Literal)
+                tok = node.value
+                assert tok.typ == T.STRING
+                filename = tok.lexeme
+                self.imports.add(filename)
+            case _:
+                raise NotImplementedError
 
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)

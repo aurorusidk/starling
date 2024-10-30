@@ -86,6 +86,10 @@ class Parser:
             return self.parse_impl_declr()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
+        elif self.check(T.ATSIGN):
+            val = self.parse_primary_expr()
+            self.expect(T.SEMICOLON)
+            return val
         else:
             self.error("Failed to parse declaration")
             self.advance(T.FUNC, T.STRUCT, T.VAR)
@@ -323,6 +327,8 @@ class Parser:
         while not self.consume(T.RIGHT_BRACKET):
             args.append(self.parse_expression())
             self.consume(T.COMMA)
+        if isinstance(target, ast.Builtin):
+            return ast.BuiltinCall(target, args)
         return ast.CallExpr(target, args)
 
     def parse_primary(self):
@@ -360,6 +366,9 @@ class Parser:
 
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
+        elif self.consume(T.ATSIGN):
+            name = self.expect(T.IDENTIFIER)
+            return ast.Builtin(name.lexeme)
         else:
             value = self.consume(
                 T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING, T.CHAR,

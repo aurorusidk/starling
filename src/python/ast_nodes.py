@@ -47,6 +47,11 @@ class Identifier(Expr):
 
 
 @dataclass
+class Builtin(Identifier):
+    pass
+
+
+@dataclass
 class RangeExpr(Expr):
     start: Expr
     end: Expr
@@ -76,6 +81,11 @@ class GroupExpr(Expr):
 class CallExpr(Expr):
     target: Expr
     args: list[Expr]
+
+
+@dataclass
+class BuiltinCall(CallExpr):
+    pass
 
 
 @dataclass
