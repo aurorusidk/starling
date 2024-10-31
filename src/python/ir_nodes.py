@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from hashlib import sha1
+from pathlib import Path
 
 from . import type_defs as types
 
@@ -211,6 +212,8 @@ class Binary(Instruction):
 @dataclass
 class Module(Object):
     block: Block
+    path: Path
+    dependencies: list[Object] = field(default_factory=list)
 
 
 def counter():

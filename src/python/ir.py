@@ -21,7 +21,8 @@ class IRNoder:
         self.blocks = {}
         self.error_handler = error_handler
 
-        self.filename = Path(filename)
+        self.filename = Path(filename).resolve()
+        self.import_table = {}
         self.imports = set()
         self.imports_seen = set()
 
@@ -34,7 +35,10 @@ class IRNoder:
         self.error_handler(msg)
 
     def resolve_filepath(self, path):
-        return self.filename.parent.joinpath(path).with_suffix(".sta").resolve()
+        assert Path(path).suffix != ".sta", "Bad import: file extension should be excluded"
+        path = self.filename.parent.joinpath(path)
+        # don't clobber file stems with a dot
+        return path.with_suffix(path.suffix + ".sta").resolve()
 
     @property
     def instrs(self):
@@ -88,20 +92,43 @@ class IRNoder:
         block = self.block
         for declr in declrs:
             self.make_declr(declr)
+        current_module = ir.Module(block, self.filename)
+        self.imports_seen.add(self.filename)
+        self.import_table[self.filename] = current_module
         # import loop
-        for path in self.imports - self.imports_seen:
-            self.imports_seen.add(path)
-            prev_path = self.filename
-            parse_tree = translate(path, parse=True)
-            self.filename = path
-            with self.new_scope():
-                module_block = self.new_block()
-                self.block = module_block
-                mod = self.make(parse_tree)
-            self.scope.declare(path.stem, mod)
-            self.filename = prev_path
-            self.block = block
-        return ir.Module(block)
+        for path in self.imports:
+            logging.info(self.imports)
+            logging.info(self.imports_seen)
+
+            assert path != self.filename, "Bad import: cannot import self"
+
+            if path not in self.imports_seen:
+                self.imports_seen.add(path)
+                prev_path = self.filename
+                prev_imports = self.imports
+                self.filename = path
+                self.imports = set()
+                parse_tree = translate(path, parse=True)
+                with self.new_scope():
+                    module_block = self.new_block()
+                    self.block = module_block
+                    mod = self.make(parse_tree)
+                # TODO: bind the import to the current module
+                self.filename = prev_path
+                self.imports = prev_imports
+                self.block = block
+                self.import_table[path] = mod
+            if path not in current_module.dependencies:
+                current_module.dependencies.append(self.import_table[path])
+
+        for mod in current_module.dependencies:
+            for dep in mod.dependencies:
+                assert dep.path != self.filename, f"Bad import: circular dependency {dep.path}"
+                if dep not in current_module.dependencies:
+                    current_module.dependencies.append(dep)
+
+        logging.info(f"{current_module.path}: {[d.path for d in current_module.dependencies]}")
+        return current_module
 
     def make_expr(self, node, load=True):
         match node:
