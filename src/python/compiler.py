@@ -74,6 +74,10 @@ class Compiler:
                 typ = self.module.context.struct_create_named(node.name)
                 typ.struct_set_body(field_types, 0)
                 return typ
+            case ir.SequenceType():
+                # sequences of constants can pretend to be strings and it works??
+                # TODO: this is bad, find a better way
+                return type_map[builtin.types["str"]]
             case ir.Type():
                 return type_map[node.checked]
             case _:
@@ -201,6 +205,26 @@ class Compiler:
                     str_ptr = self.module.add_global(typ, "")
                     str_ptr.set_initializer(const_str)
                     return const_str
+                elif isinstance(node.typ, ir.ArrayType):
+                    typ = self.build(node.typ)
+                    value = [self.build(element) for element in value]
+
+                    # If all elements are constant, we can use a const array
+                    if all(isinstance(element, ir.Constant) for element in value):
+                        const_carr = typ.const_array(value)
+                        carr_ptr = self.module.add_global(const_carr.type_of(), "")
+                        carr_ptr.set_initializer(const_carr)
+                        const_arr = typ.const_named_struct([carr_ptr])
+                        arr_ptr = self.module.add_global(typ, "")
+                        arr_ptr.set_initializer(const_arr)
+                        return const_arr
+
+                    # Otherwise, we need a more sophisticated solution
+                    # TODO
+                    raise NotImplementedError
+
+                elif isinstance(node.typ, ir.VectorType):
+                    raise NotImplementedError
                 else:
                     raise NotImplementedError
                 # TODO: sequence values
