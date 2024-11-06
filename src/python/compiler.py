@@ -82,8 +82,6 @@ class Compiler:
                 typ.struct_set_body(field_types, 0)
                 return typ
             case ir.ArrayType():
-                # sequences of constants can pretend to be strings and it works??
-                # TODO: this is bad, find a better way
                 return type_map["arr"]
             case ir.Type():
                 return type_map[node.checked]
