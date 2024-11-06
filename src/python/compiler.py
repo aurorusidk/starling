@@ -35,6 +35,13 @@ class Compiler:
         string_type.struct_set_body(string_field_types, 0)
         type_map[builtin.types["str"]] = string_type
 
+        # array type
+        # largely mirrors the string type for now
+        # TODO: this is bad, find a better way
+        array_type = self.module.context.struct_create_named("@Array")
+        array_type.struct_set_body(string_field_types, 0)
+        type_map["arr"] = array_type
+
     def name(self):
         name = "test" + str(self.i)
         self.i += 1
@@ -74,10 +81,10 @@ class Compiler:
                 typ = self.module.context.struct_create_named(node.name)
                 typ.struct_set_body(field_types, 0)
                 return typ
-            case ir.SequenceType():
+            case ir.ArrayType():
                 # sequences of constants can pretend to be strings and it works??
                 # TODO: this is bad, find a better way
-                return type_map[builtin.types["str"]]
+                return type_map["arr"]
             case ir.Type():
                 return type_map[node.checked]
             case _:
@@ -207,11 +214,11 @@ class Compiler:
                     return const_str
                 elif isinstance(node.typ, ir.ArrayType):
                     typ = self.build(node.typ)
-                    value = [self.build(element) for element in value]
+                    built_value = [self.build(element) for element in value]
 
                     # If all elements are constant, we can use a const array
                     if all(isinstance(element, ir.Constant) for element in value):
-                        const_carr = typ.const_array(value)
+                        const_carr = typ.const_array(built_value)
                         carr_ptr = self.module.add_global(const_carr.type_of(), "")
                         carr_ptr.set_initializer(const_carr)
                         const_arr = typ.const_named_struct([carr_ptr])
