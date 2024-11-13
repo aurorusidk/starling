@@ -145,8 +145,8 @@ class IRNoder:
                 return self.make_sequence_expr(node, elements)
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
-            case ast.BuiltinCall():
-                assert False
+            case ast.BuiltinCall(target, args):
+                return self.make_builtin_call(target, args)
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
@@ -225,8 +225,6 @@ class IRNoder:
                 self.make_impl_declr(target, interface, methods)
             case ast.VariableDeclr(name, typ, value):
                 self.make_variable_declr(name, typ, value)
-            case ast.BuiltinCall(target, args):
-                self.make_builtin_call(target, args)
             case _:
                 assert False, f"Unexpected declr {node}"
 

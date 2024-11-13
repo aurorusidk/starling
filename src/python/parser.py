@@ -86,10 +86,6 @@ class Parser:
             return self.parse_impl_declr()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
-        elif self.check(T.ATSIGN):
-            val = self.parse_primary_expr()
-            self.expect(T.SEMICOLON)
-            return val
         else:
             self.error("Failed to parse declaration")
             self.advance(T.FUNC, T.STRUCT, T.VAR)
