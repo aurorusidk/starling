@@ -25,6 +25,7 @@ class IRNoder:
         self.filename = Path(filename).resolve()
         self.import_table = {}
         self.imports_seen = set()
+        self.import_results = []
 
     def error(self, msg):
         # add position info
@@ -76,6 +77,17 @@ class IRNoder:
         from_block.instrs.append(instr)
         return instr
 
+    def get_module_struct(self, module):
+        declrs = {}
+        for instr in module.block.instrs:
+            if isinstance(instr, ir.Declare):
+                declrs[instr.ref.name] = instr.ref
+        struct = ir.StructLiteral(declrs)
+        fields = {k: v.typ for k, v in declrs.items()}
+        typ = ir.StructRef(module.path, None, fields)
+        struct.typ = typ
+        return struct
+
     def make(self, node):
         match node:
             case ast.Expr():
@@ -112,7 +124,7 @@ class IRNoder:
                 parse_tree = translate(path, parse=True)
                 with self.new_scope():
                     mod = self.make(parse_tree)
-                # TODO: bind the import to the current module
+                mod.value = self.get_module_struct(mod)
                 self.import_table[path] = mod
             if path not in self.module.dependencies:
                 self.module.dependencies.append(self.import_table[path])
@@ -122,6 +134,12 @@ class IRNoder:
                 assert dep.path != self.filename, f"Bad import: circular dependency {dep.path}"
                 if dep not in self.module.dependencies:
                     self.module.dependencies.append(dep)
+
+        for import_result, path in self.import_results:
+            if import_result.value is not None:
+                continue
+            if (module := self.import_table.get(path)):
+                import_result.value = module.value
 
         logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
         current_module = self.module
@@ -283,8 +301,11 @@ class IRNoder:
                 assert isinstance(node, ast.Literal)
                 tok = node.value
                 assert tok.typ == T.STRING
-                filename = self.resolve_filepath(tok.lexeme[1:-1])
-                self.imports.add(filename)
+                path = self.resolve_filepath(tok.lexeme[1:-1])
+                self.imports.add(path)
+                result = ir.ImportResult()
+                self.import_results.append((result, path))
+                return result
             case _:
                 raise NotImplementedError
 
@@ -297,10 +318,10 @@ class IRNoder:
                 values.append(arg)
                 target.param_values[param.name] = values
                 param.values.append(arg)
-        elif isinstance(target, ir.FieldRef):
-            # method so add `self`
-            args.insert(0, ir.Load(target.parent))
-            target.param_values = args
+        #elif isinstance(target, ir.FieldRef):
+        #    # method so add `self`
+        #    args.insert(0, ir.Load(target.parent))
+        #    target.param_values = args
         elif isinstance(target, ir.StructRef):
             assert len(args) == len(target.fields)
             fields = {}
@@ -515,7 +536,7 @@ class IRNoder:
         interface = types.Interface(name, method_refs)
         ref = ir.InterfaceRef(name, interface, method_refs)
         self.scope.declare(name, ref)
-        # self.instrs.append(ir.Declare(ref))
+        self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value

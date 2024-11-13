@@ -123,6 +123,8 @@ class TypeChecker:
         try:
             match node:
                 case ir.Module(block):
+                    for dep in reversed(node.dependencies):
+                        self.check(dep)
                     self.check(block)
                     already_deferred = []
                     while self.deferred:
@@ -265,8 +267,16 @@ class TypeChecker:
                 self.check(ref)
                 node.typ = ref.typ
             case ir.Call(ref, args):
+                if isinstance(ref, ir.FieldRef):
+                    self.check(ref.parent)
+                    if ref.parent.typ.methods.get(ref.name):
+                        # if method add parent
+                        parent = ir.Load(ref.parent)
+                        self.check(parent)
+                        args.insert(0, parent)
+                        ref.param_values = args
                 self.check(ref)
-                assert len(args) == len(ref.typ.params)
+                assert len(args) == len(ref.typ.params), f"{args} : {ref.typ.params}"
                 for pname, arg in zip(ref.typ.params, args):
                     self.check(arg)
                     ref.typ.params[pname] = self.update_types(ref.typ.params[pname], arg.typ)
@@ -354,6 +364,9 @@ class TypeChecker:
                 for fname, fval in node.fields.items():
                     self.check(fval)
                     node.typ.fields[fname] = self.update_types(node.typ.fields[fname], fval.typ)
+            case ir.ImportResult():
+                self.check(node.value)
+                node.typ = node.value.typ
             case _:
                 assert False, f"Unexpected object {node}"
         node.progress = progress.COMPLETED

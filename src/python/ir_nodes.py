@@ -46,6 +46,12 @@ class StructLiteral(Object):
 
 
 @dataclass
+class ImportResult(Object):
+    is_expr = True
+    value: StructLiteral = None
+
+
+@dataclass
 class Ref(Object):
     is_expr = True
     name: str
@@ -91,7 +97,7 @@ class FieldRef(Ref):
     parent: Ref
     # mimic functions for methods
     return_values: list[Object] = field(default_factory=list, init=False)
-    param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
+    param_values: list[Object] = field(default_factory=list, init=False)
     method: Ref = field(default=None, kw_only=True)
 
 
@@ -213,6 +219,7 @@ class Binary(Instruction):
 class Module(Object):
     block: Block
     path: Path
+    value: ImportResult = None
     imports: set[str] = field(default_factory=set)
     dependencies: list[Object] = field(default_factory=list)
 
@@ -320,6 +327,8 @@ class IRPrinter:
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
+            case ImportResult():
+                string = self._to_string(ir.value)
             case Type():
                 string += self._to_string(ir.checked)
             case Ref(name):
