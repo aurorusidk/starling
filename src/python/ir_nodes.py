@@ -213,6 +213,7 @@ class Binary(Instruction):
 class Module(Object):
     block: Block
     path: Path
+    imports: set[str] = field(default_factory=set)
     dependencies: list[Object] = field(default_factory=list)
 
 

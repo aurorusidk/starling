@@ -21,9 +21,9 @@ class IRNoder:
         self.blocks = {}
         self.error_handler = error_handler
 
+        self.module = None
         self.filename = Path(filename).resolve()
         self.import_table = {}
-        self.imports = set()
         self.imports_seen = set()
 
     def error(self, msg):
@@ -39,6 +39,10 @@ class IRNoder:
         path = self.filename.parent.joinpath(path)
         # don't clobber file stems with a dot
         return path.with_suffix(path.suffix + ".sta").resolve()
+
+    @property
+    def imports(self):
+        return self.module.imports
 
     @property
     def instrs(self):
@@ -89,45 +93,41 @@ class IRNoder:
 
     def make_module(self, declrs):
         from .cmd import translate
-        block = self.block
+        prev_module = self.module
+        self.module = ir.Module(self.new_block(), self.filename)
+        self.block = self.module.block
         for declr in declrs:
             self.make_declr(declr)
-        current_module = ir.Module(block, self.filename)
         self.imports_seen.add(self.filename)
-        self.import_table[self.filename] = current_module
+        self.import_table[self.filename] = self.module
         # import loop
         for path in self.imports:
             logging.info(self.imports)
             logging.info(self.imports_seen)
-
             assert path != self.filename, "Bad import: cannot import self"
 
             if path not in self.imports_seen:
                 self.imports_seen.add(path)
-                prev_path = self.filename
-                prev_imports = self.imports
                 self.filename = path
-                self.imports = set()
                 parse_tree = translate(path, parse=True)
                 with self.new_scope():
-                    module_block = self.new_block()
-                    self.block = module_block
                     mod = self.make(parse_tree)
                 # TODO: bind the import to the current module
-                self.filename = prev_path
-                self.imports = prev_imports
-                self.block = block
                 self.import_table[path] = mod
-            if path not in current_module.dependencies:
-                current_module.dependencies.append(self.import_table[path])
+            if path not in self.module.dependencies:
+                self.module.dependencies.append(self.import_table[path])
 
-        for mod in current_module.dependencies:
+        for mod in self.module.dependencies:
             for dep in mod.dependencies:
                 assert dep.path != self.filename, f"Bad import: circular dependency {dep.path}"
-                if dep not in current_module.dependencies:
-                    current_module.dependencies.append(dep)
+                if dep not in self.module.dependencies:
+                    self.module.dependencies.append(dep)
 
-        logging.info(f"{current_module.path}: {[d.path for d in current_module.dependencies]}")
+        logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
+        current_module = self.module
+        self.module = prev_module
+        if self.module is not None:
+            self.filename = self.module.path
         return current_module
 
     def make_expr(self, node, load=True):
