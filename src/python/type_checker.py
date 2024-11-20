@@ -210,6 +210,11 @@ class TypeChecker:
                     self.check(node.block)
             case ir.FieldRef():
                 self.check(node.parent)
+                if isinstance(node.parent.typ, ir.ModuleType):
+                    if node.parent.comptime:
+                        node.comptime = True
+                    if isinstance(node.parent, ir.FieldRef):
+                        node.parent = node.parent.parent.values[0].value.fields[node.parent.name]
                 field = None
                 if isinstance(node.parent.typ, ir.StructRef):
                     field = node.parent.typ.fields.get(node.name)
@@ -249,6 +254,9 @@ class TypeChecker:
             node.progress = progress.EMPTY
             logging.info("raise DeferChecking for incomplete type")
             raise DeferChecking
+
+        if isinstance(node.typ, ir.ModuleType):
+            node.comptime = True
 
     def check_instr(self, node):
         match node:

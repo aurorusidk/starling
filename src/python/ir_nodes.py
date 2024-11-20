@@ -54,6 +54,7 @@ class ImportResult(Object):
 @dataclass
 class Ref(Object):
     is_expr = True
+    comptime = False
     name: str
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
@@ -145,6 +146,11 @@ class InterfaceRef(Type):
 @dataclass
 class StructRef(Type):
     fields: dict[str, Type]
+
+
+@dataclass
+class ModuleType(StructRef):
+    pass
 
 
 @dataclass

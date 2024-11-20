@@ -84,7 +84,7 @@ class IRNoder:
                 declrs[instr.ref.name] = instr.ref
         struct = ir.StructLiteral(declrs)
         fields = {k: v.typ for k, v in declrs.items()}
-        typ = ir.StructRef(module.path, None, fields)
+        typ = ir.ModuleType(str(module.path.stem), None, fields)
         struct.typ = typ
         return struct
 
@@ -104,7 +104,6 @@ class IRNoder:
                 assert False, f"Unexpected node {node}"
 
     def make_module(self, declrs):
-        from .cmd import translate
         prev_module = self.module
         self.module = ir.Module(self.new_block(), self.filename)
         self.block = self.module.block
@@ -112,22 +111,6 @@ class IRNoder:
             self.make_declr(declr)
         self.imports_seen.add(self.filename)
         self.import_table[self.filename] = self.module
-        # import loop
-        for path in self.imports:
-            logging.info(self.imports)
-            logging.info(self.imports_seen)
-            assert path != self.filename, "Bad import: cannot import self"
-
-            if path not in self.imports_seen:
-                self.imports_seen.add(path)
-                self.filename = path
-                parse_tree = translate(path, parse=True)
-                with self.new_scope():
-                    mod = self.make(parse_tree)
-                mod.value = self.get_module_struct(mod)
-                self.import_table[path] = mod
-            if path not in self.module.dependencies:
-                self.module.dependencies.append(self.import_table[path])
 
         for mod in self.module.dependencies:
             for dep in mod.dependencies:
@@ -135,18 +118,32 @@ class IRNoder:
                 if dep not in self.module.dependencies:
                     self.module.dependencies.append(dep)
 
-        for import_result, path in self.import_results:
-            if import_result.value is not None:
-                continue
-            if (module := self.import_table.get(path)):
-                import_result.value = module.value
+        for mod in reversed(self.module.dependencies):
+            self.module.block.instrs = mod.block.instrs + self.module.block.instrs
 
         logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
         current_module = self.module
         self.module = prev_module
         if self.module is not None:
             self.filename = self.module.path
+            self.block = self.module.block
         return current_module
+
+    def import_module(self, path):
+        from .cmd import translate
+        assert path != self.filename, "Bad import: cannot import self"
+
+        if path not in self.imports_seen:
+            self.imports_seen.add(path)
+            self.filename = path
+            parse_tree = translate(path, parse=True)
+            with self.new_scope():
+                mod = self.make(parse_tree)
+            mod.value = self.get_module_struct(mod)
+            self.import_table[path] = mod
+        if path not in self.module.dependencies:
+            self.module.dependencies.append(self.import_table[path])
+        return self.import_table[path].value
 
     def make_expr(self, node, load=True):
         match node:
@@ -302,8 +299,7 @@ class IRNoder:
                 tok = node.value
                 assert tok.typ == T.STRING
                 path = self.resolve_filepath(tok.lexeme[1:-1])
-                self.imports.add(path)
-                result = ir.ImportResult()
+                result = ir.ImportResult(self.import_module(path))
                 self.import_results.append((result, path))
                 return result
             case _:
