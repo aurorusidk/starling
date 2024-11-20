@@ -138,8 +138,10 @@ class Interpreter:
                 case ir.StructRef():
                     return
                 case ir.FieldRef():
-                    if isinstance(node.typ, ir.FunctionSigRef):
+                    if node.method:
                         obj = self.eval_node(node.method)
+                    elif isinstance(node.parent.typ, ir.ModuleType):
+                        obj = self.eval_node(node.parent.values[0].value.fields[node.name])
                     else:
                         struct = self.eval_node(node.parent).value
                         obj = struct.value[node.name]
@@ -157,6 +159,8 @@ class Interpreter:
                     obj = sequence.value[index]
                     logging.debug(obj)
                 case ir.Ref():
+                    if node.comptime:
+                        return
                     obj = StaVariable(node.name)
             return obj
         else:
@@ -170,6 +174,8 @@ class Interpreter:
             case ir.DeclareMethods(typ, block):
                 self.eval_node(block)
             case ir.Assign(ref, value):
+                if ref.comptime:
+                    return
                 var = self.eval_node(ref)
                 val = self.eval_node(value)
                 var.value = val
