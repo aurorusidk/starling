@@ -212,22 +212,14 @@ class Compiler:
                     return const_str
                 elif isinstance(node.typ, ir.ArrayType):
                     typ = self.build(node.typ)
-                    built_value = [self.build(element) for element in value]
-
-                    # If all elements are constant, we can use a const array
-                    if all(isinstance(element, ir.Constant) for element in value):
-                        const_carr = typ.const_array(built_value)
-                        carr_ptr = self.module.add_global(const_carr.type_of(), "")
-                        carr_ptr.set_initializer(const_carr)
-                        const_arr = typ.const_named_struct([carr_ptr])
-                        arr_ptr = self.module.add_global(typ, "")
-                        arr_ptr.set_initializer(const_arr)
-                        return const_arr
-
-                    # Otherwise, we need a more sophisticated solution
-                    # TODO
-                    raise NotImplementedError
-
+                    elem_type = self.build(node.typ.elem_type)
+                    ptr = self.builder.build_alloca(typ, "arraylit")
+                    for idx in range(len(value)):
+                        # Convert the index into an LLVM int
+                        element_idx = type_map[builtin.types["int"]].const_int(idx, 0)
+                        element_ptr = self.builder.build_ge2(elem_type, ptr, [element_idx], "idx")
+                        self.builder.build_store(self.build(value[idx]), element_ptr)
+                    return ptr
                 elif isinstance(node.typ, ir.VectorType):
                     raise NotImplementedError
                 else:
