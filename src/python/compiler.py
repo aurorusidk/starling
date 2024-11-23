@@ -42,6 +42,12 @@ class Compiler:
         array_type.struct_set_body(string_field_types, 0)
         type_map["arr"] = array_type
 
+        # vector type
+        # TODO: see above
+        vector_type = self.module.context.struct_create_named("@Vector")
+        vector_type.struct_set_body(string_field_types, 0)
+        type_map["vec"] = vector_type
+
     def name(self):
         name = "test" + str(self.i)
         self.i += 1
@@ -81,7 +87,14 @@ class Compiler:
                 typ = self.module.context.struct_create_named(node.name)
                 typ.struct_set_body(field_types, 0)
                 return typ
-            case ir.ArrayType():
+            case ir.VectorType():
+                return type_map["vec"]
+            case ir.SequenceType():
+                if node.checked == builtin.types["str"]:
+                    return type_map[node.checked]
+                # If a non-vector non-string sequence type, treat as an array
+                # TODO: should SequenceType (non-string) be a valid input here?
+                #       should it already have become ArrayType at typechecking?
                 return type_map["arr"]
             case ir.Type():
                 return type_map[node.checked]
@@ -119,15 +132,20 @@ class Compiler:
                         return self.builder.build_struct_ge2(parent_type, parent, idx, "")
                     self.refs[id(node)] = obj
                 case ir.IndexRef():
-                    # this expects a struct with the sequence ptr inside
                     parent = self.build(node.parent)
-                    parent_type = self.build(node.parent.typ)
+                    if isinstance(node.parent, ir.Ref):
+                        # this expects a struct with the sequence ptr inside
+                        # which is the case if the parent is a Ref
+                        parent_type = self.build(node.parent.typ)
+                        inner_ptr = self.builder.build_struct_ge2(
+                            parent_type, parent, 0, ""
+                        )
+                        ptr = self.builder.build_load2(inner_ptr.type_of(), inner_ptr, "")
+                    else:
+                        # this is the case if the parent is a Sequence literal
+                        ptr = parent
                     elem_type = self.build(node.parent.typ.elem_type)
                     idx = self.build(node.index)
-                    inner_ptr = self.builder.build_struct_ge2(
-                        parent_type, parent, 0, ""
-                    )
-                    ptr = self.builder.build_load2(inner_ptr.type_of(), inner_ptr, "")
                     return self.builder.build_in_bounds_ge2(
                         elem_type, ptr, [idx], ""
                     )
@@ -210,21 +228,18 @@ class Compiler:
                     str_ptr = self.module.add_global(typ, "")
                     str_ptr.set_initializer(const_str)
                     return const_str
-                elif isinstance(node.typ, ir.ArrayType):
+                elif isinstance(node.typ, ir.SequenceType):
                     typ = self.build(node.typ)
                     elem_type = self.build(node.typ.elem_type)
-                    ptr = self.builder.build_alloca(typ, "arraylit")
+                    ptr = self.builder.build_alloca(typ, "sequencelit")
                     for idx in range(len(value)):
                         # Convert the index into an LLVM int
                         element_idx = type_map[builtin.types["int"]].const_int(idx, 0)
                         element_ptr = self.builder.build_ge2(elem_type, ptr, [element_idx], "idx")
                         self.builder.build_store(self.build(value[idx]), element_ptr)
                     return ptr
-                elif isinstance(node.typ, ir.VectorType):
-                    raise NotImplementedError
                 else:
-                    raise NotImplementedError
-                # TODO: sequence values
+                    assert False, f"Unreachable: {node}"
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]

@@ -84,7 +84,8 @@ class TypeChecker:
             case ir.ArrayType() | ir.VectorType():
                 if isinstance(new, (ir.ArrayType, ir.VectorType)):
                     assert isinstance(target, type(new)), \
-                        f"Cannot assign object of type {new} to ref of type {target}"
+                        f"Cannot assign object of type {new.checked} " \
+                        f"to ref of type {target.checked}"
                 new.elem_type = self.update_types(target.elem_type, new.elem_type)
                 if type(new) is not ir.SequenceType:
                     target = new
