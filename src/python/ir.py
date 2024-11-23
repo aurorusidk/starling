@@ -20,9 +20,10 @@ class IRNoder:
         self.current_func = None
         self.blocks = {}
         self.error_handler = error_handler
+        self.main_filename = Path(filename).resolve()
 
         self.module = None
-        self.filename = Path(filename).resolve()
+        self.filename = self.main_filename
         self.import_table = {}
         self.imports_seen = set()
         self.import_results = []
@@ -118,8 +119,9 @@ class IRNoder:
                 if dep not in self.module.dependencies:
                     self.module.dependencies.append(dep)
 
-        for mod in reversed(self.module.dependencies):
-            self.module.block.instrs = mod.block.instrs + self.module.block.instrs
+        if self.filename == self.main_filename:
+            for mod in reversed(self.module.dependencies):
+                self.module.block.instrs = mod.block.instrs + self.module.block.instrs
 
         logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
         current_module = self.module
