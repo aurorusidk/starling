@@ -231,9 +231,10 @@ class Compiler:
                 elif isinstance(node.typ, ir.SequenceType):
                     typ = self.build(node.typ)
                     elem_type = self.build(node.typ.elem_type)
-                    ptr = self.builder.build_alloca(typ, "sequencelit")
+                    # Convert the length of the sequence into an LLVM int
+                    length = type_map[builtin.types["int"]].const_int(len(value), 0)
+                    ptr = self.builder.build_array_alloca(typ, length, "sequencelit")
                     for idx in range(len(value)):
-                        # Convert the index into an LLVM int
                         element_idx = type_map[builtin.types["int"]].const_int(idx, 0)
                         element_ptr = self.builder.build_ge2(elem_type, ptr, [element_idx], "idx")
                         self.builder.build_store(self.build(value[idx]), element_ptr)
