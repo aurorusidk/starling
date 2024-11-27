@@ -120,7 +120,7 @@ class IRNoder:
                     self.module.dependencies.append(dep)
 
         if self.filename == self.main_filename:
-            for mod in reversed(self.module.dependencies):
+            for mod in self.module.dependencies:
                 self.module.block.instrs = mod.block.instrs + self.module.block.instrs
 
         logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
