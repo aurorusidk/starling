@@ -6,6 +6,7 @@ from .parser import Parser, parse
 from .type_checker import TypeChecker
 from . import ir_nodes as ir
 from . import type_defs as types
+from . import builtin
 
 
 @dataclass
