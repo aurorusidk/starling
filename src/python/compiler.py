@@ -227,65 +227,53 @@ class Compiler:
 
     def build_equal(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 32 represents integer equality
-            return self.builder.build_i_cmp(32, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntEQ, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 1 represents real ordered equality
-            return self.builder.build_f_cmp(1, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealOEQ, left, right, "")
         elif left.type_of() == type_map[builtin.types["bool"]]:
-            return self.builder.build_i_cmp(32, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntEQ, left, right, "")
         else:
             raise NotImplementedError
 
     def build_not_equal(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 33 represents integer inequality
-            return self.builder.build_i_cmp(33, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntNE, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 6 represents real ordered inequality
-            return self.builder.build_f_cmp(6, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealONE, left, right, "")
         elif left.type_of() == type_map[builtin.types["bool"]]:
-            return self.builder.build_i_cmp(33, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntNE, left, right, "")
         else:
             raise NotImplementedError
 
     def build_less_than(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 40 represents integer signed less than
-            return self.builder.build_i_cmp(40, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntSLT, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 4 represents real ordered less than
-            return self.builder.build_f_cmp(4, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealOLT, left, right, "")
         else:
             raise NotImplementedError
 
     def build_greater_than(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 38 represents integer signed greater than
-            return self.builder.build_i_cmp(38, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntSGT, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 2 represents real ordered greater than
-            return self.builder.build_f_cmp(2, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealOGT, left, right, "")
         else:
             raise NotImplementedError
 
     def build_less_than_equal(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 41 represents integer signed less than equal to
-            return self.builder.build_i_cmp(41, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntSLE, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 5 represents real ordered less than equal to
-            return self.builder.build_f_cmp(5, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealOLE, left, right, "")
         else:
             raise NotImplementedError
 
     def build_greater_than_equal(self, left, right):
         if left.type_of() == type_map[builtin.types["int"]]:
-            # 39 represents integer signed greater than equal to
-            return self.builder.build_i_cmp(39, left, right, "")
+            return self.builder.build_i_cmp(llvm.IntSGE, left, right, "")
         elif left.type_of() == type_map[builtin.types["float"]]:
-            # 3 represents real ordered greater than equal to
-            return self.builder.build_f_cmp(3, left, right, "")
+            return self.builder.build_f_cmp(llvm.RealOGE, left, right, "")
         else:
             raise NotImplementedError
 
@@ -307,10 +295,8 @@ class Compiler:
 
     def build_neg(self, right):
         if right.type_of() == type_map[builtin.types["int"]]:
-            # 39 represents integer signed greater than equal to
             return self.builder.build_neg(right, "")
         elif right.type_of() == type_map[builtin.types["float"]]:
-            # 3 represents real ordered greater than equal to
             return self.builder.build_f_neg(right, "")
         else:
             raise NotImplementedError
