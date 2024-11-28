@@ -151,7 +151,10 @@ class Compiler:
                 match typ.get_kind():
                     case llvm.IntegerTypeKind:
                         return typ.const_int(value, 0)
-                return llvm.Constant(typ, value)
+                    case llvm.DoubleTypeKind:
+                        return typ.const_real(value)
+                    case _:
+                        raise NotImplementedError
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]
@@ -188,88 +191,101 @@ class Compiler:
 
     def build_add(self, left, right):
         # Type coercion not implemented, so only left.typ needs checking
-        if left.type == llvm.IntType(32):
-            return self.builder.add(left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fadd(left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            return self.builder.build_add(left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            return self.builder.build_f_add(left, right, "")
         else:
             raise NotImplementedError
 
     def build_sub(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.sub(left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fsub(left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            return self.builder.build_sub(left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            return self.builder.build_f_sub(left, right, "")
         else:
             raise NotImplementedError
 
     def build_mul(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.mul(left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fmul(left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            return self.builder.build_mul(left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            return self.builder.build_f_mul(left, right, "")
         else:
             raise NotImplementedError
 
     def build_div(self, left, right):
-        if left.type == llvm.IntType(32):
-            left = self.builder.sitofp(left, llvm.DoubleType())
-            right = self.builder.sitofp(right, llvm.DoubleType())
-            return self.builder.fdiv(left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fdiv(left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            float_type = type_map[builtin.types["float"]]
+            left = self.builder.build_si_to_fp(left, float_type, "")
+            right = self.builder.build_si_to_fp(right, float_type, "")
+            return self.builder.build_f_div(left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            return self.builder.build_f_div(left, right, "")
         else:
             raise NotImplementedError
 
     def build_equal(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed("==", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered("==", left, right)
-        elif left.type == llvm.IntType(1):
-            return self.builder.icmp_unsigned("==", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 32 represents integer equality
+            return self.builder.build_i_cmp(32, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 1 represents real ordered equality
+            return self.builder.build_f_cmp(1, left, right, "")
+        elif left.type_of() == type_map[builtin.types["bool"]]:
+            return self.builder.build_i_cmp(32, left, right, "")
         else:
             raise NotImplementedError
 
     def build_not_equal(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed("!=", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered("!=", left, right)
-        elif left.type == llvm.IntType(1):
-            return self.builder.icmp_unsigned("!=", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 33 represents integer inequality
+            return self.builder.build_i_cmp(33, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 6 represents real ordered inequality
+            return self.builder.build_f_cmp(6, left, right, "")
+        elif left.type_of() == type_map[builtin.types["bool"]]:
+            return self.builder.build_i_cmp(33, left, right, "")
         else:
             raise NotImplementedError
 
     def build_less_than(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed("<", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered("<", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 40 represents integer signed less than
+            return self.builder.build_i_cmp(40, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 4 represents real ordered less than
+            return self.builder.build_f_cmp(4, left, right, "")
         else:
             raise NotImplementedError
 
     def build_greater_than(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed(">", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered(">", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 38 represents integer signed greater than
+            return self.builder.build_i_cmp(38, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 2 represents real ordered greater than
+            return self.builder.build_f_cmp(2, left, right, "")
         else:
             raise NotImplementedError
 
     def build_less_than_equal(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed("<=", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered("<=", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 41 represents integer signed less than equal to
+            return self.builder.build_i_cmp(41, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 5 represents real ordered less than equal to
+            return self.builder.build_f_cmp(5, left, right, "")
         else:
             raise NotImplementedError
 
     def build_greater_than_equal(self, left, right):
-        if left.type == llvm.IntType(32):
-            return self.builder.icmp_signed(">=", left, right)
-        elif left.type == llvm.DoubleType():
-            return self.builder.fcmp_ordered(">=", left, right)
+        if left.type_of() == type_map[builtin.types["int"]]:
+            # 39 represents integer signed greater than equal to
+            return self.builder.build_i_cmp(39, left, right, "")
+        elif left.type_of() == type_map[builtin.types["float"]]:
+            # 3 represents real ordered greater than equal to
+            return self.builder.build_f_cmp(3, left, right, "")
         else:
             raise NotImplementedError
 
