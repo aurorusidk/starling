@@ -26,15 +26,10 @@ class Compiler:
         self.i += 1
         return name
 
-    def get_block(self, block):
-        if id(block) not in self.refs:
-            b = self.builder.append_basic_block()
-            self.refs[id(block)] = b
-            return b
-        else:
-            return self.refs[id(block)]
-
     def build(self, node, **kwargs):
+        # We don't want to build anything more than once
+        if (obj := self.refs.get(id(node))):
+            return obj
         match node:
             case ir.Type():
                 return self.build_type(node)
@@ -48,8 +43,6 @@ class Compiler:
                 assert False, f"Unreachable: {node}"
 
     def build_type(self, node):
-        if (t := self.refs.get(id(node))):
-            return t
         match node:
             case ir.FunctionSigRef():
                 param_types = [self.build(p) for p in node.params.values()]
@@ -66,41 +59,37 @@ class Compiler:
                 assert False, f"Unreachable: {node}"
 
     def build_ref(self, node):
-        # using id() to get a unique hashable object for refs
-        if id(node) not in self.refs:
-            # make a new object for the ref
-            match node:
-                case ir.FunctionRef():
-                    ftype = self.build(node.typ)
-                    name = node.name
-                    if isinstance(node, ir.MethodRef):
-                        name = node.parent.name + "." + node.name
-                    func = self.module.add_function(name, ftype)
-                    block = func.append_basic_block("entry")
-                    self.refs[id(node.block)] = block
-                    self.builder.position_builder_at_end(block)
-                    for param, arg in zip(node.params, func.iter_params()):
-                        ptr = self.build(param)
-                        self.builder.build_store(arg, ptr)
-                        self.refs[id(param)] = ptr
-                    self.build(node.block)
-                    obj = func
-                case ir.FieldRef():
-                    if isinstance(node.typ, ir.FunctionSigRef):
-                        obj = self.build(node.method)
-                    else:
-                        idx = list(node.parent.typ.fields.keys()).index(node.name)
-                        parent = self.build(node.parent)
-                        parent_type = self.build(node.parent.typ)
-                        return self.builder.build_struct_ge2(parent_type, parent, idx, "")
-                    self.refs[id(node)] = obj
-                case ir.Ref():
-                    typ = self.build(node.typ)
-                    ptr = self.builder.build_alloca(typ, node.name)
-                    return ptr
-            return obj
-        else:
-            return self.refs[id(node)]
+        match node:
+            case ir.FunctionRef():
+                ftype = self.build(node.typ)
+                name = node.name
+                if isinstance(node, ir.MethodRef):
+                    name = node.parent.name + "." + node.name
+                func = self.module.add_function(name, ftype)
+                block = func.append_basic_block("entry")
+                self.builder.position_builder_at_end(block)
+                for param, arg in zip(node.params, func.iter_params()):
+                    ptr = self.build(param)
+                    self.builder.build_store(arg, ptr)
+                    self.refs[id(param)] = ptr
+                # cannot build the block because no function is set yet
+                for instr in node.block.instrs:
+                    self.build(instr)
+                obj = func
+            case ir.FieldRef():
+                if isinstance(node.typ, ir.FunctionSigRef):
+                    obj = self.build(node.method)
+                else:
+                    idx = list(node.parent.typ.fields.keys()).index(node.name)
+                    parent = self.build(node.parent)
+                    parent_type = self.build(node.parent.typ)
+                    return self.builder.build_struct_ge2(parent_type, parent, idx, "")
+                self.refs[id(node)] = obj
+            case ir.Ref():
+                typ = self.build(node.typ)
+                ptr = self.builder.build_alloca(typ, node.name)
+                return ptr
+        return obj
 
     def build_instr(self, node):
         match node:
@@ -125,17 +114,14 @@ class Compiler:
                 val = self.build(value)
                 self.builder.build_ret(val)
             case ir.Branch(block):
-                self.builder.build_branch(self.get_block(block))
-                self.build(block)
+                self.builder.build_br(self.build(block))
             case ir.CBranch(condition, t_block, f_block):
                 cond = self.build(condition)
-                self.builder.build_cbranch(
+                self.builder.build_cond_br(
                     cond,
-                    self.get_block(t_block),
-                    self.get_block(f_block)
+                    self.build(t_block),
+                    self.build(f_block)
                 )
-                self.build(t_block)
-                self.build(f_block)
             case ir.Binary():
                 return self.build_binary(node)
             case ir.Unary():
@@ -146,10 +132,15 @@ class Compiler:
     def build_object(self, node):
         match node:
             case ir.Block(instrs):
-                block = self.get_block(node)
+                prev_block = self.builder.insert_block
+                parent = self.builder.insert_block.get_parent()
+                block = self.module.context.append_basic_block(parent, "")
                 self.builder.position_builder_at_end(block)
                 for instr in instrs:
                     self.build(instr)
+                self.builder.position_builder_at_end(prev_block)
+                self.refs[id(node)] = block
+                return block
             case ir.Program(block):
                 # cannot build the block because no IRBuilder is set
                 # perhaps there should be a global func/block
