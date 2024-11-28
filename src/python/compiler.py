@@ -1,7 +1,10 @@
-from llvmcpy import llvm
+from llvmcpy import LLVMCPy
 
 from . import ir_nodes as ir
 from . import builtin
+
+
+llvm = LLVMCPy()
 
 
 type_map = {
