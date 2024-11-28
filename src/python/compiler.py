@@ -300,10 +300,20 @@ class Compiler:
                 assert False, f"Unimplemented operator: {node.op}"
 
     def build_not(self, right):
-        raise NotImplementedError
+        if right.type_of() == type_map[builtin.types["bool"]]:
+            return self.builder.build_not(right, "")
+        else:
+            raise NotImplementedError
 
     def build_neg(self, right):
-        raise NotImplementedError
+        if right.type_of() == type_map[builtin.types["int"]]:
+            # 39 represents integer signed greater than equal to
+            return self.builder.build_neg(right, "")
+        elif right.type_of() == type_map[builtin.types["float"]]:
+            # 3 represents real ordered greater than equal to
+            return self.builder.build_f_neg(right, "")
+        else:
+            raise NotImplementedError
 
 
 def execute_module(mod, entry="main"):
