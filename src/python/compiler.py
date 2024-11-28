@@ -205,7 +205,7 @@ class Compiler:
                 match typ.get_kind():
                     case llvm.IntegerTypeKind:
                         return typ.const_int(value, 0)
-                      case llvm.DoubleTypeKind:
+                    case llvm.DoubleTypeKind:
                         return typ.const_real(value)
                     case _:
                         raise NotImplementedError
