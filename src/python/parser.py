@@ -86,6 +86,8 @@ class Parser:
             return self.parse_impl_declr()
         elif self.check(T.VAR):
             return self.parse_variable_declr()
+        elif self.check(T.CONST):
+            return self.parse_const_declr()
         else:
             self.error("Failed to parse declaration")
             self.advance(T.FUNC, T.STRUCT, T.VAR)
@@ -166,6 +168,15 @@ class Parser:
             value = self.parse_expression()
         self.expect(T.SEMICOLON)
         return ast.VariableDeclr(name, typ, value)
+
+    def parse_const_declr(self):
+        self.expect(T.CONST)
+        name = self.parse_identifier()
+        typ = None
+        self.expect(T.EQUALS)
+        value = self.parse_expression()
+        self.expect(T.SEMICOLON)
+        return ast.ConstDeclr(name, typ, value)
 
     def parse_type(self):
         if self.check(T.IDENTIFIER):

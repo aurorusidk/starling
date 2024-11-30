@@ -180,4 +180,11 @@ class ImplDeclr(Declr):
 class VariableDeclr(Declr):
     name: Identifier
     typ: Type | None
+    value: Expr | None
+
+
+@dataclass
+class ConstDeclr(Declr):
+    name: Identifier
+    typ: Type | None
     value: Expr
