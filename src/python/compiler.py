@@ -200,10 +200,10 @@ class Compiler:
                 parent = self.builder.insert_block.get_parent()
                 block = self.module.context.append_basic_block(parent, "")
                 self.builder.position_builder_at_end(block)
+                self.refs[id(node)] = block
                 for instr in instrs:
                     self.build(instr)
                 self.builder.position_builder_at_end(prev_block)
-                self.refs[id(node)] = block
                 return block
             case ir.Program(block):
                 # cannot build the block because no IRBuilder is set
