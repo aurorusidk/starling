@@ -31,6 +31,7 @@ class StructLiteral(Object):
 class Ref(Object):
     is_expr = True
     is_global = False
+    is_const = False
     name: str
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
