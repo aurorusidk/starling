@@ -38,14 +38,14 @@ This will likely be done only in Python as a simple starting point.
     - [x] Type Checker Tests
     - [x] Interpreter Tests
     - [x] Compiler Tests
-- [ ] Base Feature Implementation
+- [x] Base Feature Implementation
     - [x] Variables
     - [x] Functions
     - [x] Structures
     - [x] Interfaces
     - [x] Methods/Impls
-    - [ ] Arrays/Vectors
-    - [ ] Strings
+    - [x] Arrays/Vectors
+    - [x] Strings
 
 ## Core Development
 - [ ] Import System
