@@ -32,8 +32,6 @@ class DeferChecking(Exception):
 
 class TypeChecker:
     def __init__(self, error_handler=None):
-        # used to infer return types
-        self.function = None
         self.error_handler = error_handler
         self.deferred = []
 
@@ -203,6 +201,9 @@ class TypeChecker:
                 assert value, f"{node.name} is not a field or method of {node.parent.name}"
                 assert not (field and method)
                 node.typ = value
+            case ir.ConstRef():
+                self.check(node.value)
+                node.typ = self.update_types(node.typ, node.value.typ)
             case ir.Ref():
                 pass
             case _:

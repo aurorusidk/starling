@@ -17,6 +17,7 @@ class TestLexer(unittest.TestCase):
             "while": [Token(T.WHILE, "while", start_pos)],
             "return": [Token(T.RETURN, "return", start_pos)],
             "var": [Token(T.VAR, "var", start_pos)],
+            "const": [Token(T.CONST, "const", start_pos)],
             "fn": [Token(T.FUNC, "fn", start_pos)],
             "struct": [Token(T.STRUCT, "struct", start_pos)],
             "interface": [Token(T.INTERFACE, "interface", start_pos)],

@@ -12,7 +12,7 @@ TokenType = Enum("TokenType", [
     "LEFT_BRACKET", "RIGHT_BRACKET",
     "LEFT_CURLY", "RIGHT_CURLY", "LEFT_SQUARE", "RIGHT_SQUARE",
     "IF", "ELSE", "WHILE", "RETURN",
-    "VAR", "FUNC", "STRUCT", "INTERFACE", "IMPL",
+    "VAR", "CONST", "FUNC", "STRUCT", "INTERFACE", "IMPL",
 ])
 Token = namedtuple("Token", ["typ", "lexeme", "pos"])
 
@@ -37,6 +37,7 @@ KEYWORDS = {
     "while": T.WHILE,
     "return": T.RETURN,
     "var": T.VAR,
+    "const": T.CONST,
     "fn": T.FUNC,
     "struct": T.STRUCT,
     "interface": T.INTERFACE,

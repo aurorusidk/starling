@@ -30,6 +30,8 @@ class StructLiteral(Object):
 @dataclass
 class Ref(Object):
     is_expr = True
+    is_global = False
+    is_const = False
     name: str
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
@@ -99,6 +101,12 @@ class InterfaceRef(Type):
 @dataclass
 class StructRef(Type):
     fields: dict[str, Type]
+
+
+@dataclass
+class ConstRef(Ref):
+    is_const = True
+    value: Object
 
 
 @dataclass
@@ -260,6 +268,9 @@ class IRPrinter:
             case StructRef():
                 fields = ', '.join(ir.fields)
                 string += f"{ir.name}{{{fields}}}"
+            case ConstRef(name, value):
+                string += f"CONST {name} = {self._to_string(value)}"
+                return string  # avoids duplication of type
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
