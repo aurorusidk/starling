@@ -28,29 +28,29 @@ class TestCompiler(unittest.TestCase):
             "true": 1,
             "false": 0,
             "2": 2,
-            #"3//2": None,
-            #"1.5": 1.5,
-            #"\"a\"": "a",
+            # "3//2": None,
+            # "1.5": 1.5,
+            # "\"a\"": "a",
             "!true": 0,
             "-1": -1,
-            #"-1//2": None,
+            # "-1//2": None,
             "1 + 1": 2,
             "2 - 1": 1,
             "3 * 2": 6,
-            #"3 / 2": 1.5,
+            # "3 / 2": 1.5,
             # TODO: add more binary expr checks here for different data types
             # TODO: range expressions do not work
-            #"[1:4]": None,
+            # "[1:4]": None,
             "[1,2,3,4,5,6,7,8,9,10][5]": 6,
             "test_struct.x": 5,
-            #"test_struct.y": "test",
-            #"test_func(5)": 2.5,
+            # "test_struct.y": "test",
+            # "test_func(5)": 2.5,
             "test_struct.foo(1)": 6,
         }
 
         for test, expected in tests.items():
             test = (self.global_declrs + "fn test() {" +
-                self.local_declrs + "return " + test + ";}")
+                    self.local_declrs + "return " + test + ";}")
             with self.subTest(test=test):
                 res = cmd.compile_and_run_src(test, entry_name="test")
                 self.assertEqual(res, expected)
