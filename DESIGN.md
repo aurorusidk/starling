@@ -86,7 +86,7 @@ Examples of invalid identifiers include `my-function`, `3rdNumber`, and `/secret
 Reserved keyword names also may not be used as identifiers.
 
 ## Data types
-Starling currently supports five basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. Two are non-numeric: booleans `bool`, and strings `str`.
+Starling currently supports six basic data types. Three of these are numeric: integers `int`, floating point numbers `float`, and fractions `frac`. Three are non-numeric: booleans `bool`, characters `char`, and strings `str`.
 
 Starling will not aggressively coerce between data types, and operators can (in general) not be used on different types. For example, this means that a number would need to be explicitly converted into a string in order to perform string operations on it.
 
@@ -106,9 +106,9 @@ TBD - All numeric types will be able to be coerced between each other implicitly
 
 Boolean literals are one of two values, either `true` or `false`.
 
-String literals are surrounded by double quotes `" "`.
+Character literals are surrounded by single quotes `' '`.
 
-TBD - Single quotes `' '` may be used for a `char` data type, but this is not implemented.
+String literals are surrounded by double quotes `" "`. These get expanded into arrays of characters.
 
 ## Operators
 
@@ -130,11 +130,11 @@ Operators may also be "grouped" using brackets `( )`. This allows the order of o
 
 In addition to these, there are some special operations that may be performed on certain types.
 * Call `foo(params)` - for callables, such as functions; also used for creating new objects of structs
-* Index `foo[index]` - for iterables, such as arrays and vectors; the given index must be an `int`
+* Index `foo[index]` - for iterables, such as arrays and vectors; the given index must be a positive `int`
 * Selector `foo.bar` `foo.baz(params)` - for accessing attributes or methods of types such as structs
 
 ## Code blocks
-Blocks will use curly brackets `{ }`.
+Blocks use curly brackets `{ }`.
 
 In general, blocks do not have distinct scope. This includes `if` and `while` blocks.
 
@@ -215,6 +215,25 @@ while true {}
 
 TBD - Starling will not feature traditional `for` loops. More discussions need to be had to decide upon the syntax that will be used instead.
 
+## Arrays and vectors
+
+Arrays and vectors are defined using square brackets `[]`.
+
+By default, literals of the form `[a, b, c]` are arrays. The `arr` and `vec` keywords can be used in conjunction to deliberately create a literal of the given type.
+
+`arr[a, b, c]` is an array literal, and equivalent to `[a, b, c]`.
+`vec[a, b, c]` is a vector literal.
+
+`arr` and `vec` can also be used as types when declaring a variable, to specify the desired type. In this situation, it's not necessary to specify that a literal is a vector.
+
+```
+var a arr[int] = [1, 1, 2, 3, 5];
+var b vec[int] = [];
+var c arr[int, 3];
+```
+
+If an initial value is not given for an array, a length must be specified.
+
 ## Ranges
 Ranges use the syntax `[x:y]`. The lower bound is inclusive and the upper bound is exclusive, as in many other languages.
 
@@ -294,7 +313,6 @@ All methods of an `interface` must be implemented within a single `impl` block f
 Interfaces can be implemented on types declared in other files, but the `impl` block must still have the same scope as the type definition.
 
 ## Optionals
-
 TBD - Not yet implemented.
 
 # Further research required

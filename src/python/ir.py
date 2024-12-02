@@ -85,14 +85,19 @@ class IRNoder:
                 return self.make_literal(tok)
             case ast.Identifier(name):
                 return self.make_identifier(name, load)
-            case ast.RangeExpr():
-                raise NotImplementedError
+            case ast.RangeExpr(start, end):
+                return self.make_call_expr(
+                    ast.Identifier("range_constructor@builtin"),
+                    [start, end]
+                )
+            case ast.SequenceExpr(elements):
+                return self.make_sequence_expr(node, elements)
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
-            case ast.IndexExpr():
-                raise NotImplementedError
+            case ast.IndexExpr(target, index):
+                return self.make_index_expr(target, index, load)
             case ast.SelectorExpr(target, name):
                 return self.make_selector_expr(target, name, load)
             case ast.UnaryExpr(op, rhs):
@@ -108,8 +113,25 @@ class IRNoder:
                 typ = self.make_identifier(name.value, load=False)
                 assert isinstance(typ, ir.Type)
                 return typ
-            case ast.ArrayType():
-                raise NotImplementedError
+            case ast.ArrayType(elem_type, length):
+                if elem_type is not None:
+                    elem_type = self.make_type(elem_type)
+                # TODO: fails if length isn't constant
+                if length is not None:
+                    length = self.make(length).value
+                return ir.SequenceType(
+                    f"arr[{elem_type.hint if elem_type else None}]",
+                    types.ArrayType(elem_type, length),
+                    elem_type
+                )
+            case ast.VectorType(elem_type):
+                if elem_type is not None:
+                    elem_type = self.make_type(elem_type)
+                return ir.SequenceType(
+                    f"vec[{elem_type.hint if elem_type else None}]",
+                    types.VectorType(elem_type),
+                    elem_type
+                )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
             case _:
@@ -167,8 +189,17 @@ class IRNoder:
                 val = ir.Constant(Fraction(tok.lexeme.replace("//", "/")))
                 val.typ = self.scope.lookup("frac")
             case T.STRING:
-                val = ir.Constant(str(tok.lexeme[1:-1]))
+                string = []
+                for char in tok.lexeme[1:-1]:
+                    val = ir.Constant(char)
+                    val.typ = self.scope.lookup("char")
+                    string.append(val)
+                val = ir.Sequence(string)
+                val.is_const = True
                 val.typ = self.scope.lookup("str")
+            case T.CHAR:
+                val = ir.Constant(str(tok.lexeme[1:-1]))
+                val.typ = self.scope.lookup("char")
             case T.BOOLEAN:
                 val = ir.Constant(tok.lexeme == "true")
                 val.typ = self.scope.lookup("bool")
@@ -183,6 +214,15 @@ class IRNoder:
         if load:
             return ir.Load(ref)
         return ref
+
+    def make_sequence_expr(self, node, elements):
+        elements = [self.make(element) for element in elements]
+        if isinstance(node, ast.ArrayExpr):
+            return ir.Array(elements)
+        elif isinstance(node, ast.VectorExpr):
+            return ir.Vector(elements)
+        else:
+            return ir.Sequence(elements)
 
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)
@@ -204,6 +244,17 @@ class IRNoder:
                 fields[fname] = value
             return ir.StructLiteral(fields, typ=target)
         return ir.Call(target, args)
+
+    def make_index_expr(self, target, index, load=True):
+        target = self.make_expr(target, load=False)
+        index = self.make_expr(index)
+        # TODO: no good way to get a name for every possible target or index type
+        target_name = target.name if isinstance(target, ir.Ref) else None
+        index_name = index.ref.name if isinstance(index, ir.Load) else None
+        ref = ir.IndexRef(f"{target_name}[{index_name}]", target, index)
+        if load:
+            return ir.Load(ref)
+        return ref
 
     def make_selector_expr(self, target, name, load=True):
         target = self.make_expr(target, load=False)

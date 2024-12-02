@@ -11,6 +11,7 @@ type_map = {
     builtin.types["int"]: llvm.int32_type(),
     builtin.types["float"]: llvm.double_type(),
     builtin.types["bool"]: llvm.int1_type(),
+    builtin.types["char"]: llvm.int8_type(),
 }
 
 
@@ -20,6 +21,32 @@ class Compiler:
         self.module = llvm.module_create_with_name("main")
         self.builder = llvm.create_builder()
         self.i = 0
+
+        self.init_builtins()
+
+    def init_builtins(self):
+        # string type
+        # assume c-style \00 terminated for now
+        string_type = self.module.context.struct_create_named("@String")
+        # TODO: include dynamic memory allocation
+        string_field_types = [
+            self.module.context.pointer_type(0)
+        ]
+        string_type.struct_set_body(string_field_types, 0)
+        type_map[builtin.types["str"]] = string_type
+
+        # array type
+        # largely mirrors the string type for now
+        # TODO: this is bad, find a better way
+        array_type = self.module.context.struct_create_named("@Array")
+        array_type.struct_set_body(string_field_types, 0)
+        type_map["arr"] = array_type
+
+        # vector type
+        # TODO: see above
+        vector_type = self.module.context.struct_create_named("@Vector")
+        vector_type.struct_set_body(string_field_types, 0)
+        type_map["vec"] = vector_type
 
     def name(self):
         name = "test" + str(self.i)
@@ -53,6 +80,15 @@ class Compiler:
                 typ = self.module.context.struct_create_named(node.name)
                 typ.struct_set_body(field_types, 0)
                 return typ
+            case ir.VectorType():
+                return type_map["vec"]
+            case ir.SequenceType():
+                if node.checked == builtin.types["str"]:
+                    return type_map[node.checked]
+                # If a non-vector non-string sequence type, treat as an array
+                # TODO: should SequenceType (non-string) be a valid input here?
+                #       should it already have become ArrayType at typechecking?
+                return type_map["arr"]
             case ir.Type():
                 return type_map[node.checked]
             case _:
@@ -85,6 +121,24 @@ class Compiler:
                     parent_type = self.build(node.parent.typ)
                     return self.builder.build_struct_ge2(parent_type, parent, idx, "")
                 self.refs[id(node)] = obj
+            case ir.IndexRef():
+                parent = self.build(node.parent)
+                if isinstance(node.parent, ir.Ref):
+                    # this expects a struct with the sequence ptr inside
+                    # which is the case if the parent is a Ref
+                    parent_type = self.build(node.parent.typ)
+                    inner_ptr = self.builder.build_struct_ge2(
+                        parent_type, parent, 0, ""
+                    )
+                    ptr = self.builder.build_load2(inner_ptr.type_of(), inner_ptr, "")
+                else:
+                    # this is the case if the parent is a Sequence literal
+                    ptr = parent
+                elem_type = self.build(node.parent.typ.elem_type)
+                idx = self.build(node.index)
+                return self.builder.build_in_bounds_ge2(
+                    elem_type, ptr, [idx], ""
+                )
             case ir.Ref():
                 typ = self.build(node.typ)
                 if node.is_global:
@@ -146,10 +200,10 @@ class Compiler:
                 parent = self.builder.insert_block.get_parent()
                 block = self.module.context.append_basic_block(parent, "")
                 self.builder.position_builder_at_end(block)
+                self.refs[id(node)] = block
                 for instr in instrs:
                     self.build(instr)
                 self.builder.position_builder_at_end(prev_block)
-                self.refs[id(node)] = block
                 return block
             case ir.Program(block):
                 # cannot build the block because no IRBuilder is set
@@ -165,6 +219,30 @@ class Compiler:
                         return typ.const_real(value)
                     case _:
                         raise NotImplementedError
+            case ir.Sequence(value):
+                if node.typ == builtin.scope.lookup("str"):
+                    typ = self.build(node.typ)
+                    literal = "".join(c.value for c in value)
+                    const_cstr = llvm.const_string(literal, len(value), 0)
+                    cstr_ptr = self.module.add_global(const_cstr.type_of(), "")
+                    cstr_ptr.set_initializer(const_cstr)
+                    const_str = typ.const_named_struct([cstr_ptr])
+                    str_ptr = self.module.add_global(typ, "")
+                    str_ptr.set_initializer(const_str)
+                    return const_str
+                elif isinstance(node.typ, ir.SequenceType):
+                    typ = self.build(node.typ)
+                    elem_type = self.build(node.typ.elem_type)
+                    # Convert the length of the sequence into an LLVM int
+                    length = type_map[builtin.types["int"]].const_int(len(value), 0)
+                    ptr = self.builder.build_array_alloca(typ, length, "sequencelit")
+                    for idx in range(len(value)):
+                        element_idx = type_map[builtin.types["int"]].const_int(idx, 0)
+                        element_ptr = self.builder.build_ge2(elem_type, ptr, [element_idx], "idx")
+                        self.builder.build_store(self.build(value[idx]), element_ptr)
+                    return ptr
+                else:
+                    assert False, f"Unreachable: {node}"
             case ir.StructLiteral(fields):
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]

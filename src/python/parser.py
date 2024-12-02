@@ -183,16 +183,31 @@ class Parser:
     def parse_type(self):
         if self.check(T.IDENTIFIER):
             return ast.TypeName(self.parse_identifier())
-        elif self.check(T.LEFT_SQUARE):
+        elif self.consume(T.ARR):
             return self.parse_array_type()
+        elif self.consume(T.VEC):
+            return self.parse_vector_type()
         self.error("Failed to parse type")
 
     def parse_array_type(self):
-        self.expect(T.LEFT_SQUARE)
-        length = self.parse_expression()
-        self.expect(T.RIGHT_SQUARE)
-        typ = self.parse_type()
-        return ast.ArrayType(length, typ)
+        length = None
+        typ = None
+        if self.consume(T.LEFT_SQUARE):
+            if self.check(T.IDENTIFIER, T.ARR, T.VEC):
+                typ = self.parse_type()
+                if self.consume(T.COMMA):
+                    length = self.parse_expression()
+            else:
+                length = self.parse_expression()
+            self.expect(T.RIGHT_SQUARE)
+        return ast.ArrayType(typ, length)
+
+    def parse_vector_type(self):
+        typ = None
+        if self.consume(T.LEFT_SQUARE):
+            typ = self.parse_type()
+            self.expect(T.RIGHT_SQUARE)
+        return ast.VectorType(typ)
 
     def parse_block(self):
         statements = []
@@ -328,21 +343,59 @@ class Parser:
             expr = self.parse_expression()
             self.expect(T.RIGHT_BRACKET)
             return ast.GroupExpr(expr)
+
+        elif self.consume(T.VEC):
+            self.expect(T.LEFT_SQUARE)
+            elements = self.get_sequence_elements()
+            return ast.VectorExpr(elements)
+
+        elif self.consume(T.ARR):
+            self.expect(T.LEFT_SQUARE)
+            elements = self.get_sequence_elements()
+            return ast.ArrayExpr(elements)
+
         elif self.consume(T.LEFT_SQUARE):
+            # If the brackets are empty, return early
+            if self.consume(T.RIGHT_SQUARE):
+                return ast.SequenceExpr([])
+
             start = self.parse_expression()
-            self.expect(T.COLON)
-            end = self.parse_expression()
-            self.expect(T.RIGHT_SQUARE)
-            return ast.RangeExpr(start, end)
+
+            # Handle range expr [x:y]
+            if self.consume(T.COLON):
+                end = self.parse_expression()
+                self.expect(T.RIGHT_SQUARE)
+                return ast.RangeExpr(start, end)
+
+            # Handle array literal [x,y,z]
+            elements = self.get_sequence_elements(start)
+            return ast.SequenceExpr(elements)
+
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
         else:
             value = self.consume(
-                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING,
+                T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING, T.CHAR,
             )
             if not value:
                 self.error("Failed to parse primary")
             return ast.Literal(value)
+
+    def get_sequence_elements(self, first_expr=None):
+        # If the brackets are empty, return an empty list
+        if self.consume(T.RIGHT_SQUARE):
+            return []
+        # Otherwise, use the first_expr if it was given
+        elif first_expr:
+            exprs = [first_expr]
+        else:
+            exprs = [self.parse_expression()]
+
+        while not self.consume(T.RIGHT_SQUARE):
+            self.expect(T.COMMA)
+            exprs.append(self.parse_expression())
+
+        return exprs
 
     def parse_identifier(self):
         tok = self.expect(T.IDENTIFIER)

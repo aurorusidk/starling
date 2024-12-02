@@ -22,6 +22,8 @@ class TestLexer(unittest.TestCase):
             "struct": [Token(T.STRUCT, "struct", start_pos)],
             "interface": [Token(T.INTERFACE, "interface", start_pos)],
             "impl": [Token(T.IMPL, "impl", start_pos)],
+            "arr": [Token(T.ARR, "arr", start_pos)],
+            "vec": [Token(T.VEC, "vec", start_pos)],
         }
 
         for test, expected in tests.items():

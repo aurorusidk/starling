@@ -11,6 +11,7 @@ def id_hash(obj):
 @dataclass
 class Object:
     is_expr = False
+    is_const = False
     typ: "Type" = field(default=None, kw_only=True)
     progress: types.progress = field(default=types.progress.EMPTY, kw_only=True)
 
@@ -19,6 +20,22 @@ class Object:
 class Constant(Object):
     is_expr = True
     value: object
+
+
+@dataclass
+class Sequence(Object):
+    is_expr = True
+    elements: list[Object]
+
+
+@dataclass
+class Array(Sequence):
+    pass
+
+
+@dataclass
+class Vector(Sequence):
+    pass
 
 
 @dataclass
@@ -65,12 +82,33 @@ class Block(Object):
 
 
 @dataclass
+class IndexRef(Ref):
+    parent: Ref
+    index: Constant | Ref
+
+
+@dataclass
 class FieldRef(Ref):
     parent: Ref
     # mimic functions for methods
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
     method: Ref = field(default=None, kw_only=True)
+
+
+@dataclass
+class SequenceType(Type):
+    elem_type: Type
+
+
+@dataclass
+class ArrayType(SequenceType):
+    length: int
+
+
+@dataclass
+class VectorType(SequenceType):
+    pass
 
 
 @dataclass
@@ -86,6 +124,7 @@ class FunctionRef(Ref):
     # we do not use `self.values`. maybe for function objects?
     return_values: list[Object] = field(default_factory=list, init=False)
     param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
+    builtin: bool = field(default=False, kw_only=True)
 
 
 @dataclass
@@ -193,6 +232,7 @@ def counter():
         i += 1
         cache[obj] = str(i)
         return cache[obj]
+
     return inner
 
 
@@ -257,6 +297,19 @@ class IRPrinter:
                 )
             case Constant(value):
                 string += str(value)
+            case Sequence(elements):
+                if isinstance(ir, Array):
+                    string += "arr"
+                elif isinstance(ir, Vector):
+                    string += "vec"
+                string += "["
+                string += ",".join(self._to_string(i, show_types=False) for i in elements)
+                string += "]"
+            case IndexRef():
+                string = (
+                    f"{self._to_string(ir.parent, show_types=False)}"
+                    f"[{self._to_string(ir.index, show_types=False)}]"
+                )
             case FieldRef():
                 string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
             case FunctionSigRef():

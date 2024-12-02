@@ -43,7 +43,7 @@ if args.get("interpret"):
     res = cmd.exec_src(src, **args)
     print(f"program exited with value {res}")
 elif args.get("compile"):
-    res = cmd.compile_src(src, **args)
+    res = cmd.compile_and_run_src(src, **args)
     print(f"program exited with value {res}")
 else:
     print(cmd.translate(src, **args))

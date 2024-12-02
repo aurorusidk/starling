@@ -58,7 +58,12 @@ def compile_src(src, **flags):
     compiler = Compiler()
     compiler.build(iir)
     logging.debug(compiler.module)
-    res = execute_module(compiler.module, entry=flags.get("entry_name", "main"))
+    return compiler.module
+
+
+def compile_and_run_src(src, **flags):
+    mod = compile_src(src, **flags)
+    res = execute_module(mod, entry=flags.get("entry_name", "main"))
     return res
 
 

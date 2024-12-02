@@ -15,8 +15,9 @@ variable_declr = VAR IDENTIFIER type? EQUALS expression SEMICOLON
 field_declr = IDENTIFIER type?
 field_list = field_declr SEMICOLON (field_declr SEMICOLON)* 
 
-type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type
-array_type = LEFT_SQUARE expression RIGHT_SQUARE type
+type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type | vector_type
+array_type = ARR (LEFT_SQUARE ((type COMMA expression) | type | expression) RIGHT_SQUARE)?
+vector_type = VEC (LEFT_SQUARE type RIGHT_SQUARE)?
 
 block = LEFT_CURLY statement* RIGHT_CURLY
 statement = declaration
@@ -37,9 +38,12 @@ primary_expr = primary
 	     | primary_expr selector
 	     | primary_expr index
 	     | primary_expr call_arguments
-primary =  INTEGER | FLOAT | RATIONAL | STRING | BOOL | IDENTIFIER | group_expr | range_expr
+primary =  INTEGER | FLOAT | RATIONAL | STRING | BOOL | IDENTIFIER | group_expr | range_expr | sequence_expr | array_expr | vector_expr
 group_expr = LEFT_BRACKET expression RIGHT_BRACKET
 range_expr = LEFT_SQUARE expression COLON expression RIGHT_SQUARE
+sequence_expr = LEFT_SQUARE (expression (COMMA expression)*)? RIGHT_SQUARE
+array_expr = ARR sequence_expr
+vector_expr = VEC sequence_expr
 selector = DOT IDENTIFIER
 index = LEFT_SQUARE expression RIGHT_SQUARE
 call_arguments = LEFT_BRACKET (expression (COMMA expression)*)* RIGHT_BRACKET
@@ -94,3 +98,5 @@ FUNC = "fn"
 STRUCT = "struct"
 INTERFACE = "interface"
 IMPL = "impl"
+ARR = "arr"
+VEC = "vec"

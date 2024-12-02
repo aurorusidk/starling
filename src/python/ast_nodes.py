@@ -53,6 +53,21 @@ class RangeExpr(Expr):
 
 
 @dataclass
+class SequenceExpr(Expr):
+    elements: list[Expr]
+
+
+@dataclass
+class ArrayExpr(SequenceExpr):
+    pass
+
+
+@dataclass
+class VectorExpr(SequenceExpr):
+    pass
+
+
+@dataclass
 class GroupExpr(Expr):
     value: Expr
 
@@ -95,7 +110,12 @@ class TypeName(Type):
 
 @dataclass
 class ArrayType(Type):
+    elem_type: Type
     length: Expr
+
+
+@dataclass
+class VectorType(Type):
     elem_type: Type
 
 

@@ -6,6 +6,7 @@ from .parser import Parser, parse
 from .type_checker import TypeChecker
 from . import ir_nodes as ir
 from . import type_defs as types
+from . import builtin
 
 
 @dataclass
@@ -16,9 +17,12 @@ class StaObject:
 
 @dataclass
 class StaArray(StaObject):
-    typ: types.ArrayType
     value: list[StaObject]
-    length: int
+
+
+@dataclass
+class StaVector(StaObject):
+    value: list[StaObject]
 
 
 @dataclass
@@ -113,7 +117,10 @@ class Interpreter:
             # make a new object for the ref
             match node:
                 case ir.FunctionRef():
-                    obj = StaFunction(node.typ, node.params, node.block)
+                    if node.builtin:
+                        obj = StaBuiltinFunction(node.typ, node.params, node.block)
+                    else:
+                        obj = StaFunction(node.typ, node.params, node.block)
                     if obj.sig.name == self.entry_name:
                         self.entry = obj
                 case ir.FieldRef():
@@ -123,6 +130,18 @@ class Interpreter:
                         struct = self.eval_node(node.parent).value
                         obj = struct.value[node.name]
                     self.refs[id(node)] = obj
+                case ir.IndexRef():
+                    sequence = self.eval_node(node.parent)
+                    if isinstance(sequence, StaVariable):
+                        logging.debug(sequence.value)
+                        sequence = sequence.value
+                    # TODO: no good way to get string repr of raw sequence (i.e. [x:y][z])
+                    seq_name = node.parent.name if isinstance(node.parent, ir.Ref) else None
+                    index = self.eval_node(node.index).value
+                    assert index >= 0 and index < len(sequence.value), \
+                        f"Index {index} out of bounds for {seq_name}"
+                    obj = sequence.value[index]
+                    logging.debug(obj)
                 case ir.ConstRef():
                     value = self.eval_node(node.value)
                     obj = StaVariable(node.name, value)
@@ -153,7 +172,10 @@ class Interpreter:
                     self.refs[id(param_ref)] = param
                     param.value = self.eval_node(arg)
                 try:
-                    self.eval_node(func.block)
+                    if isinstance(func, StaBuiltinFunction):
+                        self.call_builtin(func)
+                    else:
+                        self.eval_node(func.block)
                 except StaFunctionReturn as res:
                     return res.value
             case ir.Return(value):
@@ -183,6 +205,12 @@ class Interpreter:
                 self.eval_node(block)
             case ir.Constant(value):
                 return StaObject(self.eval_node(node.typ), value)
+            case ir.Sequence(elements):
+                elems = [StaVariable("", self.eval_node(element)) for element in elements]
+                if isinstance(node.typ.checked, types.VectorType):
+                    return StaVector(node.typ.checked, elems)
+                else:
+                    return StaArray(node.typ.checked, elems)
             case ir.StructLiteral(fields):
                 vars = {}
                 for name, value in fields.items():
@@ -192,6 +220,7 @@ class Interpreter:
                 assert False
 
     def eval_binary(self, node):
+        logging.debug(self.eval_node(node.lhs))
         lhs = self.eval_node(node.lhs).value
         rhs = self.eval_node(node.rhs).value
         match node.op:
@@ -229,6 +258,19 @@ class Interpreter:
             case _:
                 assert False
         return StaObject(self.eval_node(node.typ), value)
+
+    def call_builtin(self, func):
+        match func.sig.name:
+            case "range_constructor@builtin":
+                start = self.refs[id(func.params[0])].value.value
+                end = self.refs[id(func.params[1])].value.value
+                assert start < end, f"Range end {end} must be greater than start {start}"
+                elements = [StaObject(builtin.scope.lookup("int"), i) for i in range(start, end)]
+                raise StaFunctionReturn(
+                    StaArray(types.ArrayType(builtin.scope.lookup("int"), end-start), elements)
+                )
+            case _:
+                assert False, f"Unknown builtin function {func.sig.name}"
 
 
 def repl(interpreter=None):

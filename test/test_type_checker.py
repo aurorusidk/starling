@@ -164,7 +164,7 @@ class TestTypeChecker(unittest.TestCase):
             ),
             "a = \"a\" + \"b\"": (
                 " DECLARE a [str]\n"
-                " ASSIGN a [str] <- (a [str] + b [str]) [str]"
+                " ASSIGN a [str] <- ([a] [str] + [b] [str]) [str]"
             ),
             "a = 3 / 2": (
                 " DECLARE a [float]\n"
