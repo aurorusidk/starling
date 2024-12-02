@@ -88,6 +88,9 @@ class Compiler:
             case ir.Ref():
                 typ = self.build(node.typ)
                 ptr = self.builder.build_alloca(typ, node.name)
+                if isinstance(node, ir.ConstRef):
+                    value = self.build(node.value)
+                    self.builder.build_store(value, ptr)
                 return ptr
         return obj
 

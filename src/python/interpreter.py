@@ -123,6 +123,9 @@ class Interpreter:
                         struct = self.eval_node(node.parent).value
                         obj = struct.value[node.name]
                     self.refs[id(node)] = obj
+                case ir.ConstRef():
+                    value = self.eval_node(node.value)
+                    obj = StaVariable(node.name, value)
                 case ir.Ref():
                     obj = StaVariable(node.name)
             return obj

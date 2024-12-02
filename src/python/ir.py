@@ -292,6 +292,7 @@ class IRNoder:
 
     def make_assignment_stmt(self, target, value):
         target = self.make_expr(target, load=False)
+        assert not target.is_const, "Cannot assign to const"
         value = self.make_expr(value)
         target.values.append(value)
         self.instrs.append(ir.Assign(target, value))
