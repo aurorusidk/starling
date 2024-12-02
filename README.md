@@ -5,7 +5,7 @@ Starling is a high-level programming language designed for data processing.
 # Requirements
 ## Python (Prototyping) Implementation:
 * Python 3
-* llvmlite
+* llvmcpy (Python bindings for LLVM-C)
 
 ## Zig Implementation:
 * Zig
