@@ -270,7 +270,7 @@ class IRPrinter:
                 string += f"{ir.name}{{{fields}}}"
             case ConstRef(name, value):
                 string += f"CONST {name} = {self._to_string(value)}"
-                return string # avoids duplication of type
+                return string  # avoids duplication of type
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
