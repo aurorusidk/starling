@@ -202,7 +202,7 @@ class Parser:
         return ast.Block(statements)
 
     def parse_statement(self):
-        if self.check(T.FUNC, T.VAR):
+        if self.check(T.FUNC, T.VAR, T.CONST):
             return ast.DeclrStmt(self.parse_declaration())
         elif self.check(T.IF):
             return self.parse_if()
