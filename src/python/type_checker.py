@@ -32,8 +32,6 @@ class DeferChecking(Exception):
 
 class TypeChecker:
     def __init__(self, error_handler=None):
-        # used to infer return types
-        self.function = None
         self.error_handler = error_handler
         self.deferred = []
 
@@ -237,6 +235,9 @@ class TypeChecker:
                 assert types.is_basic(node.index.typ.checked, types.BasicTypeFlag.INTEGER), \
                     f"Index {node.index} is not an integer"
                 node.typ = node.parent.typ.elem_type
+            case ir.ConstRef():
+                self.check(node.value)
+                node.typ = self.update_types(node.typ, node.value.typ)
             case ir.Ref():
                 pass
             case _:

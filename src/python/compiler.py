@@ -141,7 +141,17 @@ class Compiler:
                 )
             case ir.Ref():
                 typ = self.build(node.typ)
-                ptr = self.builder.build_alloca(typ, node.name)
+                if node.is_global:
+                    ptr = self.module.add_global(typ, node.name)
+                else:
+                    ptr = self.builder.build_alloca(typ, node.name)
+                if isinstance(node, ir.ConstRef):
+                    value = self.build(node.value)
+                    if node.is_global:
+                        # TODO: `value` needs to be comptime
+                        ptr.set_initializer(value)
+                    else:
+                        self.builder.build_store(value, ptr)
                 return ptr
         return obj
 

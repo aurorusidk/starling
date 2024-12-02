@@ -142,6 +142,9 @@ class Interpreter:
                         f"Index {index} out of bounds for {seq_name}"
                     obj = sequence.value[index]
                     logging.debug(obj)
+                case ir.ConstRef():
+                    value = self.eval_node(node.value)
+                    obj = StaVariable(node.name, value)
                 case ir.Ref():
                     obj = StaVariable(node.name)
             return obj
