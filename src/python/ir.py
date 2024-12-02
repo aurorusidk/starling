@@ -148,6 +148,8 @@ class IRNoder:
                 self.make_impl_declr(target, interface, methods)
             case ast.VariableDeclr(name, typ, value):
                 self.make_variable_declr(name, typ, value)
+            case ast.ConstDeclr(name, typ, value):
+                self.make_const_declr(name, typ, value)
             case _:
                 assert False, f"Unexpected declr {node}"
 
@@ -410,6 +412,16 @@ class IRNoder:
             value = self.make_expr(value)
             ref.values.append(value)
             self.instrs.append(ir.Assign(ref, value))
+
+    def make_const_declr(self, name, typ, value):
+        name = name.value
+        type_hint = None
+        if typ is not None:
+            type_hint = self.make_type(typ)
+        value = self.make_expr(value)
+        ref = ir.ConstRef(name, value, typ=type_hint)
+        self.scope.declare(name, ref)
+        self.instrs.append(ir.Declare(ref))
 
 
 if __name__ == "__main__":

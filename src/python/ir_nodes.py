@@ -102,6 +102,12 @@ class StructRef(Type):
 
 
 @dataclass
+class ConstRef(Ref):
+    is_const = True
+    value: Object
+
+
+@dataclass
 class Declare(Instruction):
     ref: Ref
 
@@ -260,6 +266,8 @@ class IRPrinter:
             case StructRef():
                 fields = ', '.join(ir.fields)
                 string += f"{ir.name}{{{fields}}}"
+            case ConstRef(name, value):
+                string += f"CONST {name} = {self._to_string(value)}"
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
