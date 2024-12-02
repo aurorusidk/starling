@@ -203,6 +203,9 @@ class TypeChecker:
                 assert value, f"{node.name} is not a field or method of {node.parent.name}"
                 assert not (field and method)
                 node.typ = value
+            case ir.ConstRef():
+                self.check(node.value)
+                node.typ = self.update_types(node.typ, node.value.typ)
             case ir.Ref():
                 pass
             case _:
