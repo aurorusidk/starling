@@ -173,6 +173,8 @@ class Parser:
         self.expect(T.CONST)
         name = self.parse_identifier()
         typ = None
+        if not self.check(T.EQUALS):
+            typ = self.parse_type()
         self.expect(T.EQUALS)
         value = self.parse_expression()
         self.expect(T.SEMICOLON)
