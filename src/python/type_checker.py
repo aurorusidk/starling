@@ -32,8 +32,6 @@ class DeferChecking(Exception):
 
 class TypeChecker:
     def __init__(self, error_handler=None):
-        # used to infer return types
-        self.function = None
         self.error_handler = error_handler
         self.deferred = []
 

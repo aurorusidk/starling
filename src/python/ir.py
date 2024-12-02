@@ -18,6 +18,7 @@ class IRNoder:
         self.current_func = None
         self.blocks = {}
         self.error_handler = error_handler
+        self.global_block = None
 
     def error(self, msg):
         # add position info
@@ -71,6 +72,7 @@ class IRNoder:
                 self.make_declr(node)
             case ast.Program(declrs):
                 block = self.block
+                self.global_block = block
                 for declr in declrs:
                     self.make_declr(declr)
                 return ir.Program(block)
@@ -423,6 +425,10 @@ class IRNoder:
         ref = ir.ConstRef(name, value, typ=type_hint)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
+        if self.block == self.global_block:
+            ref.is_global = True
+            # TODO: this check should be on all declarations
+            #       maybe a `self.declare()` helper is needed
 
 
 if __name__ == "__main__":
