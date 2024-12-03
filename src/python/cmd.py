@@ -4,6 +4,7 @@ from .lexer import tokenise
 from .parser import Parser
 from .ir import IRNoder
 from .ir_nodes import IRPrinter, counter
+from . import tir_nodes as tir
 from .type_checker import TypeChecker
 from .interpreter import Interpreter, StaFunctionReturn
 from .compiler import Compiler, execute_module
@@ -32,13 +33,14 @@ def translate(src, **flags):
         iir_string = printer.to_string(iir)
         return iir_string
 
+    printer = tir.IRPrinter(test=flags.get("test"))
     tc = TypeChecker(error_handler)
-    tc.check(iir)
+    tiir = tc.check(iir)
     if flags.get("typecheck"):
-        iir_string = printer.to_string(iir)
-        return iir_string
+        tir_string = printer.to_string(tiir)
+        return tir_string
 
-    return iir
+    return tiir
 
 
 def exec_src(src, **flags):

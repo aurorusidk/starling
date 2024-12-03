@@ -1,6 +1,7 @@
 import logging
 
 from . import ir_nodes as ir
+from . import tir_nodes as tir
 from . import builtin
 from . import type_defs as types
 
@@ -59,7 +60,7 @@ class TypeChecker:
             case ir.Type():
                 return typ.checked
             case _:
-                assert False
+                assert False, typ
 
     def update_types(self, target, new):
         if target is None:
@@ -67,62 +68,64 @@ class TypeChecker:
         if new is None:
             return target
         match target:
-            case ir.FunctionSigRef():
+            case tir.FunctionSigRef():
                 typ = self.update_types(target.return_type, new.return_type)
                 new.return_type = target.return_type = typ
                 assert target.params.keys() == new.params.keys(), "Mismatching params"
                 for pname in target.params:
                     typ = self.update_types(target.params[pname], new.params[pname])
                     new.params[pname] = target.params[pname] = typ
-            case ir.StructRef():
+            case tir.StructRef():
                 assert target.fields.keys() == new.fields.keys(), "Mismatching fields"
                 for fname in target.fields:
                     typ = self.update_types(target.fields[fname], new.fields[fname])
                     new.fields[fname] = target.fields[fname] = typ
-            case ir.ArrayType() | ir.VectorType():
-                if isinstance(new, (ir.ArrayType, ir.VectorType)):
+            case tir.ArrayType() | tir.VectorType():
+                if isinstance(new, (tir.ArrayType, tir.VectorType)):
                     assert isinstance(target, type(new)), \
                         f"Cannot assign object of type {new.checked} " \
                         f"to ref of type {target.checked}"
                 new.elem_type = self.update_types(target.elem_type, new.elem_type)
-                if type(new) is not ir.SequenceType:
+                if type(new) is not tir.SequenceType:
                     target = new
                 else:
                     target.elem_type = new.elem_type
-            case ir.SequenceType():
+            case tir.SequenceType():
                 # Update target to the correct IR type, then recurse
                 if isinstance(target.checked, types.ArrayType):
                     target = ir.ArrayType(target.name, target.checked, target.elem_type, None)
                     self.check_type(target)
                     return self.update_types(target, new)
                 elif isinstance(target.checked, types.VectorType):
-                    target = ir.VectorType(target.name, target.checked, target.elem_type)
+                    target = tir.VectorType(target.name, target.checked, target.elem_type)
                     self.check_type(target)
                     return self.update_types(target, new)
                 # Or if target is already the correct type, perform standard logic
                 new.elem_type = self.update_types(target.elem_type, new.elem_type)
-                if type(new) is not ir.SequenceType:
+                if type(new) is not tir.SequenceType:
                     target = new
                 else:
                     target.elem_type = new.elem_type
-            case ir.Type():
+            case tir.Type():
                 assert target == new, f"Mismatching types {target} and {new}"
             case _:
                 assert False, f"Unexpected type {target}"
-        target.checked = self.get_core_type(target)
         return target
 
     def check(self, node):
         if node.is_const:
             # ir constants should have a defined type
             node.progress = progress.COMPLETED
-        if node.progress in (progress.UPDATING, progress.COMPLETED):
-            return
-        node.progress = progress.UPDATING
+        #if node.progress in (progress.UPDATING, progress.COMPLETED):
+        #    return
+        if node.progress == progress.EMPTY:
+            node.progress = progress.UPDATING
         try:
             match node:
                 case ir.Program(block):
-                    self.check(block)
+                    checked_block = self.check(block)
+                    # TODO: program types
+                    checked_node = tir.Program(checked_block)
                     already_deferred = []
                     while self.deferred:
                         logging.debug(self.deferred)
@@ -136,15 +139,17 @@ class TypeChecker:
                         except DeferChecking:
                             pass
                     node.progress = progress.COMPLETED
+                    checked_node.progress = progress.COMPLETED
+                    return checked_node
                 case ir.Type():
-                    self.check_type(node)
+                    return self.check_type(node)
                 case ir.Ref():
-                    self.check_ref(node)
+                    return self.check_ref(node)
                 case ir.Instruction():
-                    self.check_instr(node)
+                    return self.check_instr(node)
                 case ir.Object():
                     # misc
-                    self.check_object(node)
+                    return self.check_object(node)
                 case _:
                     assert False, f"Unexpected node {node}"
         except DeferChecking:
@@ -165,54 +170,77 @@ class TypeChecker:
             node.checked = node.hint
         match node:
             case ir.FunctionSigRef():
+                checked_return_type = None
                 if node.return_type is not None:
-                    self.check_type(node.return_type)
-                for param in node.params.values():
-                    if param is not None:
-                        self.check_type(param)
+                    checked_return_type = self.check_type(node.return_type)
+                checked_param_types = {}
+                for pname, ptype in node.params.items():
+                    checked_param_types[pname] = ptype
+                    if ptype is not None:
+                        checked_param_types[pname] = self.check_type(ptype)
+                checked_node = tir.FunctionSigRef(node.name, checked_param_types, checked_return_type)
             case ir.StructRef():
-                for field in node.fields.values():
-                    if field is not None:
-                        self.check_type(field)
+                checked_fields = {}
+                for fname, ftype in node.fields.items():
+                    checked_fields[fname] = ftype
+                    if ftype is not None:
+                        checked_fields[fname] = self.check_type(ftype)
+                checked_node = tir.StructRef(node.name, checked_fields)
             case ir.InterfaceRef():
-                for method in node.methods.values():
-                    if method is not None:
-                        self.check_type(method)
-        node.checked = self.get_core_type(node)
+                checked_methods = {}
+                for mname, mtype in node.methods.items():
+                    checked_methods[mname] = mtype
+                    if mtype is not None:
+                        checked_methods[mname] = self.check_type(mtype)
+                checked_node = tir.InterfaceRef(node.name, checked_methods)
+            case ir.Type():
+                checked_node = tir.Type(node.name)
+            case _:
+                assert False, "Unreachable"
+        checked_node.methods = node.methods
+        checked_node.checked = self.get_core_type(node)
         node.progress = progress.COMPLETED
+        checked_node.progress = progress.COMPLETED
+        return checked_node
 
     def check_ref(self, node):
+        checked_type = None
         if node.typ is not None:
-            self.check_type(node.typ)
+            checked_type = self.check_type(node.typ)
         for value in node.values:
-            self.check(value)
-            node.typ = self.update_types(node.typ, value.typ)
+            checked_value = self.check(value)
+            checked_type = self.update_types(checked_type, checked_value.typ)
             if isinstance(value.typ, ir.SequenceType):
                 value.typ = node.typ
         match node:
             case ir.FunctionRef():
-                typ = node.typ
+                typ = checked_type
                 for value in node.return_values:
-                    self.check(value)
-                    typ.return_type = self.update_types(typ.return_type, value.typ)
+                    checked_value = self.check(value)
+                    typ.return_type = self.update_types(typ.return_type, checked_value.typ)
 
                 for pname, ptype in typ.params.items():
                     values = node.param_values.get(pname, [])
                     for value in values:
-                        self.check(value)
-                        typ.params[pname] = self.update_types(ptype, value.typ)
+                        checked_value = self.check(value)
+                        typ.params[pname] = self.update_types(ptype, checked_value.typ)
+                checked_node = tir.FunctionRef(node.name, typ=checked_type)
+                checked_params = []
                 for param in node.params:
-                    self.check(param)
+                    checked_params.append(self.check(param))
+                checked_node.params = checked_params
                 if not node.builtin:
-                    self.check(node.block)
+                    block = self.check(node.block)
+                    checked_node.block = block
             case ir.FieldRef():
-                self.check(node.parent)
+                parent = self.check(node.parent)
                 field = None
-                if isinstance(node.parent.typ, ir.StructRef):
-                    field = node.parent.typ.fields.get(node.name)
-                method = node.parent.typ.methods.get(node.name)
+                checked_node = tir.FieldRef(node.name, parent)
+                if isinstance(parent.typ, tir.StructRef):
+                    field = parent.typ.fields.get(node.name)
+                method = parent.typ.methods.get(node.name)
                 if method:
-                    node.method = method
+                    checked_node.method = method
                     for name, value in zip(method.typ.params, node.param_values):
                         values = method.param_values.get(name, [])
                         values.append(value)
@@ -221,12 +249,12 @@ class TypeChecker:
                         self.check(value)
                         param.values.append(value)
                         self.check(param)
-                    self.check(method)
-                    method = method.typ
+                    checked_node.method = self.check(method)
+                    method = checked_node.method.typ
                 value = field or method
                 assert value, f"{node.name} is not a field or method of {node.parent.name}"
                 assert not (field and method)
-                node.typ = value
+                checked_node.typ = value
             case ir.IndexRef():
                 self.check(node.parent)
                 assert isinstance(node.parent.typ, ir.SequenceType), \
@@ -236,78 +264,86 @@ class TypeChecker:
                     f"Index {node.index} is not an integer"
                 node.typ = node.parent.typ.elem_type
             case ir.ConstRef():
-                self.check(node.value)
-                node.typ = self.update_types(node.typ, node.value.typ)
+                value = self.check(node.value)
+                checked_node = tir.ConstRef(node.name, value)
+                checked_node.typ = self.update_types(checked_type, value.typ)
             case ir.Ref():
-                pass
+                checked_node = tir.Ref(node.name, typ=checked_type)
             case _:
                 assert False, f"Unexpected ref {node}"
 
-        if node.typ is not None and node.typ.checked is not None:
+        if checked_node.typ is not None and checked_node.typ.checked is not None:
             node.progress = progress.COMPLETED
         else:
             node.progress = progress.EMPTY
             logging.info("raise DeferChecking for incomplete type")
             raise DeferChecking
+        return checked_node
 
     def check_instr(self, node):
         match node:
             case ir.Declare(ref):
-                self.check(ref)
+                checked_node = tir.Declare(self.check(ref))
             case ir.DeclareMethods(typ, block):
                 if isinstance(typ, types.StructType):
                     assert all(m not in typ.fields for m in typ.methods)
                 for method in typ.methods.values():
                     self.check(method)
-                self.check(block)
+                checked_node = tir.DeclareMethod(self.check(typ), self.check(block))
             case ir.Assign(ref, value):
-                self.check(ref)
-                self.check(value)
+                checked_node = tir.Assign(self.check(ref), self.check(value))
             case ir.Load(ref):
-                self.check(ref)
-                node.typ = ref.typ
+                checked_node = tir.Load(self.check(ref))
+                checked_node.typ = checked_node.ref.typ
             case ir.Call(ref, args):
-                self.check(ref)
+                checked_ref = self.check(ref)
                 assert len(args) == len(ref.typ.params)
+                checked_args = []
                 for pname, arg in zip(ref.typ.params, args):
-                    self.check(arg)
+                    checked_args.append(self.check(arg))
                     ref.typ.params[pname] = self.update_types(ref.typ.params[pname], arg.typ)
-                node.typ = ref.typ.return_type
+                checked_node = tir.Call(checked_ref, checked_args)
+                checked_node.typ = ref.typ.return_type
             case ir.Return(value):
-                self.check(value)
+                checked_node = tir.Return(self.check(value))
             case ir.Branch(block):
-                self.check(block)
+                checked_node = tir.Branch(self.check(block))
             case ir.CBranch(condition, t_block, f_block):
-                self.check(condition)
+                checked_condition = self.check(condition)
                 if condition.typ != builtin.scope.lookup("bool"):
                     self.error("Branch condition must be a boolean")
-                self.check(t_block)
-                self.check(f_block)
+                checked_t_block = self.check(t_block)
+                checked_f_block = self.check(f_block)
+                checked_node = tir.CBranch(checked_condition, checked_t_branch, checked_f_branch)
             case ir.Binary():
-                self.check_binary(node)
+                checked_node = self.check_binary(node)
             case ir.Unary():
-                self.check_unary(node)
+                checked_node = self.check_unary(node)
             case _:
                 assert False, f"Unexpected instruction {node}"
         node.progress = progress.COMPLETED
+        checked_node.progress = progress.COMPLETED
+        return checked_node
 
     def check_binary(self, node):
-        self.check(node.lhs)
-        self.check(node.rhs)
+        lhs = self.check(node.lhs)
+        rhs = self.check(node.rhs)
+        checked_node = tir.Binary(node.op, lhs, rhs)
 
-        if node.lhs.typ != node.rhs.typ:
-            self.error(f"Mismatched types for {node.lhs} and {node.rhs}")
+        if lhs.typ != rhs.typ:
+            self.error(f"Mismatched types for {lhs} and {rhs}")
         if is_comparison_op(node.op):
-            node.typ = builtin.scope.lookup("bool")
-            return
+            checked_node.typ = builtin.scope.lookup("bool")
+            return checked_node
 
         pred = binary_op_preds[node.op]
-        if not pred(node.lhs.typ.checked):
-            self.error(f"Unsupported op '{node.op}' on {node.lhs.typ}")
+        if not pred(lhs.typ.checked):
+            self.error(f"Unsupported op '{node.op}' on {lhs.typ}")
         elif node.op == '/':
-            node.typ = builtin.scope.lookup("float")
+            checked_node.typ = builtin.scope.lookup("float")
         else:
-            node.typ = node.lhs.typ
+            checked_node.typ = lhs.typ
+        return checked_node
 
     def check_unary(self, node):
         self.check(node.rhs)
@@ -321,22 +357,27 @@ class TypeChecker:
     def check_object(self, node):
         match node:
             case ir.Block(instrs):
+                checked_instrs = []
                 for instr in instrs:
-                    self.check(instr)
+                    checked_instrs.append(self.check(instr))
+                # TODO: block types
+                checked_node = tir.Block(checked_instrs)
             case ir.Constant():
-                pass
+                checked_node = tir.Constant(node.value, typ=self.check(node.typ))
             case ir.Sequence(elements):
                 length = len(elements)
                 elem_type = None
+                checked_elements = []
                 for i in range(length):
-                    self.check(elements[i])
-                    elem_type = self.update_types(elem_type, elements[i].typ)
+                    checked_elements[i] = self.check(elements[i])
+                    elem_type = self.update_types(elem_type, checked_elements[i].typ)
                 if isinstance(node, ir.Vector):
                     node.typ = ir.VectorType(
                         str(node.typ),
                         types.VectorType(elem_type.checked),
                         elem_type
                     )
+                    checked_node = tir.Vector(checked_elements)
                 elif isinstance(node, ir.Array):
                     node.typ = ir.ArrayType(
                         str(node.typ),
@@ -344,21 +385,27 @@ class TypeChecker:
                         elem_type,
                         length
                     )
+                    checked_node = tir.Array(checked_elements)
                 else:
                     node.typ = ir.SequenceType(
                         str(node.typ),
                         types.SequenceType(elem_type.checked),
                         elem_type
                     )
-                self.check_type(node.typ)
+                    checked_node = tir.Sequence(checked_elements)
+                checked_node.typ = self.check_type(node.typ)
             case ir.StructLiteral():
-                self.check_type(node.typ)
+                checked_type = self.check_type(node.typ)
+                checked_fields = {}
                 for fname, fval in node.fields.items():
-                    self.check(fval)
-                    node.typ.fields[fname] = self.update_types(node.typ.fields[fname], fval.typ)
+                    checked_fields[fname] = self.check(fval)
+                    checked_type.fields[fname] = self.update_types(checked_type.fields[fname], fval.typ)
+                checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
             case _:
                 assert False, f"Unexpected object {node}"
         node.progress = progress.COMPLETED
+        checked_node.progress = progress.COMPLETED
+        return checked_node
 
 
 if __name__ == "__main__":
