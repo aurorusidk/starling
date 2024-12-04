@@ -170,6 +170,9 @@ class TypeChecker:
                     if ptype is not None:
                         checked_param_types[pname] = self.check_type(ptype)
                 checked_node = tir.FunctionSigRef(node.name, checked_param_types, checked_return_type)
+                # sometimes function sigs have values set (methods)
+                for value in node.values:
+                    checked_node = self.update_types(checked_node, self.check(value))
             case ir.StructRef():
                 checked_fields = {}
                 for fname, ftype in node.fields.items():
@@ -231,7 +234,6 @@ class TypeChecker:
                     field = parent.typ.fields.get(node.name)
                 method = parent.typ.methods.get(node.name)
                 if method:
-                    checked_node.method = method
                     for name, value in zip(method.typ.params, node.param_values):
                         values = method.param_values.get(name, [])
                         values.append(value)
@@ -240,6 +242,7 @@ class TypeChecker:
                         self.check(value)
                         param.values.append(value)
                         self.check(param)
+                    method.progress = progress.EMPTY
                     checked_node.method = self.check(method)
                     method = checked_node.method.typ
                 value = field or method
@@ -271,9 +274,12 @@ class TypeChecker:
             case ir.DeclareMethods(typ, block):
                 if isinstance(typ, types.StructType):
                     assert all(m not in typ.fields for m in typ.methods)
-                for method in typ.methods.values():
-                    self.check(method)
-                checked_node = tir.DeclareMethod(self.check(typ), self.check(block))
+                checked_methods = {}
+                for mname, method in typ.methods.items():
+                    checked_methods[mname] = self.check(method)
+                checked_type = self.check(typ)
+                checked_type.methods = checked_methods
+                checked_node = tir.DeclareMethods(checked_type, self.check(block))
             case ir.Assign(ref, value):
                 checked_node = tir.Assign(self.check(ref), self.check(value))
             case ir.Load(ref):
@@ -281,13 +287,14 @@ class TypeChecker:
                 checked_node.typ = checked_node.ref.typ
             case ir.Call(ref, args):
                 checked_ref = self.check(ref)
-                assert len(args) == len(ref.typ.params)
+                assert len(args) == len(checked_ref.typ.params)
                 checked_args = []
-                for pname, arg in zip(ref.typ.params, args):
-                    checked_args.append(self.check(arg))
-                    ref.typ.params[pname] = self.update_types(ref.typ.params[pname], arg.typ)
+                for pname, arg in zip(checked_ref.typ.params, args):
+                    checked_arg = self.check(arg)
+                    checked_args.append(checked_arg)
+                    checked_ref.typ.params[pname] = self.update_types(checked_ref.typ.params[pname], checked_arg.typ)
                 checked_node = tir.Call(checked_ref, checked_args)
-                checked_node.typ = ref.typ.return_type
+                checked_node.typ = checked_ref.typ.return_type
             case ir.Return(value):
                 checked_node = tir.Return(self.check(value))
             case ir.Branch(block):
