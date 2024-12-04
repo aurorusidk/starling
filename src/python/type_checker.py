@@ -35,6 +35,7 @@ class TypeChecker:
     def __init__(self, error_handler=None):
         self.error_handler = error_handler
         self.deferred = []
+        self.node_map = {}
 
     def error(self, msg):
         if self.error_handler is None:
@@ -120,50 +121,40 @@ class TypeChecker:
         #    return
         if node.progress == progress.EMPTY:
             node.progress = progress.UPDATING
-        try:
-            match node:
-                case ir.Program(block):
-                    checked_block = self.check(block)
-                    # TODO: program types
-                    checked_node = tir.Program(checked_block)
-                    already_deferred = []
-                    while self.deferred:
-                        logging.debug(self.deferred)
-                        node = self.deferred.pop(0)
-                        if node in already_deferred:
-                            continue
-                        already_deferred.append(node)
-                        node.progress = progress.EMPTY
-                        try:
-                            self.check(node)
-                        except DeferChecking:
-                            pass
-                    node.progress = progress.COMPLETED
-                    checked_node.progress = progress.COMPLETED
-                    return checked_node
-                case ir.Type():
-                    return self.check_type(node)
-                case ir.Ref():
-                    return self.check_ref(node)
-                case ir.Instruction():
-                    return self.check_instr(node)
-                case ir.Object():
-                    # misc
-                    return self.check_object(node)
-                case _:
-                    assert False, f"Unexpected node {node}"
-        except DeferChecking:
-            self.deferred.append(node)
-            if node.is_expr:
-                logging.info("raise DeferChecking to propagate")
-                raise DeferChecking("Propagating expr defer")
-        else:
-            if node.is_expr and node.typ is None:
-                node.progress = progress.EMPTY
-            if node.progress != progress.COMPLETED:
-                node.progress = progress.EMPTY
-                logging.info(f"raise DeferChecking for incomplete type for {type(node)}")
-                raise DeferChecking(f"Incomplete type checking for {type(node)} node")
+        if (n := self.node_map.get(id(node))):
+            return n
+        match node:
+            case ir.Program(block):
+                checked_block = self.check(block)
+                # TODO: program types
+                checked_node = tir.Program(checked_block)
+                already_deferred = []
+                while self.deferred:
+                    logging.debug(self.deferred)
+                    node = self.deferred.pop(0)
+                    if node in already_deferred:
+                        continue
+                    already_deferred.append(node)
+                    node.progress = progress.EMPTY
+                    try:
+                        self.check(node)
+                    except DeferChecking:
+                        pass
+                node.progress = progress.COMPLETED
+                checked_node.progress = progress.COMPLETED
+            case ir.Type():
+                checked_node = self.check_type(node)
+            case ir.Ref():
+                checked_node = self.check_ref(node)
+            case ir.Instruction():
+                checked_node = self.check_instr(node)
+            case ir.Object():
+                # misc
+                checked_node = self.check_object(node)
+            case _:
+                assert False, f"Unexpected node {node}"
+        self.node_map[id(node)] = checked_node
+        return checked_node
 
     def check_type(self, node):
         if node.checked is None:
@@ -206,7 +197,7 @@ class TypeChecker:
     def check_ref(self, node):
         checked_type = None
         if node.typ is not None:
-            checked_type = self.check_type(node.typ)
+            checked_type = self.check(node.typ)
         for value in node.values:
             checked_value = self.check(value)
             checked_type = self.update_types(checked_type, checked_value.typ)
@@ -271,13 +262,6 @@ class TypeChecker:
                 checked_node = tir.Ref(node.name, typ=checked_type)
             case _:
                 assert False, f"Unexpected ref {node}"
-
-        if checked_node.typ is not None and checked_node.typ.checked is not None:
-            node.progress = progress.COMPLETED
-        else:
-            node.progress = progress.EMPTY
-            logging.info("raise DeferChecking for incomplete type")
-            raise DeferChecking
         return checked_node
 
     def check_instr(self, node):
@@ -399,7 +383,7 @@ class TypeChecker:
                 checked_fields = {}
                 for fname, fval in node.fields.items():
                     checked_fields[fname] = self.check(fval)
-                    checked_type.fields[fname] = self.update_types(checked_type.fields[fname], fval.typ)
+                    checked_type.fields[fname] = self.update_types(checked_type.fields[fname], checked_fields[fname].typ)
                 checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
             case _:
                 assert False, f"Unexpected object {node}"
