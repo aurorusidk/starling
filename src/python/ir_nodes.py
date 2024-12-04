@@ -57,8 +57,7 @@ class Ref(Object):
 @dataclass
 class Type(Ref):
     name: str
-    hint: types.Type
-    checked: types.Type = field(default=None, kw_only=True)
+    raw_type: types.Type = field(default=None, kw_only=True)
     methods: dict[str, "Type"] = field(default_factory=dict, kw_only=True)
 
 

@@ -109,6 +109,7 @@ class IRNoder:
 
     def make_type(self, node):
         match node:
+            # TODO: remove once better typing implemented
             case ast.TypeName(name):
                 typ = self.make_identifier(name.value, load=False)
                 assert isinstance(typ, ir.Type)
@@ -262,10 +263,7 @@ class IRNoder:
         ref = target.members.get(field_name)
 
         if not ref:
-            type_hint = None
-            if isinstance(target.typ, ir.StructRef):
-                type_hint = target.typ.hint.fields.get(name.value)
-            ref = ir.FieldRef(field_name, target, typ=type_hint)
+            ref = ir.FieldRef(field_name, target)
             target.members[field_name] = ref
         if load:
             return ir.Load(ref)
@@ -364,7 +362,10 @@ class IRNoder:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
         type_hint = types.FunctionType(return_type, param_types)
-        return ir.FunctionSigRef(name, type_hint, dict(zip(param_names, param_types)), return_type)
+        return ir.FunctionSigRef(name,
+                                 dict(zip(param_names, param_types)),
+                                 return_type,
+                                 raw_type=type_hint)
 
     def make_method_signature(self, method, target=None):
         sig = self.make_type(method)
@@ -412,8 +413,8 @@ class IRNoder:
                 ftype = self.make_type(field.typ)
             field_types.append(ftype)
         fields = dict(zip(field_names, field_types))
-        type_hint = types.StructType(fields)
-        ref = ir.StructRef(name, type_hint, fields)
+        raw_type = types.StructType(fields)
+        ref = ir.StructRef(name, fields, raw_type=raw_type)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
 
@@ -450,7 +451,7 @@ class IRNoder:
             method_ref = self.make_method_signature(method)
             method_refs[method_ref.name] = method_ref
         interface = types.Interface(name, method_refs)
-        ref = ir.InterfaceRef(name, interface, method_refs)
+        ref = ir.InterfaceRef(name, method_refs, raw_type=interface)
         self.scope.declare(name, ref)
         # self.instrs.append(ir.Declare(ref))
 

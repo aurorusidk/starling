@@ -56,10 +56,10 @@ class TypeChecker:
                 return types.StructType(fields)
             case ir.SequenceType():
                 if typ.elem_type is not None:
-                    typ.checked.elem_type = typ.elem_type.checked
-                return typ.checked
+                    typ.raw_type.elem_type = typ.elem_type.checked
+                return typ.raw_type
             case ir.Type():
-                return typ.checked
+                return typ.raw_type
             case _:
                 assert False, typ
 
@@ -157,8 +157,8 @@ class TypeChecker:
         return checked_node
 
     def check_type(self, node):
-        if node.checked is None:
-            node.checked = node.hint
+        if node.raw_type is None:
+            node.raw_type = node.hint
         match node:
             case ir.FunctionSigRef():
                 checked_return_type = None
@@ -301,11 +301,11 @@ class TypeChecker:
                 checked_node = tir.Branch(self.check(block))
             case ir.CBranch(condition, t_block, f_block):
                 checked_condition = self.check(condition)
-                if condition.typ != builtin.scope.lookup("bool"):
+                if checked_condition.typ.checked != builtin.types["bool"]:
                     self.error("Branch condition must be a boolean")
                 checked_t_block = self.check(t_block)
                 checked_f_block = self.check(f_block)
-                checked_node = tir.CBranch(checked_condition, checked_t_branch, checked_f_branch)
+                checked_node = tir.CBranch(checked_condition, checked_t_block, checked_f_block)
             case ir.Binary():
                 checked_node = self.check_binary(node)
             case ir.Unary():
@@ -324,7 +324,8 @@ class TypeChecker:
         if lhs.typ != rhs.typ:
             self.error(f"Mismatched types for {lhs} and {rhs}")
         if is_comparison_op(node.op):
-            checked_node.typ = builtin.scope.lookup("bool")
+            # TODO: ????
+            checked_node.typ = self.check(builtin.scope.lookup("bool"))
             return checked_node
 
         pred = binary_op_preds[node.op]
@@ -360,7 +361,7 @@ class TypeChecker:
                 elem_type = None
                 checked_elements = []
                 for i in range(length):
-                    checked_elements[i] = self.check(elements[i])
+                    checked_elements.append(self.check(elements[i]))
                     elem_type = self.update_types(elem_type, checked_elements[i].typ)
                 if isinstance(node, ir.Vector):
                     node.typ = ir.VectorType(
@@ -380,8 +381,8 @@ class TypeChecker:
                 else:
                     node.typ = ir.SequenceType(
                         str(node.typ),
-                        types.SequenceType(elem_type.checked),
-                        elem_type
+                        elem_type,
+                        raw_type=types.SequenceType(elem_type.checked)
                     )
                     checked_node = tir.Sequence(checked_elements)
                 checked_node.typ = self.check_type(node.typ)
