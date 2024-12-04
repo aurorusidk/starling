@@ -56,7 +56,7 @@ class TypeChecker:
                 return types.StructType(fields)
             case ir.SequenceType():
                 if typ.elem_type is not None:
-                    typ.raw_type.elem_type = typ.elem_type.checked
+                    typ.raw_type.elem_type = typ.elem_type.raw_type
                 return typ.raw_type
             case ir.Type():
                 return typ.raw_type
@@ -94,12 +94,14 @@ class TypeChecker:
             case tir.SequenceType():
                 # Update target to the correct IR type, then recurse
                 if isinstance(target.checked, types.ArrayType):
-                    target = ir.ArrayType(target.name, target.checked, target.elem_type, None)
-                    self.check_type(target)
+                    target = tir.ArrayType(
+                        target.name, self.check(target.elem_type), None, checked=target.checked
+                    )
                     return self.update_types(target, new)
                 elif isinstance(target.checked, types.VectorType):
-                    target = tir.VectorType(target.name, target.checked, target.elem_type)
-                    self.check_type(target)
+                    target = tir.VectorType(
+                        target.name, self.check(target.elem_type), checked=target.checked
+                    )
                     return self.update_types(target, new)
                 # Or if target is already the correct type, perform standard logic
                 new.elem_type = self.update_types(target.elem_type, new.elem_type)
@@ -117,7 +119,7 @@ class TypeChecker:
         if node.is_const:
             # ir constants should have a defined type
             node.progress = progress.COMPLETED
-        #if node.progress in (progress.UPDATING, progress.COMPLETED):
+        # if node.progress in (progress.UPDATING, progress.COMPLETED):
         #    return
         if node.progress == progress.EMPTY:
             node.progress = progress.UPDATING
@@ -169,7 +171,9 @@ class TypeChecker:
                     checked_param_types[pname] = ptype
                     if ptype is not None:
                         checked_param_types[pname] = self.check_type(ptype)
-                checked_node = tir.FunctionSigRef(node.name, checked_param_types, checked_return_type)
+                checked_node = tir.FunctionSigRef(
+                    node.name, checked_param_types, checked_return_type
+                )
                 # sometimes function sigs have values set (methods)
                 for value in node.values:
                     checked_node = self.update_types(checked_node, self.check(value))
@@ -187,6 +191,14 @@ class TypeChecker:
                     if mtype is not None:
                         checked_methods[mname] = self.check_type(mtype)
                 checked_node = tir.InterfaceRef(node.name, checked_methods)
+            case ir.SequenceType():
+                elem_type = node.elem_type
+                if isinstance(node, ir.VectorType):
+                    checked_node = tir.VectorType(node.name, elem_type)
+                elif isinstance(node, ir.ArrayType):
+                    checked_node = tir.ArrayType(node.name, elem_type, node.length)
+                else:
+                    checked_node = tir.SequenceType(node.name, elem_type)
             case ir.Type():
                 checked_node = tir.Type(node.name)
             case _:
@@ -250,13 +262,16 @@ class TypeChecker:
                 assert not (field and method)
                 checked_node.typ = value
             case ir.IndexRef():
-                self.check(node.parent)
-                assert isinstance(node.parent.typ, ir.SequenceType), \
-                    f"{node.parent.name} cannot be indexed"
-                self.check(node.index)
-                assert types.is_basic(node.index.typ.checked, types.BasicTypeFlag.INTEGER), \
-                    f"Index {node.index} is not an integer"
-                node.typ = node.parent.typ.elem_type
+                checked_parent = self.check(node.parent)
+                assert isinstance(checked_parent.typ, tir.SequenceType), \
+                    f"{checked_parent.name} cannot be indexed"
+                checked_index = self.check(node.index)
+                assert types.is_basic(checked_index.typ.checked, types.BasicTypeFlag.INTEGER), \
+                    f"Index {checked_index} is not an integer"
+                checked_type = checked_parent.typ.elem_type
+                checked_node = tir.IndexRef(
+                    node.name, checked_parent, checked_index, typ=checked_type
+                )
             case ir.ConstRef():
                 value = self.check(node.value)
                 checked_node = tir.ConstRef(node.name, value)
@@ -292,7 +307,9 @@ class TypeChecker:
                 for pname, arg in zip(checked_ref.typ.params, args):
                     checked_arg = self.check(arg)
                     checked_args.append(checked_arg)
-                    checked_ref.typ.params[pname] = self.update_types(checked_ref.typ.params[pname], checked_arg.typ)
+                    checked_ref.typ.params[pname] = self.update_types(
+                        checked_ref.typ.params[pname], checked_arg.typ
+                    )
                 checked_node = tir.Call(checked_ref, checked_args)
                 checked_node.typ = checked_ref.typ.return_type
             case ir.Return(value):
@@ -364,34 +381,36 @@ class TypeChecker:
                     checked_elements.append(self.check(elements[i]))
                     elem_type = self.update_types(elem_type, checked_elements[i].typ)
                 if isinstance(node, ir.Vector):
-                    node.typ = ir.VectorType(
+                    checked_type = tir.VectorType(
                         str(node.typ),
-                        types.VectorType(elem_type.checked),
-                        elem_type
+                        elem_type,
+                        checked=types.VectorType(elem_type.checked)
                     )
                     checked_node = tir.Vector(checked_elements)
                 elif isinstance(node, ir.Array):
-                    node.typ = ir.ArrayType(
+                    checked_type = tir.ArrayType(
                         str(node.typ),
-                        types.ArrayType(elem_type.checked, length),
                         elem_type,
-                        length
+                        length,
+                        checked=types.ArrayType(elem_type.checked, length)
                     )
                     checked_node = tir.Array(checked_elements)
                 else:
-                    node.typ = ir.SequenceType(
+                    checked_type = tir.SequenceType(
                         str(node.typ),
                         elem_type,
-                        raw_type=types.SequenceType(elem_type.checked)
+                        checked=types.SequenceType(elem_type.checked)
                     )
                     checked_node = tir.Sequence(checked_elements)
-                checked_node.typ = self.check_type(node.typ)
+                checked_node.typ = checked_type
             case ir.StructLiteral():
                 checked_type = self.check_type(node.typ)
                 checked_fields = {}
                 for fname, fval in node.fields.items():
                     checked_fields[fname] = self.check(fval)
-                    checked_type.fields[fname] = self.update_types(checked_type.fields[fname], checked_fields[fname].typ)
+                    checked_type.fields[fname] = self.update_types(
+                        checked_type.fields[fname], checked_fields[fname].typ
+                    )
                 checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
             case _:
                 assert False, f"Unexpected object {node}"
