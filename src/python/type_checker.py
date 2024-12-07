@@ -6,8 +6,6 @@ from . import builtin
 from . import type_defs as types
 
 
-progress = types.progress
-
 unary_op_preds = {
     '-': types.is_numeric,
     '!': types.is_bool,
@@ -27,14 +25,8 @@ def is_comparison_op(op):
     )
 
 
-class DeferChecking(Exception):
-    pass
-
-
 class TypeChecker:
     def __init__(self, error_handler=None):
-        self.error_handler = error_handler
-        self.deferred = []
         self.node_map = {}
 
     def error(self, msg):
@@ -116,13 +108,6 @@ class TypeChecker:
         return target
 
     def check(self, node):
-        if node.is_const:
-            # ir constants should have a defined type
-            node.progress = progress.COMPLETED
-        # if node.progress in (progress.UPDATING, progress.COMPLETED):
-        #    return
-        if node.progress == progress.EMPTY:
-            node.progress = progress.UPDATING
         if (n := self.node_map.get(id(node))):
             return n
         match node:
@@ -130,20 +115,6 @@ class TypeChecker:
                 checked_block = self.check(block)
                 # TODO: program types
                 checked_node = tir.Program(checked_block)
-                already_deferred = []
-                while self.deferred:
-                    logging.debug(self.deferred)
-                    node = self.deferred.pop(0)
-                    if node in already_deferred:
-                        continue
-                    already_deferred.append(node)
-                    node.progress = progress.EMPTY
-                    try:
-                        self.check(node)
-                    except DeferChecking:
-                        pass
-                node.progress = progress.COMPLETED
-                checked_node.progress = progress.COMPLETED
             case ir.Type():
                 checked_node = self.check_type(node)
             case ir.Ref():
@@ -205,8 +176,6 @@ class TypeChecker:
                 assert False, "Unreachable"
         checked_node.methods = node.methods
         checked_node.checked = self.get_core_type(node)
-        node.progress = progress.COMPLETED
-        checked_node.progress = progress.COMPLETED
         return checked_node
 
     def check_ref(self, node):
@@ -254,7 +223,6 @@ class TypeChecker:
                         self.check(value)
                         param.values.append(value)
                         self.check(param)
-                    method.progress = progress.EMPTY
                     checked_node.method = self.check(method)
                     method = checked_node.method.typ
                 value = field or method
@@ -329,8 +297,6 @@ class TypeChecker:
                 checked_node = self.check_unary(node)
             case _:
                 assert False, f"Unexpected instruction {node}"
-        node.progress = progress.COMPLETED
-        checked_node.progress = progress.COMPLETED
         return checked_node
 
     def check_binary(self, node):
@@ -414,8 +380,6 @@ class TypeChecker:
                 checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
             case _:
                 assert False, f"Unexpected object {node}"
-        node.progress = progress.COMPLETED
-        checked_node.progress = progress.COMPLETED
         return checked_node
 
 
