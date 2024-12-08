@@ -126,7 +126,7 @@ Starling features the following basic operators:
 * Less than or equal check `<=`
 * Greater than or equal check `>=`
 
-Operators may also be "grouped" using brackets `( )`. This allows the order of operations to be more precisely controlled.
+Operators may also be grouped using brackets `( )`. This allows the order of operations to be more precisely controlled.
 
 In addition to these, there are some special operations that may be performed on certain types.
 * Call `foo(params)` - for callables, such as functions; also used for creating new objects of structs
@@ -176,7 +176,7 @@ fn foo() void {
 
 Like with variables, the language can infer the return type of a function, based on the actual return value, if no type is given.
 
-Parameters of functions are formatted similarly to variable declarations. Parameter types cannot be inferred and must be provided. A default value may also be given for a parameter, but is not required.
+Parameters of functions are formatted similarly to variable declarations. Parameter types can also be inferred. A default value may also be given for a parameter, but is not required.
 `fn foo(arg type = default) {}`
 
 The foundation of any Starling program is the main function, which takes in a vector of arguments and return an integer:
@@ -227,9 +227,9 @@ By default, literals of the form `[a, b, c]` are arrays. The `arr` and `vec` key
 `arr` and `vec` can also be used as types when declaring a variable, to specify the desired type. In this situation, it's not necessary to specify that a literal is a vector.
 
 ```
-var a arr[int] = [1, 1, 2, 3, 5];
-var b vec[int] = [];
-var c arr[int, 3];
+var a arr<int> = [1, 1, 2, 3, 5];
+var b vec<int> = [];
+var c arr<int[3]>;
 ```
 
 If an initial value is not given for an array, a length must be specified.

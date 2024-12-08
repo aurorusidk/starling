@@ -183,11 +183,8 @@ class Parser:
     def parse_type(self):
         if self.check(T.IDENTIFIER):
             return ast.TypeName(self.parse_identifier())
-        elif self.consume(T.ARR):
-            return self.parse_array_type()
-        elif self.consume(T.VEC):
-            return self.parse_vector_type()
-        self.error("Failed to parse type")
+        else:
+            return self.parse_primary()
 
     def parse_array_type(self):
         length = None
@@ -345,14 +342,30 @@ class Parser:
             return ast.GroupExpr(expr)
 
         elif self.consume(T.VEC):
-            self.expect(T.LEFT_SQUARE)
-            elements = self.get_sequence_elements()
-            return ast.VectorExpr(elements)
+            if self.consume(T.LEFT_SQUARE):
+                elements = self.get_sequence_elements()
+                return ast.VectorExpr(elements)
+            elif self.consume(T.LESS_THAN):
+                elem_type = self.parse_type()
+                self.expect(T.GREATER_THAN)
+                return ast.VectorType(elem_type)
+            else:
+                self.error("Failed to parse vector")
 
         elif self.consume(T.ARR):
-            self.expect(T.LEFT_SQUARE)
-            elements = self.get_sequence_elements()
-            return ast.ArrayExpr(elements)
+            if self.consume(T.LEFT_SQUARE):
+                elements = self.get_sequence_elements()
+                return ast.ArrayExpr(elements)
+            elif self.consume(T.LESS_THAN):
+                length = None
+                elem_type = self.parse_type()
+                if self.consume(T.LEFT_SQUARE):
+                    length = self.parse_expression()
+                    self.expect(T.RIGHT_SQUARE)
+                self.expect(T.GREATER_THAN)
+                return ast.ArrayType(elem_type, length)
+            else:
+                self.error("Failed to parse array")
 
         elif self.consume(T.LEFT_SQUARE):
             # If the brackets are empty, return early

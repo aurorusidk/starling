@@ -73,14 +73,14 @@ class ArrayType(SequenceType):
 
     @property
     def string(self):
-        return f"arr[{self.elem_type}, {self.length}]"
+        return f"arr<{self.elem_type}[{self.length}]>"
 
 
 @dataclass(eq=False, repr=False)
 class VectorType(SequenceType):
     @property
     def string(self):
-        return f"vec[{self.elem_type}]"
+        return f"vec<{self.elem_type}>"
 
 
 @dataclass(eq=False, repr=False)
