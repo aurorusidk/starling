@@ -55,7 +55,66 @@ class TypeChecker:
             case _:
                 assert False, typ
 
+    def update_raw_types(self, target, new):
+        if target is None:
+            target = new
+        if new is None:
+            logging.warn(f"Why is the new type None? Given target {target}")
+            return target
+        match target:
+            case types.FunctionType(return_type, param_types):
+                target.return_type = self.update_types(return_type, new.return_type)
+                assert len(param_types) == len(new.param_types), \
+                    "Mismatching number of params, why is this not already checked?"
+                checked_param_types = []
+                for target_ptype, new_ptype in zip(param_types, new.param_types):
+                    checked_param_types.append(self.update_raw_types(target_ptype, new_ptype))
+                target.param_types = checked_param_types
+            case types.StructType(fields):
+                assert len(fields) == len(new.fields), \
+                    "Mismatching number of fields, why is this not already checked?"
+                checked_fields = []
+                for target_ftype, new_ftype in zip(fields, new.fields):
+                    checked_fields.append(self.update_raw_types(target_ftype, new_ftype))
+                target.fields = checked_fields
+            # TODO: fix later
+            # case tir.ArrayType() | tir.VectorType():
+            #     if isinstance(new, (tir.ArrayType, tir.VectorType)):
+            #         assert isinstance(target, type(new)), \
+            #             f"Cannot assign object of type {new.checked} " \
+            #             f"to ref of type {target.checked}"
+            #     new.elem_type = self.update_types(target.elem_type, new.elem_type)
+            #     if type(new) is not tir.SequenceType:
+            #         target = new
+            #     else:
+            #         target.elem_type = new.elem_type
+            # case tir.SequenceType():
+            #     # Update target to the correct IR type, then recurse
+            #     if isinstance(target.checked, types.ArrayType):
+            #         target = tir.ArrayType(
+            #             target.name, self.check(target.elem_type), None, checked=target.checked
+            #         )
+            #         return self.update_types(target, new)
+            #     elif isinstance(target.checked, types.VectorType):
+            #         target = tir.VectorType(
+            #             target.name, self.check(target.elem_type), checked=target.checked
+            #         )
+            #         return self.update_types(target, new)
+            #     # Or if target is already the correct type, perform standard logic
+            #     new.elem_type = self.update_types(target.elem_type, new.elem_type)
+            #     if type(new) is not tir.SequenceType:
+            #         target = new
+            #     else:
+            #         target.elem_type = new.elem_type
+            case types.BasicType():
+                # TODO: check based on type info
+                assert target == new, f"Mismatching types {target} and {new}"
+            case _:
+                assert False, f"Unexpected type {target}"
+        return target
+
     def update_types(self, target, new):
+        # TODO: maybe once the rework is done we don't need this function
         if target is None:
             target = new
         if new is None:
@@ -69,10 +128,8 @@ class TypeChecker:
                     typ = self.update_types(target.params[pname], new.params[pname])
                     new.params[pname] = target.params[pname] = typ
             case tir.StructRef():
-                assert target.fields.keys() == new.fields.keys(), "Mismatching fields"
-                for fname in target.fields:
-                    typ = self.update_types(target.fields[fname], new.fields[fname])
-                    new.fields[fname] = target.fields[fname] = typ
+                assert target.field_names == new.field_names, "Mismatching fields"
+                target.checked = self.update_raw_types(target.checked, new.checked)
             case tir.ArrayType() | tir.VectorType():
                 if isinstance(new, (tir.ArrayType, tir.VectorType)):
                     assert isinstance(target, type(new)), \
@@ -130,8 +187,6 @@ class TypeChecker:
         return checked_node
 
     def check_type(self, node):
-        if node.raw_type is None:
-            node.raw_type = node.hint
         match node:
             case ir.FunctionSigRef():
                 checked_return_type = None
@@ -149,12 +204,13 @@ class TypeChecker:
                 for value in node.values:
                     checked_node = self.update_types(checked_node, self.check(value))
             case ir.StructRef():
-                checked_fields = {}
+                field_names = []
+                field_types = []
                 for fname, ftype in node.fields.items():
-                    checked_fields[fname] = ftype
-                    if ftype is not None:
-                        checked_fields[fname] = self.check_type(ftype)
-                checked_node = tir.StructRef(node.name, checked_fields)
+                    field_names.append(fname)
+                    field_types.append(self.check(ftype).checked)
+                raw_type = types.StructType(field_types)
+                checked_node = tir.StructRef(node.name, field_names, checked=raw_type)
             case ir.InterfaceRef():
                 checked_methods = {}
                 for mname, mtype in node.methods.items():
@@ -170,12 +226,12 @@ class TypeChecker:
                     checked_node = tir.ArrayType(node.name, elem_type, node.length)
                 else:
                     checked_node = tir.SequenceType(node.name, elem_type)
-            case ir.Type():
-                checked_node = tir.Type(node.name)
+            case ir.SimpleType():
+                checked_node = tir.Type(node.name, checked=node.raw_type)
             case _:
                 assert False, "Unreachable"
         checked_node.methods = node.methods
-        checked_node.checked = self.get_core_type(node)
+        # checked_node.checked = self.get_core_type(node)
         return checked_node
 
     def check_ref(self, node):
@@ -210,10 +266,10 @@ class TypeChecker:
             case ir.FieldRef():
                 parent = self.check(node.parent)
                 checked_node = None
-                if isinstance(parent.typ, tir.StructRef):
-                    index = list(parent.typ.fields.keys()).index(node.name)
+                if isinstance(parent.typ, tir.StructRef) and node.name in parent.typ.field_names:
+                    index = parent.typ.field_names.index(node.name)
                     checked_node = tir.FieldRef(node.name, parent, index=index)
-                    checked_node.typ = parent.typ.fields.get(node.name)
+                    checked_node.typ = parent.typ.checked.fields[index]
                 method = parent.typ.methods.get(node.name)
                 if method:
                     assert checked_node is None, f"{node.name} cannot be both a field and a method"
@@ -370,11 +426,13 @@ class TypeChecker:
                 checked_node.typ = checked_type
             case ir.StructLiteral():
                 checked_type = self.check_type(node.typ)
-                checked_fields = {}
-                for fname, fval in node.fields.items():
-                    checked_fields[fname] = self.check(fval)
-                    checked_type.fields[fname] = self.update_types(
-                        checked_type.fields[fname], checked_fields[fname].typ
+                checked_fields = []
+                assert list(node.fields.keys()) == checked_type.field_names
+                for i, fval in enumerate(node.fields.values()):
+                    checked_val = self.check(fval)
+                    checked_fields.append(checked_val)
+                    checked_type.checked.fields[i] = self.update_raw_types(
+                        checked_type.checked.fields[i], checked_val.typ.checked
                     )
                 checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
             case _:

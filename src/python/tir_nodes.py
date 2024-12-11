@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from hashlib import sha1
 
@@ -40,7 +42,7 @@ class Vector(Sequence):
 @dataclass
 class StructLiteral(Object):
     is_expr = True
-    fields: dict[str, Object]
+    fields: list[Object]
 
 
 @dataclass
@@ -57,7 +59,7 @@ class Ref(Object):
 class Type(Ref):
     name: str
     checked: types.Type = field(default=None, kw_only=True)
-    methods: dict[str, "Type"] = field(default_factory=dict, kw_only=True)
+    methods: dict[str, Type] = field(default_factory=dict, kw_only=True)
 
 
 class Instruction(Object):
@@ -110,6 +112,8 @@ class VectorType(SequenceType):
 class FunctionSigRef(Type):
     params: dict[str, Type]
     return_type: Type
+    # params: list[str]
+    # raw_type: types.FunctionType
 
 
 @dataclass
@@ -134,7 +138,7 @@ class InterfaceRef(Type):
 
 @dataclass
 class StructRef(Type):
-    fields: dict[str, Type]
+    field_names: list[str]
 
 
 @dataclass
@@ -314,13 +318,13 @@ class IRPrinter:
                 block, block_name = self.defer_block(ir.block)
                 string += f"{ir.name}({', '.join(ir.typ.params)}) {block_name}"
             case StructRef():
-                fields = ', '.join(ir.fields)
+                fields = ', '.join(ir.field_names)
                 string += f"{ir.name}{{{fields}}}"
             case ConstRef(name, value):
                 string += f"CONST {name} = {self._to_string(value)}"
                 return string  # avoids duplication of type
             case StructLiteral():
-                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
+                fields = ', '.join(self._to_string(f) for f in ir.fields)
                 string = f"{{{fields}}}"
             case Type():
                 string += self._to_string(ir.checked)
