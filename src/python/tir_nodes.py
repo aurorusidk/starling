@@ -89,10 +89,7 @@ class IndexRef(Ref):
 @dataclass
 class FieldRef(Ref):
     parent: Ref
-    # mimic functions for methods
-    return_values: list[Object] = field(default_factory=list, init=False)
-    param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
-    method: Ref = field(default=None, kw_only=True)
+    index: int = field(default=None, kw_only=True)
 
 
 @dataclass

@@ -209,12 +209,14 @@ class TypeChecker:
                     checked_node.block = block
             case ir.FieldRef():
                 parent = self.check(node.parent)
-                field = None
-                checked_node = tir.FieldRef(node.name, parent)
+                checked_node = None
                 if isinstance(parent.typ, tir.StructRef):
-                    field = parent.typ.fields.get(node.name)
+                    index = list(parent.typ.fields.keys()).index(node.name)
+                    checked_node = tir.FieldRef(node.name, parent, index=index)
+                    checked_node.typ = parent.typ.fields.get(node.name)
                 method = parent.typ.methods.get(node.name)
                 if method:
+                    assert checked_node is None, f"{node.name} cannot be both a field and a method"
                     for name, value in zip(method.typ.params, node.param_values):
                         values = method.param_values.get(name, [])
                         values.append(value)
@@ -223,12 +225,9 @@ class TypeChecker:
                         self.check(value)
                         param.values.append(value)
                         self.check(param)
-                    checked_node.method = self.check(method)
-                    method = checked_node.method.typ
-                value = field or method
-                assert value, f"{node.name} is not a field or method of {node.parent.name}"
-                assert not (field and method)
-                checked_node.typ = value
+                    checked_node = self.check(method)
+                assert checked_node is not None, \
+                    f"{node.name} is not a field or method of {node.parent.name}"
             case ir.IndexRef():
                 checked_parent = self.check(node.parent)
                 assert isinstance(checked_parent.typ, tir.SequenceType), \
