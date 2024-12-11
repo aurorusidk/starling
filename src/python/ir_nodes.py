@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from hashlib import sha1
 
@@ -13,7 +15,6 @@ class Object:
     is_expr = False
     is_const = False
     typ: "Type" = field(default=None, kw_only=True)
-    progress: types.progress = field(default=types.progress.EMPTY, kw_only=True)
 
 
 @dataclass
@@ -57,7 +58,7 @@ class Ref(Object):
 @dataclass
 class Type(Ref):
     name: str
-    methods: dict[str, "Type"] = field(default_factory=dict, kw_only=True)
+    methods: dict[str, Type] = field(default_factory=dict, kw_only=True)
 
 
 @dataclass
