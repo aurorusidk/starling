@@ -121,17 +121,15 @@ class IRNoder:
                 if length is not None:
                     length = self.make(length).value
                 return ir.SequenceType(
-                    f"arr[{elem_type.raw_type if elem_type else None}]",
+                    f"arr<{elem_type.name if elem_type else None}>",
                     elem_type,
-                    raw_type=types.ArrayType(elem_type, length)
                 )
             case ast.VectorType(elem_type):
                 if elem_type is not None:
                     elem_type = self.make_type(elem_type)
                 return ir.SequenceType(
-                    f"vec[{elem_type.raw_type if elem_type else None}]",
+                    f"vec<{elem_type.name if elem_type else None}>",
                     elem_type,
-                    raw_type=types.VectorType(elem_type)
                 )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
@@ -361,11 +359,9 @@ class IRNoder:
             if param.typ is not None:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
-        type_hint = types.FunctionType(return_type, param_types)
         return ir.FunctionSigRef(name,
                                  dict(zip(param_names, param_types)),
-                                 return_type,
-                                 raw_type=type_hint)
+                                 return_type)
 
     def make_method_signature(self, method, target=None):
         sig = self.make_type(method)
@@ -413,8 +409,7 @@ class IRNoder:
                 ftype = self.make_type(field.typ)
             field_types.append(ftype)
         fields = dict(zip(field_names, field_types))
-        raw_type = types.StructType(fields)
-        ref = ir.StructRef(name, fields, raw_type=raw_type)
+        ref = ir.StructRef(name, fields)
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
 
@@ -450,8 +445,7 @@ class IRNoder:
         for method in methods:
             method_ref = self.make_method_signature(method)
             method_refs[method_ref.name] = method_ref
-        interface = types.Interface(name, method_refs)
-        ref = ir.InterfaceRef(name, method_refs, raw_type=interface)
+        ref = ir.InterfaceRef(name, method_refs)
         self.scope.declare(name, ref)
         # self.instrs.append(ir.Declare(ref))
 

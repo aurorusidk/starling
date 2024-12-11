@@ -14,15 +14,14 @@ types = {
     "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
 }
 for name, value in types.items():
-    ref = ir.Type(name, raw_type=value)
+    ref = ir.SimpleType(name, raw_type=value)
     scope.declare(name, ref)
 
 string_type = type_defs.BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str")
 types["str"] = string_type
 string_type_ref = ir.SequenceType(
     name="str",
-    elem_type=scope.lookup("char"),
-    raw_type=string_type
+    elem_type=scope.lookup("char")
 )
 scope.declare("str", string_type_ref)
 
@@ -34,13 +33,8 @@ names = {
             "range_constructor@builtin",
             {"start": int_type, "end": int_type},
             ir.SequenceType(
-                name="arr[int,None]",
-                elem_type=int_type,
-                raw_type=type_defs.ArrayType(types["int"], None),
-            ),
-            raw_type=type_defs.FunctionType(
-                type_defs.ArrayType(types["int"], None),
-                [types["int"], types["int"]]
+                name="arr<int[None]>",
+                elem_type=int_type
             ),
         ),
         params=[

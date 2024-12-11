@@ -57,8 +57,12 @@ class Ref(Object):
 @dataclass
 class Type(Ref):
     name: str
-    raw_type: types.Type = field(default=None, kw_only=True)
     methods: dict[str, "Type"] = field(default_factory=dict, kw_only=True)
+
+
+@dataclass
+class SimpleType(Type):
+    raw_type: types.Type = field(default=None, kw_only=True)
 
 
 class Instruction(Object):
