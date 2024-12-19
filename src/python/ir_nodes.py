@@ -321,8 +321,6 @@ class IRPrinter:
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
-            case Type():
-                string += self._to_string(ir.checked)
             case Ref(name):
                 string += name
             case Load(ref):

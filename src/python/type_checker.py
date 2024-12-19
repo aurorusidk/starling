@@ -28,6 +28,12 @@ def is_comparison_op(op):
 class TypeChecker:
     def __init__(self, error_handler=None):
         self.node_map = {}
+        # special handling for metatype because of recursion
+        # TODO: should metatype really store itself as the type
+        meta = tir.Type("meta", checked=builtin.types["meta"])
+        #meta.typ = meta
+        self.node_map[id(builtin.scope.lookup("meta"))] = meta
+        print(self.check(builtin.scope.lookup("meta")))
 
     def error(self, msg):
         if self.error_handler is None:
@@ -57,11 +63,10 @@ class TypeChecker:
                     fields,
                 )
             case ir.SequenceType():  # TODO
-                if typ.elem_type is not None:
-                    typ.raw_type.elem_type = typ.elem_type.raw_type
-                return typ.raw_type
-            case ir.Type():
-                return typ.raw_type
+                assert False, "Sequence types are not translated yet"
+            case ir.ConstRef():
+                if typ.typ == builtin.scope.lookup("meta"):
+                    return typ.value.value
             case _:
                 assert False, typ
 
@@ -172,15 +177,15 @@ class TypeChecker:
         return target
 
     def check(self, node):
+        print(node)
         if (n := self.node_map.get(id(node))):
             return n
+        print("not in map")
         match node:
             case ir.Program(block):
                 checked_block = self.check(block)
                 # TODO: program types
                 checked_node = tir.Program(checked_block)
-            case ir.Type():
-                checked_node = self.check_type(node)
             case ir.Ref():
                 checked_node = self.check_ref(node)
             case ir.Instruction():
@@ -191,44 +196,6 @@ class TypeChecker:
             case _:
                 assert False, f"Unexpected node {node}"
         self.node_map[id(node)] = checked_node
-        return checked_node
-
-    def check_type(self, node):
-        match node:
-            case ir.FunctionSigRef():
-                param_names = [fname for fname in node.params.keys()]
-                raw_type = self.get_core_type(node)
-                checked_node = tir.FunctionSigRef(node.name, param_names, checked=raw_type)
-
-                # TODO: is this still necessary?
-                # sometimes function sigs have values set (methods)
-                for value in node.values:
-                    checked_node = self.update_types(checked_node, self.check(value))
-            case ir.StructRef():
-                field_names = [fname for fname in node.fields.keys()]
-                raw_type = self.get_core_type(node)
-                checked_node = tir.StructRef(node.name, field_names, checked=raw_type)
-            case ir.InterfaceRef():
-                checked_methods = {}
-                for mname, mtype in node.methods.items():
-                    checked_methods[mname] = mtype
-                    if mtype is not None:
-                        checked_methods[mname] = self.check_type(mtype)
-                checked_node = tir.InterfaceRef(node.name, checked_methods)
-            case ir.SequenceType():
-                elem_type = node.elem_type
-                if isinstance(node, ir.VectorType):
-                    checked_node = tir.VectorType(node.name, elem_type)
-                elif isinstance(node, ir.ArrayType):
-                    checked_node = tir.ArrayType(node.name, elem_type, node.length)
-                else:
-                    checked_node = tir.SequenceType(node.name, elem_type)
-            case ir.SimpleType():
-                checked_node = tir.Type(node.name, checked=node.raw_type)
-            case _:
-                assert False, "Unreachable"
-        checked_node.methods = node.methods
-        # checked_node.checked = self.get_core_type(node)
         return checked_node
 
     def check_ref(self, node):
@@ -305,10 +272,41 @@ class TypeChecker:
                 value = self.check(node.value)
                 checked_node = tir.ConstRef(node.name, value)
                 checked_node.typ = self.update_types(checked_type, value.typ)
+                if checked_node.typ.checked.flags & types.TypeFlag.META:
+                    checked_node = tir.Type(node.name, typ=checked_node.typ, checked=value.value)
+            case ir.FunctionSigRef():
+                param_names = [fname for fname in node.params.keys()]
+                raw_type = self.get_core_type(node)
+                checked_node = tir.FunctionSigRef(node.name, param_names, checked=raw_type)
+
+                # TODO: is this still necessary?
+                # sometimes function sigs have values set (methods)
+                for value in node.values:
+                    checked_node = self.update_types(checked_node, self.check(value))
+            case ir.StructRef():
+                field_names = [fname for fname in node.fields.keys()]
+                raw_type = self.get_core_type(node)
+                checked_node = tir.StructRef(node.name, field_names, checked=raw_type)
+            case ir.InterfaceRef():
+                checked_methods = {}
+                for mname, mtype in node.methods.items():
+                    checked_methods[mname] = mtype
+                    if mtype is not None:
+                        checked_methods[mname] = self.check(mtype)
+                checked_node = tir.InterfaceRef(node.name, checked_methods)
+            case ir.SequenceType():
+                elem_type = node.elem_type
+                if isinstance(node, ir.VectorType):
+                    checked_node = tir.VectorType(node.name, elem_type)
+                elif isinstance(node, ir.ArrayType):
+                    checked_node = tir.ArrayType(node.name, elem_type, node.length)
+                else:
+                    checked_node = tir.SequenceType(node.name, elem_type)
             case ir.Ref():
                 checked_node = tir.Ref(node.name, typ=checked_type)
             case _:
                 assert False, f"Unexpected ref {node}"
+        checked_node.methods = node.methods
         return checked_node
 
     def check_instr(self, node):
@@ -317,6 +315,7 @@ class TypeChecker:
                 checked_node = tir.Declare(self.check(ref))
             case ir.DeclareMethods(target, block):
                 target = self.check(target)
+                print(target)
                 if types.TypeFlag.STRUCT in target.checked.flags:
                     assert all(m not in target.checked.fields for m in target.methods)
                 checked_methods = {}
@@ -404,7 +403,8 @@ class TypeChecker:
                 # TODO: block types
                 checked_node = tir.Block(checked_instrs)
             case ir.Constant():
-                checked_node = tir.Constant(node.value, typ=self.check(node.typ))
+                typ = self.check(node.typ)
+                checked_node = tir.Constant(node.value, typ=typ)
             case ir.Sequence(elements):
                 length = len(elements)
                 elem_type = None
@@ -436,7 +436,7 @@ class TypeChecker:
                     checked_node = tir.Sequence(checked_elements)
                 checked_node.typ = checked_type
             case ir.StructLiteral():
-                checked_type = self.check_type(node.typ)
+                checked_type = self.check(node.typ)
                 checked_fields = []
                 assert list(node.fields.keys()) == checked_type.field_names
                 for i, fval in enumerate(node.fields.values()):

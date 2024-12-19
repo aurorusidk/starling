@@ -344,7 +344,9 @@ class IRPrinter:
                 assert False, ir
 
         if ir.typ is not None and show_types:
-            string += f" [{self._to_string(ir.typ)}]"
+            # TODO: is there a better check for this?
+            if ir.typ.name != "meta":
+                string += f" [{self._to_string(ir.typ)}]"
         return string
 
     def to_string(self, ir):
