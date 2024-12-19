@@ -42,11 +42,21 @@ class TypeChecker:
             case ir.FunctionSigRef():
                 param_types = [self.get_core_type(p) for p in typ.params.values()]
                 return_type = self.get_core_type(typ.return_type)
-                return types.FunctionType(return_type, param_types)
+                return types.CompoundType(
+                    0,
+                    types.TypeFlag.FUNCTION,
+                    "fn",
+                    param_types + [return_type]  # return type is the final field
+                )
             case ir.StructRef():
-                fields = {k: self.get_core_type(v) for k, v in typ.fields.items()}
-                return types.StructType(fields)
-            case ir.SequenceType():
+                fields = [self.get_core_type(v) for v in typ.fields.values()]
+                return types.CompoundType(
+                    0,
+                    types.TypeFlag.STRUCT,
+                    "struct",
+                    fields,
+                )
+            case ir.SequenceType():  # TODO
                 if typ.elem_type is not None:
                     typ.raw_type.elem_type = typ.elem_type.raw_type
                 return typ.raw_type
@@ -61,22 +71,15 @@ class TypeChecker:
         if new is None:
             logging.warn(f"Why is the new type None? Given target {target}")
             return target
-        match target:
-            case types.FunctionType(return_type, param_types):
-                target.return_type = self.update_types(return_type, new.return_type)
-                assert len(param_types) == len(new.param_types), \
-                    "Mismatching number of params, why is this not already checked?"
-                checked_param_types = []
-                for target_ptype, new_ptype in zip(param_types, new.param_types):
-                    checked_param_types.append(self.update_raw_types(target_ptype, new_ptype))
-                target.param_types = checked_param_types
-            case types.StructType(fields):
-                assert len(fields) == len(new.fields), \
-                    "Mismatching number of fields, why is this not already checked?"
-                checked_fields = []
-                for target_ftype, new_ftype in zip(fields, new.fields):
-                    checked_fields.append(self.update_raw_types(target_ftype, new_ftype))
-                target.fields = checked_fields
+        if isinstance(target, types.CompoundType):
+            # TODO: For functions and structs, should extend to all compound types
+            assert len(target.fields) == len(new.fields), \
+                "Mismatching number of fields, why is this not already checked?"
+            checked_fields = []
+            for target_type, new_type in zip(target.fields, new.fields):
+                checked_fields.append(self.update_raw_types(target_type, new_type))
+            target.fields = checked_fields
+
             # TODO: fix later
             # case tir.ArrayType() | tir.VectorType():
             #     if isinstance(new, (tir.ArrayType, tir.VectorType)):
@@ -106,11 +109,11 @@ class TypeChecker:
             #         target = new
             #     else:
             #         target.elem_type = new.elem_type
-            case types.BasicType():
-                # TODO: check based on type info
-                assert target == new, f"Mismatching types {target} and {new}"
-            case _:
-                assert False, f"Unexpected type {target}"
+        elif types.is_basic(target):
+            # check equality based on type flags
+            assert target == new, f"Mismatching types {target} and {new}"
+        else:
+            assert False, f"Unexpected type {target}"
         return target
 
     def update_types(self, target, new):
@@ -121,12 +124,16 @@ class TypeChecker:
             return target
         match target:
             case tir.FunctionSigRef():
+                assert target.param_names == new.param_names, "Mismatching params"
+                target.checked = self.update_raw_types(target.checked, new.checked)
+                """
                 typ = self.update_types(target.return_type, new.return_type)
                 new.return_type = target.return_type = typ
                 assert target.params.keys() == new.params.keys(), "Mismatching params"
                 for pname in target.params:
                     typ = self.update_types(target.params[pname], new.params[pname])
                     new.params[pname] = target.params[pname] = typ
+                """
             case tir.StructRef():
                 assert target.field_names == new.field_names, "Mismatching fields"
                 target.checked = self.update_raw_types(target.checked, new.checked)
@@ -189,27 +196,17 @@ class TypeChecker:
     def check_type(self, node):
         match node:
             case ir.FunctionSigRef():
-                checked_return_type = None
-                if node.return_type is not None:
-                    checked_return_type = self.check_type(node.return_type)
-                checked_param_types = {}
-                for pname, ptype in node.params.items():
-                    checked_param_types[pname] = ptype
-                    if ptype is not None:
-                        checked_param_types[pname] = self.check_type(ptype)
-                checked_node = tir.FunctionSigRef(
-                    node.name, checked_param_types, checked_return_type
-                )
+                param_names = [fname for fname in node.params.keys()]
+                raw_type = self.get_core_type(node)
+                checked_node = tir.FunctionSigRef(node.name, param_names, checked=raw_type)
+
+                # TODO: is this still necessary?
                 # sometimes function sigs have values set (methods)
                 for value in node.values:
                     checked_node = self.update_types(checked_node, self.check(value))
             case ir.StructRef():
-                field_names = []
-                field_types = []
-                for fname, ftype in node.fields.items():
-                    field_names.append(fname)
-                    field_types.append(self.check(ftype).checked)
-                raw_type = types.StructType(field_types)
+                field_names = [fname for fname in node.fields.keys()]
+                raw_type = self.get_core_type(node)
                 checked_node = tir.StructRef(node.name, field_names, checked=raw_type)
             case ir.InterfaceRef():
                 checked_methods = {}
@@ -246,20 +243,23 @@ class TypeChecker:
         match node:
             case ir.FunctionRef():
                 typ = checked_type
-                for value in node.return_values:
-                    checked_value = self.check(value)
-                    typ.return_type = self.update_types(typ.return_type, checked_value.typ)
-
-                for pname, ptype in typ.params.items():
+                param_types = []
+                for pname, ptype in zip(typ.param_names, typ.checked.fields):
                     values = node.param_values.get(pname, [])
                     for value in values:
                         checked_value = self.check(value)
-                        typ.params[pname] = self.update_types(ptype, checked_value.typ)
+                        param_types.append(self.update_types(ptype, checked_value.typ))
+
+                return_type = typ.checked.fields[-1]
+                for value in node.return_values:
+                    checked_value = self.check(value)
+                    return_type = self.update_types(return_type, checked_value.typ)
+
+                typ.checked.fields = param_types + [return_type]
                 checked_node = tir.FunctionRef(node.name, typ=checked_type)
-                checked_params = []
-                for param in node.params:
-                    checked_params.append(self.check(param))
-                checked_node.params = checked_params
+
+                # TODO: node.params check went here, should it be added back?
+
                 if not node.builtin:
                     block = self.check(node.block)
                     checked_node.block = block
@@ -309,13 +309,14 @@ class TypeChecker:
         match node:
             case ir.Declare(ref):
                 checked_node = tir.Declare(self.check(ref))
-            case ir.DeclareMethods(typ, block):
-                if isinstance(typ, types.StructType):
-                    assert all(m not in typ.fields for m in typ.methods)
+            case ir.DeclareMethods(target, block):
+                if isinstance(target.typ, types.Type) \
+                        and types.TypeFlag.STRUCT in target.typ.flags:
+                    assert all(m not in target.typ.fields for m in target.methods)
                 checked_methods = {}
-                for mname, method in typ.methods.items():
+                for mname, method in target.methods.items():
                     checked_methods[mname] = self.check(method)
-                checked_type = self.check(typ)
+                checked_type = self.check(target.typ)
                 checked_type.methods = checked_methods
                 checked_node = tir.DeclareMethods(checked_type, self.check(block))
             case ir.Assign(ref, value):

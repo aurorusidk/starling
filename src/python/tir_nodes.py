@@ -110,10 +110,7 @@ class VectorType(SequenceType):
 
 @dataclass
 class FunctionSigRef(Type):
-    params: dict[str, Type]
-    return_type: Type
-    # params: list[str]
-    # raw_type: types.FunctionType
+    param_names: list[str]
 
 
 @dataclass

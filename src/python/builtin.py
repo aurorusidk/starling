@@ -1,4 +1,4 @@
-from .type_defs import BasicType, BasicTypeKind, BasicTypeFlag
+from .type_defs import TypeFlag
 from . import type_defs
 from . import ir_nodes as ir
 from .scope import Scope
@@ -7,17 +7,20 @@ from .scope import Scope
 scope = Scope(None)
 
 types = {
-    "int": BasicType(BasicTypeKind.INT, BasicTypeFlag.INTEGER, "int"),
-    "float": BasicType(BasicTypeKind.FLOAT, BasicTypeFlag.FLOAT, "float"),
-    "frac": BasicType(BasicTypeKind.FRAC, BasicTypeFlag.RATIONAL, "frac"),
-    "char": BasicType(BasicTypeKind.CHAR, BasicTypeFlag.STRING, "char"),
-    "bool": BasicType(BasicTypeKind.BOOL, BasicTypeFlag.BOOLEAN, "bool"),
+    "meta": type_defs.Type(0, TypeFlag.META, "meta"),
+    "int": type_defs.Type(32, TypeFlag.SIGNED_INT, "int"),
+    "float": type_defs.Type(64, TypeFlag.FLOAT, "float"),
+    # TODO: frac is just the width of two ints for now
+    "frac": type_defs.Type(64, TypeFlag.RATIONAL, "frac"),
+    "char": type_defs.Type(8, TypeFlag.STRING, "char"),
+    "bool": type_defs.Type(1, TypeFlag.BOOLEAN, "bool"),
 }
 for name, value in types.items():
     ref = ir.SimpleType(name, raw_type=value)
     scope.declare(name, ref)
 
-string_type = type_defs.BasicType(BasicTypeKind.STR, BasicTypeFlag.STRING, "str")
+# TODO: bit width of a string
+string_type = type_defs.Type(0, TypeFlag.STRING, "str")
 types["str"] = string_type
 string_type_ref = ir.SequenceType(
     name="str",

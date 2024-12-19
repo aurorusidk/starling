@@ -1,30 +1,34 @@
-from dataclasses import dataclass, field
-from enum import Enum, Flag, auto
+from dataclasses import dataclass
+from enum import Flag, auto
 
 
-BasicTypeKind = Enum("BasicTypeKind", [
-    "INT", "FLOAT", "FRAC", "STR", "CHAR", "BOOL",
-])
-
-
-class BasicTypeFlag(Flag):
-    INTEGER = auto()
+class TypeFlag(Flag):
+    META = auto()
+    SIGNED_INT = auto()
+    UNSIGNED_INT = auto()
     FLOAT = auto()
     RATIONAL = auto()
     STRING = auto()
     BOOLEAN = auto()
+    FUNCTION = auto()
+    STRUCT = auto()
+    ARRAY = auto()
+    VECTOR = auto()
 
-    NUMERIC = INTEGER | FLOAT | RATIONAL
+    NUMERIC = SIGNED_INT | UNSIGNED_INT | FLOAT | RATIONAL
+    ITERABLE = ARRAY | VECTOR | STRING
 
 
 @dataclass(eq=False, repr=False)
 class Type:
-    methods: dict = field(default_factory=dict, kw_only=True)
+    bit_width: int
+    flags: TypeFlag
+    _string: str
 
     # base class for all types
     @property
     def string(self):
-        raise NotImplementedError
+        return self._string
 
     def __str__(self):
         return self.string
@@ -35,7 +39,8 @@ class Type:
     def __eq__(self, other):
         if not isinstance(other, Type):
             return False
-        return self.string == other.string
+        # The types are equal if all flags exactly match
+        return (self.flags & other.flags) and not (self.flags ^ other.flags)
 
     def __hash__(self):
         # the type string should be unique
@@ -43,16 +48,19 @@ class Type:
 
 
 @dataclass(eq=False, repr=False)
-class BasicType(Type):
-    kind: BasicTypeKind
-    flags: BasicTypeFlag
-    _string: str
+class CompoundType(Type):
+    fields: list[Type]
 
     @property
     def string(self):
-        return self._string
+        types = [f.string if f else "nil" for f in self.fields]
+        return f"{self._string}<{', '.join(types)}>"
+
+    def __eq__(self, other):
+        return super.__eq__(other) and self.fields == other.fields
 
 
+"""
 @dataclass(eq=False, repr=False)
 class SequenceType(Type):
     elem_type: Type
@@ -108,27 +116,28 @@ class Interface(Type):
     def string(self):
         format_methods = ", ".join(str(m) for m in self.funcs)
         return f"interface {self.name} {{{format_methods}}}"
+"""
 
 
 def is_basic(typ, flag=None):
     if flag:
-        return isinstance(typ, BasicType) and (typ.flags & flag)
+        return is_basic(typ) and (typ.flags & flag)
     else:
-        return isinstance(typ, BasicType)
-    return isinstance(typ, BasicType) and (typ.flags & (flag if flag else True))
+        return isinstance(typ, Type) and not isinstance(typ, CompoundType)
+    # return isinstance(typ, BasicType) and (typ.flags & (flag if flag else True))
 
 
 def is_numeric(typ):
-    return is_basic(typ, BasicTypeFlag.NUMERIC)
+    return is_basic(typ, TypeFlag.NUMERIC)
 
 
 def is_string(typ):
-    return is_basic(typ, BasicTypeFlag.STRING)
+    return is_basic(typ, TypeFlag.STRING)
 
 
 def is_bool(typ):
-    return is_basic(typ, BasicTypeFlag.BOOLEAN)
+    return is_basic(typ, TypeFlag.BOOLEAN)
 
 
 def is_iterable(typ):
-    return isinstance(typ, (SequenceType))
+    return typ.flags & TypeFlag.ITERABLE
