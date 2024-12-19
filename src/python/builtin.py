@@ -16,8 +16,11 @@ types = {
     "bool": type_defs.Type(1, TypeFlag.BOOLEAN, "bool"),
 }
 for name, value in types.items():
-    ref = ir.SimpleType(name, raw_type=value)
+    type_value = ir.Constant(value)
+    ref = ir.ConstRef(name, value=type_value)
     scope.declare(name, ref)
+    # meta must be the first type for this to work
+    ref.typ = type_value.typ = scope.lookup("meta")
 
 # TODO: bit width of a string
 string_type = type_defs.Type(0, TypeFlag.STRING, "str")

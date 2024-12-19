@@ -112,7 +112,8 @@ class IRNoder:
             # TODO: remove once better typing implemented
             case ast.TypeName(name):
                 typ = self.make_identifier(name.value, load=False)
-                assert isinstance(typ, ir.Type)
+                assert typ.typ == self.scope.lookup("meta"), typ
+                # assert isinstance(typ, ir.Type)
                 return typ
             case ast.ArrayType(elem_type, length):
                 if elem_type is not None:
@@ -123,6 +124,7 @@ class IRNoder:
                 return ir.SequenceType(
                     f"arr<{elem_type.name if elem_type else None}>",
                     elem_type,
+                    typ=self.scope.lookup("meta")
                 )
             case ast.VectorType(elem_type):
                 if elem_type is not None:
@@ -130,6 +132,7 @@ class IRNoder:
                 return ir.SequenceType(
                     f"vec<{elem_type.name if elem_type else None}>",
                     elem_type,
+                    typ=self.scope.lookup("meta")
                 )
             case ast.FunctionSignature(name, return_type, params):
                 return self.make_function_signature(name, return_type, params)
@@ -359,9 +362,12 @@ class IRNoder:
             if param.typ is not None:
                 ptype = self.make_type(param.typ)
             param_types.append(ptype)
-        return ir.FunctionSigRef(name,
-                                 dict(zip(param_names, param_types)),
-                                 return_type)
+        return ir.FunctionSigRef(
+            name,
+            dict(zip(param_names, param_types)),
+            return_type,
+            typ=self.scope.lookup("meta")
+        )
 
     def make_method_signature(self, method, target=None):
         sig = self.make_type(method)
@@ -409,7 +415,7 @@ class IRNoder:
                 ftype = self.make_type(field.typ)
             field_types.append(ftype)
         fields = dict(zip(field_names, field_types))
-        ref = ir.StructRef(name, fields)
+        ref = ir.StructRef(name, fields, typ=self.scope.lookup("meta"))
         self.scope.declare(name, ref)
         self.instrs.append(ir.Declare(ref))
 

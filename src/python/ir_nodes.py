@@ -14,7 +14,7 @@ def id_hash(obj):
 class Object:
     is_expr = False
     is_const = False
-    typ: "Type" = field(default=None, kw_only=True)
+    typ: "Ref" = field(default=None, kw_only=True)
 
 
 @dataclass
@@ -53,17 +53,7 @@ class Ref(Object):
     name: str
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
-
-
-@dataclass
-class Type(Ref):
-    name: str
-    methods: dict[str, Type] = field(default_factory=dict, kw_only=True)
-
-
-@dataclass
-class SimpleType(Type):
-    raw_type: types.Type = field(default=None, kw_only=True)
+    methods: dict[str, Ref] = field(default_factory=dict, kw_only=True)
 
 
 class Instruction(Object):
@@ -101,8 +91,8 @@ class FieldRef(Ref):
 
 
 @dataclass
-class SequenceType(Type):
-    elem_type: Type
+class SequenceType(Ref):
+    elem_type: Ref
 
 
 @dataclass
@@ -116,9 +106,9 @@ class VectorType(SequenceType):
 
 
 @dataclass
-class FunctionSigRef(Type):
-    params: dict[str, Type]
-    return_type: Type
+class FunctionSigRef(Ref):
+    params: dict[str, Ref]
+    return_type: Ref
 
 
 @dataclass
@@ -137,13 +127,13 @@ class MethodRef(FunctionRef):
 
 
 @dataclass
-class InterfaceRef(Type):
+class InterfaceRef(Ref):
     methods: dict[str, FunctionSigRef]
 
 
 @dataclass
-class StructRef(Type):
-    fields: dict[str, Type]
+class StructRef(Ref):
+    fields: dict[str, Ref]
 
 
 @dataclass
@@ -198,7 +188,7 @@ class CBranch(Instruction):
 
 @dataclass
 class DeclareMethods(Instruction):
-    target: Type
+    target: Ref
     block: Block
 
 
