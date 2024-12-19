@@ -248,12 +248,15 @@ class TypeChecker:
                     values = node.param_values.get(pname, [])
                     for value in values:
                         checked_value = self.check(value)
-                        param_types.append(self.update_types(ptype, checked_value.typ))
+                        ptype = self.update_types(ptype, checked_value.typ)
+                    param_types.append(ptype)
 
                 return_type = typ.checked.fields[-1]
                 for value in node.return_values:
                     checked_value = self.check(value)
-                    return_type = self.update_types(return_type, checked_value.typ)
+                    return_type = self.update_raw_types(
+                        return_type, checked_value.typ.checked
+                    )
 
                 typ.checked.fields = param_types + [return_type]
                 checked_node = tir.FunctionRef(node.name, typ=checked_type)
@@ -269,7 +272,10 @@ class TypeChecker:
                 if isinstance(parent.typ, tir.StructRef) and node.name in parent.typ.field_names:
                     index = parent.typ.field_names.index(node.name)
                     checked_node = tir.FieldRef(node.name, parent, index=index)
-                    checked_node.typ = parent.typ.checked.fields[index]
+                    raw_type = parent.typ.checked.fields[index]
+                    # TODO: this is a hack, find a better way
+                    # (we need a consistent way to get a TIR type from a type_defs type)
+                    checked_node.typ = tir.Type(raw_type.string, checked=raw_type)
                 method = parent.typ.methods.get(node.name)
                 if method:
                     assert checked_node is None, f"{node.name} cannot be both a field and a method"
@@ -310,13 +316,14 @@ class TypeChecker:
             case ir.Declare(ref):
                 checked_node = tir.Declare(self.check(ref))
             case ir.DeclareMethods(target, block):
-                if isinstance(target.typ, types.Type) \
-                        and types.TypeFlag.STRUCT in target.typ.flags:
-                    assert all(m not in target.typ.fields for m in target.methods)
+                target = self.check(target)
+                if types.TypeFlag.STRUCT in target.checked.flags:
+                    assert all(m not in target.checked.fields for m in target.methods)
                 checked_methods = {}
                 for mname, method in target.methods.items():
                     checked_methods[mname] = self.check(method)
-                checked_type = self.check(target.typ)
+                # TODO: this is a hack
+                checked_type = tir.Type(target.checked.string, checked=target.checked)
                 checked_type.methods = checked_methods
                 checked_node = tir.DeclareMethods(checked_type, self.check(block))
             case ir.Assign(ref, value):
@@ -326,16 +333,19 @@ class TypeChecker:
                 checked_node.typ = checked_node.ref.typ
             case ir.Call(ref, args):
                 checked_ref = self.check(ref)
-                assert len(args) == len(checked_ref.typ.params)
+                assert len(args) == len(checked_ref.typ.param_names)
+                assert len(args) == len(checked_ref.typ.checked.fields) - 1
                 checked_args = []
-                for pname, arg in zip(checked_ref.typ.params, args):
-                    checked_arg = self.check(arg)
+                for i in range(len(args)):
+                    checked_arg = self.check(args[i])
                     checked_args.append(checked_arg)
-                    checked_ref.typ.params[pname] = self.update_types(
-                        checked_ref.typ.params[pname], checked_arg.typ
+                    checked_ref.typ.checked.fields[i] = self.update_raw_types(
+                        checked_ref.typ.checked.fields[i], checked_arg.typ.checked
                     )
                 checked_node = tir.Call(checked_ref, checked_args)
-                checked_node.typ = checked_ref.typ.return_type
+                # TODO: this is a hack
+                return_type = checked_ref.typ.checked.fields[-1]
+                checked_node.typ = tir.Type(return_type.string, checked=return_type)
             case ir.Return(value):
                 checked_node = tir.Return(self.check(value))
             case ir.Branch(block):

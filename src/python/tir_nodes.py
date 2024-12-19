@@ -309,11 +309,11 @@ class IRPrinter:
             case FieldRef():
                 string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
             case FunctionSigRef():
-                params = ', '.join(self._to_string(p) for p in ir.params.values())
-                string += f"fn ({params}) -> {self._to_string(ir.return_type)}"
+                params = ', '.join(self._to_string(p) for p in ir.checked.fields[:-1])
+                string += f"fn ({params}) -> {self._to_string(ir.checked.fields[-1])}"
             case FunctionRef():
                 block, block_name = self.defer_block(ir.block)
-                string += f"{ir.name}({', '.join(ir.typ.params)}) {block_name}"
+                string += f"{ir.name}({', '.join(ir.typ.param_names)}) {block_name}"
             case StructRef():
                 fields = ', '.join(ir.field_names)
                 string += f"{ir.name}{{{fields}}}"
