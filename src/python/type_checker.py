@@ -33,7 +33,6 @@ class TypeChecker:
         meta = tir.Type("meta", checked=builtin.types["meta"])
         #meta.typ = meta
         self.node_map[id(builtin.scope.lookup("meta"))] = meta
-        print(self.check(builtin.scope.lookup("meta")))
 
     def error(self, msg):
         if self.error_handler is None:
@@ -177,10 +176,8 @@ class TypeChecker:
         return target
 
     def check(self, node):
-        print(node)
         if (n := self.node_map.get(id(node))):
             return n
-        print("not in map")
         match node:
             case ir.Program(block):
                 checked_block = self.check(block)
@@ -315,7 +312,6 @@ class TypeChecker:
                 checked_node = tir.Declare(self.check(ref))
             case ir.DeclareMethods(target, block):
                 target = self.check(target)
-                print(target)
                 if types.TypeFlag.STRUCT in target.checked.flags:
                     assert all(m not in target.checked.fields for m in target.methods)
                 checked_methods = {}
