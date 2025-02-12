@@ -16,8 +16,8 @@ field_declr = IDENTIFIER type?
 field_list = field_declr SEMICOLON (field_declr SEMICOLON)* 
 
 type = INTEGER_TYPE | FLOAT_TYPE | RATIONAL_TYPE | STRING_TYPE | BOOL_TYPE | array_type | vector_type
-array_type = ARR (LEFT_SQUARE ((type COMMA expression) | type | expression) RIGHT_SQUARE)?
-vector_type = VEC (LEFT_SQUARE type RIGHT_SQUARE)?
+array_type = ARR (LESS_THAN type (LEFT_SQUARE expression RIGHT_SQUARE)? GREATER_THAN)?
+vector_type = VEC (LESS_THAN type GREATER_THAN)?
 
 block = LEFT_CURLY statement* RIGHT_CURLY
 statement = declaration
