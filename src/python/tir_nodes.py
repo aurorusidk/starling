@@ -134,11 +134,6 @@ class InterfaceRef(Type):
 
 
 @dataclass
-class StructRef(Type):
-    field_names: list[str]
-
-
-@dataclass
 class ConstRef(Ref):
     is_const = True
     value: Object
@@ -272,11 +267,11 @@ class IRPrinter:
                 return block, name
             case Declare(ref):
                 string = f"DECLARE {self._to_string(ref)}"
-                if isinstance(ref, StructRef) and show_types:
+                if isinstance(ref, Type) and show_types:
                     string += f" [{self._to_string(ref.checked)}]"
             case DeclareMethods(typ, block):
                 block, block_name = self.defer_block(block)
-                string = f"DECLARE_METHODS {self._to_string(typ)} {block_name}"
+                string = f"DECLARE_METHODS {typ.name} {block_name}"
             case Assign(target, value):
                 string = f"ASSIGN {self._to_string(target)} <- {self._to_string(value)}"
             case Return(value):
@@ -313,10 +308,7 @@ class IRPrinter:
                 string += f"fn ({params}) -> {self._to_string(ir.checked.fields[-1])}"
             case FunctionRef():
                 block, block_name = self.defer_block(ir.block)
-                string += f"{ir.name}({', '.join(ir.typ.param_names)}) {block_name}"
-            case StructRef():
-                fields = ', '.join(ir.field_names)
-                string += f"{ir.name}{{{fields}}}"
+                string += f"{ir.name}() {block_name}"
             case ConstRef(name, value):
                 string += f"CONST {name} = {self._to_string(value)}"
                 return string  # avoids duplication of type
@@ -324,7 +316,7 @@ class IRPrinter:
                 fields = ', '.join(self._to_string(f) for f in ir.fields)
                 string = f"{{{fields}}}"
             case Type():
-                string += self._to_string(ir.checked)
+                string += ir.name
             case Ref(name):
                 string += name
             case Load(ref):
@@ -345,7 +337,7 @@ class IRPrinter:
 
         if ir.typ is not None and show_types:
             # TODO: is there a better check for this?
-            if ir.typ.name != "meta":
+            if not (ir.typ.flags & types.TypeFlag.META):
                 string += f" [{self._to_string(ir.typ)}]"
         return string
 
