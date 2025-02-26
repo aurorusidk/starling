@@ -185,15 +185,3 @@ def tokenise(src, error_handler=None):
         pos += len(lexeme)
         cur += len(lexeme)
     return tokens
-
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) == 2:
-        src_file = sys.argv[1]
-    else:
-        src_file = "input.txt"
-    with open(src_file) as f:
-        src = f.read()
-    tokens = tokenise(src)
-    print(tokens)

@@ -442,21 +442,3 @@ def repr_ast(ast):
     out = ast.typ.name + ": "
     out += repr_children(ast.children)
     return out
-
-
-if __name__ == "__main__":
-    import sys
-    from .lexer import tokenise
-
-    logging.basicConfig(format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(logging.DEBUG)
-    if len(sys.argv) == 2:
-        src_file = sys.argv[1]
-    else:
-        src_file = "input.txt"
-    with open(src_file) as f:
-        src = f.read()
-    tokens = tokenise(src)
-    print(tokens)
-    tree = parse(tokens)
-    print(tree)

@@ -305,16 +305,3 @@ def main(src_file=None):
             except StaFunctionReturn as res:
                 print(f"program returned with value {res.value}")
     repl(interpreter)
-
-
-if __name__ == "__main__":
-    import sys
-
-    logging.basicConfig(format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    if len(sys.argv) == 2:
-        src_file = sys.argv[1]
-        main(src_file)
-    else:
-        main()

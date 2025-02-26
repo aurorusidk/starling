@@ -194,7 +194,3 @@ class TestLexer(unittest.TestCase):
         for test, expected in tests.items():
             with self.subTest(test=test):
                 self.assertEqual(translate(test, tokenise=True), expected)
-
-
-if __name__ == "__main__":
-    unittest.main()

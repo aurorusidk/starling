@@ -61,9 +61,3 @@ class ControlFlows:
             image_bytes = self.d.get_imagedata("svg")
             with open(path, "wb") as f:
                 f.write(image_bytes)
-
-
-if __name__ == "__main__":
-    flows = {'e057': ['6b0b'], '6b0b': ['d003', '28d2'], 'd003': [], '28d2': []}
-    a = ControlFlows(flows)
-    a.draw_flow()

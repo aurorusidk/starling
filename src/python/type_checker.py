@@ -458,23 +458,3 @@ class TypeChecker:
             case _:
                 assert False, f"Unexpected object {node}"
         return checked_node
-
-
-if __name__ == "__main__":
-    from . import lexer
-    from . import parser
-    from . import ir as noder
-
-    logging.basicConfig(format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(logging.DEBUG)
-    with open("input.txt") as f:
-        src = f.read()
-    toks = lexer.tokenise(src)
-    tree = parser.parse(toks)
-    iir = noder.IRNoder().make(tree)
-    print(iir)
-    print(ir.IRPrinter().to_string(iir))
-    tc = TypeChecker(iir)
-    tc.check(iir)
-    print(iir)
-    print(ir.IRPrinter().to_string(iir))

@@ -481,28 +481,3 @@ class IRNoder:
             ref.is_global = True
             # TODO: this check should be on all declarations
             #       maybe a `self.declare()` helper is needed
-
-
-if __name__ == "__main__":
-    import sys
-
-    from . import lexer
-    from . import parser
-    from . import control_flows as cf
-
-    logging.basicConfig(format="%(levelname)s: %(message)s")
-    logging.getLogger().setLevel(logging.DEBUG)
-
-    assert len(sys.argv) == 2, "no input file"
-    with open(sys.argv[1]) as f:
-        src = f.read()
-    toks = lexer.tokenise(src)
-    tree = parser.parse(toks)
-    logging.debug(tree)
-    noder = IRNoder()
-    block = noder.block
-    iir = noder.make(tree)
-    logging.debug(iir)
-    print(ir.IRPrinter().to_string(iir))
-    flows = cf.create_flows(block)
-    cf.ControlFlows(flows).draw_flow()
