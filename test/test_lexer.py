@@ -108,6 +108,7 @@ class TestLexer(unittest.TestCase):
             "!=": [Token(T.BANG_EQUALS, "!=", start_pos)],
             "<=": [Token(T.LESS_EQUALS, "<=", start_pos)],
             ">=": [Token(T.GREATER_EQUALS, ">=", start_pos)],
+            "::": [Token(T.DOUBLE_COLON, "::", start_pos)],
         }
 
         for test, expected in tests.items():
@@ -124,10 +125,6 @@ class TestLexer(unittest.TestCase):
             "<>": [
                 Token(T.LESS_THAN, "<", start_pos),
                 Token(T.GREATER_THAN, ">", second_pos)
-            ],
-            "::": [
-                Token(T.COLON, ":", start_pos),
-                Token(T.COLON, ":", second_pos)
             ],
             "++": [
                 Token(T.PLUS, "+", start_pos),
