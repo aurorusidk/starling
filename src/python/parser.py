@@ -141,9 +141,8 @@ class Parser:
     def parse_impl_declr(self):
         self.consume(T.IMPL)
         target = self.parse_type()
-        if self.consume(T.LESS_THAN):
+        if self.consume(T.DOUBLE_COLON):
             interface = self.parse_identifier()
-            self.consume(T.GREATER_THAN)
         else:
             interface = None
         methods = []
