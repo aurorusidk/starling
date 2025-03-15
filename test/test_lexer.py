@@ -1,7 +1,7 @@
 import unittest
 from src.python.lexer import Token, TokenType as T
 from src.python import lexer
-from src.python.cmd import translate
+from src.python.cmd import translate_to_string as translate
 
 
 start_pos = lexer.Pos(1, 1)

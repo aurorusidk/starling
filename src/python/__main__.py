@@ -46,4 +46,4 @@ elif args.get("compile"):
     res = cmd.compile_and_run_src(src, **args)
     print(f"program exited with value {res}")
 else:
-    print(cmd.translate(src, **args))
+    print(cmd.translate_to_string(src, **args))

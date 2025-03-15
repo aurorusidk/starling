@@ -10,42 +10,45 @@ def id_hash(obj):
     return sha1(str(id(obj)).encode("UTF-8")).hexdigest()[:4]
 
 
-@dataclass
+@dataclass(eq=False)
 class Object:
     is_expr = False
     is_const = False
     typ: "Ref" = field(default=None, kw_only=True)
 
+    def __hash__(self):
+        return hash(id(self))
 
-@dataclass
+
+@dataclass(eq=False)
 class Constant(Object):
     is_expr = True
     value: object
 
 
-@dataclass
+@dataclass(eq=False)
 class Sequence(Object):
     is_expr = True
     elements: list[Object]
 
 
-@dataclass
+@dataclass(eq=False)
 class Array(Sequence):
     pass
 
 
-@dataclass
+@dataclass(eq=False)
 class Vector(Sequence):
     pass
 
 
-@dataclass
+@dataclass(eq=False)
 class StructLiteral(Object):
     is_expr = True
     fields: dict[str, Object]
 
 
-@dataclass
+@dataclass(eq=False)
 class Ref(Object):
     is_expr = True
     is_global = False
@@ -60,13 +63,10 @@ class Instruction(Object):
     is_terminator = False
 
 
-@dataclass
+@dataclass(eq=False)
 class Block(Object):
     instrs: list[Instruction]
     deps: list = field(default_factory=list)
-
-    def __hash__(self):
-        return hash(id(self))
 
     @property
     def is_terminated(self):
@@ -75,13 +75,13 @@ class Block(Object):
         return False
 
 
-@dataclass
+@dataclass(eq=False)
 class IndexRef(Ref):
     parent: Ref
     index: Constant | Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class FieldRef(Ref):
     parent: Ref
     # mimic functions for methods
@@ -90,28 +90,28 @@ class FieldRef(Ref):
     method: Ref = field(default=None, kw_only=True)
 
 
-@dataclass
+@dataclass(eq=False)
 class SequenceType(Ref):
     elem_type: Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class ArrayType(SequenceType):
     length: int
 
 
-@dataclass
+@dataclass(eq=False)
 class VectorType(SequenceType):
     pass
 
 
-@dataclass
+@dataclass(eq=False)
 class FunctionSigRef(Ref):
     params: dict[str, Ref]
     return_type: Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class FunctionRef(Ref):
     params: list[Ref] = field(default=None, kw_only=True)
     block: Block = field(default=None, kw_only=True)
@@ -121,64 +121,64 @@ class FunctionRef(Ref):
     builtin: bool = field(default=False, kw_only=True)
 
 
-@dataclass
+@dataclass(eq=False)
 class MethodRef(FunctionRef):
     parent: Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class InterfaceRef(Ref):
     methods: dict[str, FunctionSigRef]
 
 
-@dataclass
+@dataclass(eq=False)
 class StructRef(Ref):
     fields: dict[str, Ref]
 
 
-@dataclass
+@dataclass(eq=False)
 class ConstRef(Ref):
     is_const = True
     value: Object
 
 
-@dataclass
+@dataclass(eq=False)
 class Declare(Instruction):
     ref: Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class Assign(Instruction):
     target: Ref
     value: Object
 
 
-@dataclass
+@dataclass(eq=False)
 class Load(Instruction):
     is_expr = True
     ref: Ref
 
 
-@dataclass
+@dataclass(eq=False)
 class Call(Instruction):
     is_expr = True
     target: FunctionRef
     args: list[Object]
 
 
-@dataclass
+@dataclass(eq=False)
 class Return(Instruction):
     is_terminator = True
     value: Object
 
 
-@dataclass
+@dataclass(eq=False)
 class Branch(Instruction):
     is_terminator = True
     block: Block
 
 
-@dataclass
+@dataclass(eq=False)
 class CBranch(Instruction):
     is_terminator = True
     condition: Object
@@ -186,7 +186,7 @@ class CBranch(Instruction):
     f_block: Block
 
 
-@dataclass
+@dataclass(eq=False)
 class DeclareMethods(Instruction):
     target: Ref
     block: Block
@@ -195,14 +195,14 @@ class DeclareMethods(Instruction):
 # this is the same as in the AST
 # maybe we want to define the ops separately to remove the dependence on tokens
 # for now the op will just be the op string
-@dataclass
+@dataclass(eq=False)
 class Unary(Instruction):
     is_expr = True
     op: str
     rhs: Object
 
 
-@dataclass
+@dataclass(eq=False)
 class Binary(Instruction):
     is_expr = True
     op: str
@@ -210,7 +210,7 @@ class Binary(Instruction):
     rhs: Object
 
 
-@dataclass
+@dataclass(eq=False)
 class Program(Object):
     block: Block
 

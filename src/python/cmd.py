@@ -11,6 +11,21 @@ from .compiler import Compiler, execute_module
 from .control_flows import ControlFlows, create_flows
 
 
+def translate_to_string(src, **flags):
+    result = translate(src, **flags)
+    if flags.get("tokenise") or flags.get("parse"):
+        return result
+    if flags.get("make_ir"):
+        printer = IRPrinter(test=flags.get("test"))
+        printer.show_types = False
+        iir_string = printer.to_string(result)
+        return iir_string
+    if flags.get("typecheck"):
+        printer = tir.IRPrinter(test=flags.get("test"))
+        tir_string = printer.to_string(result)
+        return tir_string
+
+
 def translate(src, **flags):
     error_handler = flags.get("error_handler")
     tokens = tokenise(src, error_handler)
@@ -27,18 +42,13 @@ def translate(src, **flags):
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):
         process_cf(block, flags.get("cf_path"), flags.get("cf_show"), flags.get("test"))
-    printer = IRPrinter(test=flags.get("test"))
     if flags.get("make_ir"):
-        printer.show_types = False
-        iir_string = printer.to_string(iir)
-        return iir_string
+        return iir
 
-    printer = tir.IRPrinter(test=flags.get("test"))
     tc = TypeChecker(error_handler)
     tiir = tc.check(iir)
     if flags.get("typecheck"):
-        tir_string = printer.to_string(tiir)
-        return tir_string
+        return tiir
 
     return tiir
 

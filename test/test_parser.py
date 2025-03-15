@@ -2,7 +2,7 @@ import logging
 import unittest
 from src.python.lexer import Token, TokenType as T, Pos
 import src.python.ast_nodes as ast
-from src.python.cmd import translate
+from src.python.cmd import translate_to_string as translate
 
 
 class TestParser(unittest.TestCase):
