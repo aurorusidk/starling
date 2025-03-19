@@ -73,6 +73,7 @@ operator_table = {
     "+": Function(Any, Function(Any, Any)),
     "*": Function(Integer, Function(Integer, Integer)),
     "<": Function(Any, Function(Any, Bool)),
+    "-": Function(Integer, Integer),
 }
 
 
@@ -129,6 +130,12 @@ def analyse_instruction(node, env, non_generic):
                 result_type = TypeVariable()
                 unify(Function(arg_type, result_type), target_type)
                 target_type = result_type
+            return result_type
+        case ir.Unary(op, rhs):
+            target_type = operator_table[op]
+            arg_type = analyse(rhs, env, non_generic)
+            result_type = TypeVariable()
+            unify(Function(arg_type, result_type), target_type)
             return result_type
         case ir.Branch(block):
             return analyse(block, env, non_generic)
