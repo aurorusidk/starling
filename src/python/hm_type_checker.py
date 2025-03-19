@@ -52,6 +52,21 @@ class Function(TypeConstructor):
         super().__init__("->", [from_type, to_type])
 
 
+class EmptyRow:
+    def __str__(self):
+        return "{}"
+
+
+class TypeRow:
+    def __init__(self, fields, rest=EmptyRow()):
+        self.fields = fields
+        self.rest = rest
+
+    def __str__(self):
+        fields_format = ", ".join(f"{k} = {v}" for k, v in self.fields.items())
+        return f"{{{fields_format}, ...{str(self.rest)}}}"
+
+
 Void = TypeConstructor("void", [])
 Integer = TypeConstructor("int", [])
 Float = TypeConstructor("float", [])
@@ -83,17 +98,26 @@ def analyse(node, env, non_generic=None):
 
     match node:
         case ir.Program(block):
+            program_types = {}
             for instr in block.instrs:
                 instr_type = analyse(instr, env, non_generic)
-                print(instr_type)  # TODO: this is debug, remove later
-            return analyse(block, env, non_generic)
-            # TODO: make Program type correct (and useful for imports!!)
+                if isinstance(instr, ir.Declare):
+                    program_types[instr.ref.name] = instr_type
+            return TypeRow(program_types)
         case ir.Block():
             return analyse_block(node, env, non_generic)
         case ir.Instruction():
             return analyse_instruction(node, env, non_generic)
+        case ir.StructLiteral():
+            struct_ref = analyse(node.typ, env, non_generic)
+            row = TypeRow({
+                name: analyse(obj, env, non_generic)
+                for name, obj in node.fields.items()
+            })
+            unify(row, struct_ref)
+            return row
         case ir.Ref():
-            return analyse_ref(node, env, non_generic)
+            return lookup_ref(node, env, non_generic)
         case ir.Constant():
             return type_map[node.typ.value.value]
         case _:
@@ -155,12 +179,15 @@ def analyse_instruction(node, env, non_generic):
         case ir.Declare(ref):
             if isinstance(ref, ir.FunctionRef):
                 return declare_function(ref, env, non_generic)
+            elif isinstance(ref, ir.StructRef):
+                return declare_struct(ref, env, non_generic)
             else:
                 return analyse(ref, env, non_generic)
         case ir.Load(ref):
             return analyse(ref, env, non_generic)
         case ir.Return(value):
             return analyse(value, env, non_generic)
+        # TODO: case DeclareMethods
 
 
 def declare_function(ref, env, non_generic):
@@ -183,9 +210,23 @@ def declare_function(ref, env, non_generic):
     return func_type
 
 
-def analyse_ref(node, env, non_generic):
+def declare_struct(ref, env, non_generic):
+    fields = {
+        name: analyse(field, env, non_generic) for name, field in ref.fields.items()
+    }
+    row = TypeRow(fields)
+    env[ref] = row
+    return row
+
+
+def lookup_ref(node, env, non_generic):
     if node in env:
         node_type = env[node]
+    elif isinstance(node, ir.FieldRef):
+        parent_type = analyse(node.parent, env, non_generic)
+        node_type = TypeVariable()
+        unify(TypeRow({node.name: node_type}, TypeVariable()), parent_type)
+        env[node] = node_type
     else:
         node_type = TypeVariable()
         env[node] = node_type
@@ -207,6 +248,34 @@ def unify(t1, t2):
             raise InferenceError(f"Type mismatch: {str(a)} != {str(b)}")
         for p, q in zip(a.types, b.types):
             unify(p, q)
+    elif isinstance(a, EmptyRow) and isinstance(b, EmptyRow):
+        return
+    elif isinstance(a, EmptyRow) and isinstance(b, TypeRow):
+        unify(b, a)
+    elif isinstance(a, TypeRow) and isinstance(b, EmptyRow):
+        raise InferenceError("Cannot unify EmptyRow and TypeRow")
+    elif isinstance(a, TypeRow) and isinstance(b, TypeRow):
+        a_rest, a_fields = row_flatten(a)
+        b_rest, b_fields = row_flatten(b)
+        a_keys = set(a_fields.keys())
+        b_keys = set(b_fields.keys())
+
+        a_missing = {key: b_fields[key] for key in b_keys - a_keys}
+        b_missing = {key: a_fields[key] for key in a_keys - b_keys}
+
+        for key in a_keys & b_keys:
+            unify(a_fields[key], b_fields[key])
+
+        if a_keys == b_keys:
+            unify(a_rest, b_rest)
+        elif b_keys - a_keys and a_keys - b_keys:
+            rest = TypeVariable()
+            unify(a_rest, TypeRow(a_missing, rest))
+            unify(b_rest, TypeRow(b_missing, rest))
+        elif b_keys - a_keys:
+            unify(a_rest, TypeRow(a_missing, b_rest))
+        elif a_keys - b_keys:
+            unify(b_rest, TypeRow(b_missing, a_rest))
     else:
         assert False, "Not unified"
 
@@ -217,6 +286,16 @@ def prune(t):
             t.forwarded = prune(t.forwarded)
             return t.forwarded
     return t
+
+
+def row_flatten(t):
+    row = prune(t)
+    if isinstance(row, TypeVariable) or isinstance(row, EmptyRow):
+        return row, {}
+    elif isinstance(row, TypeRow):
+        rest, flat = row_flatten(row.rest)
+        return rest, (flat | row.fields)
+    raise InferenceError(f"Attempted to flatten non-Row type: {row}")
 
 
 def occurs_in_type(v, type2):
@@ -248,7 +327,7 @@ def main():
         src = f.read()
     ir = cmd.translate(src, make_ir=True)
     checked = analyse(ir, {})
-    print(checked)
+    print("\n".join(f"{name}:\t{t}" for name, t in checked.fields.items()))
 
 
 if __name__ == "__main__":
