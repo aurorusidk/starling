@@ -61,10 +61,23 @@ class TypeRow:
     def __init__(self, fields, rest=EmptyRow()):
         self.fields = fields
         self.rest = rest
+        self._str = ""
 
     def __str__(self):
-        fields_format = ", ".join(f"{k} = {v}" for k, v in self.fields.items())
-        return f"{{{fields_format}, ...{str(self.rest)}}}"
+        if self._str:
+            return self._str
+
+        fields_format = ", ".join(
+            f"{k} = {v}" for k, v in self.fields.items()
+            if not isinstance(prune(v), Function)
+        )
+        self._str = "self"
+        methods_format = ", ".join(
+            f"{k} = {v}" for k, v in self.fields.items()
+            if isinstance(prune(v), Function)
+        )
+        self._str = ""
+        return f"{{{fields_format}, {methods_format}, ...{str(self.rest)}}}"
 
 
 Void = TypeConstructor("void", [])
@@ -113,7 +126,7 @@ def analyse(node, env, non_generic=None):
             row = TypeRow({
                 name: analyse(obj, env, non_generic)
                 for name, obj in node.fields.items()
-            })
+            }, TypeVariable())
             unify(row, struct_ref)
             return row
         case ir.Ref():
@@ -183,22 +196,33 @@ def analyse_instruction(node, env, non_generic):
                 return declare_struct(ref, env, non_generic)
             else:
                 return analyse(ref, env, non_generic)
+        case ir.DeclareMethods(ref, block):
+            analyse(block, env, non_generic)
+            return analyse(ref, env, non_generic)
         case ir.Load(ref):
             return analyse(ref, env, non_generic)
         case ir.Return(value):
             return analyse(value, env, non_generic)
-        # TODO: case DeclareMethods
 
 
 def declare_function(ref, env, non_generic):
-    args = [analyse(param, env, non_generic) for param in ref.params]
+    args = []
+    for param in ref.params:
+        param_type = analyse(param, env, non_generic)
+        if param.typ is not None:
+            type_hint = analyse(param.typ, env, non_generic)
+            unify(param_type, type_hint)
+        args.append(param_type)
     if len(args) == 0:
         args = [Void]
     return_type = TypeVariable()  # TODO: annotated return type not checked here
     func_type = Function(args[-1], return_type)
     for arg in args[-2::-1]:
         func_type = Function(arg, func_type)
-    env[ref] = func_type
+    if ref in env:
+        unify(env[ref], func_type)
+    else:
+        env[ref] = func_type
     temp_env = env.copy()
     temp_non_generic = non_generic.copy()
     temp_non_generic.add(func_type)
@@ -212,9 +236,14 @@ def declare_function(ref, env, non_generic):
 
 def declare_struct(ref, env, non_generic):
     fields = {
-        name: analyse(field, env, non_generic) for name, field in ref.fields.items()
+        name: analyse(field, env, non_generic)
+        for name, field in ref.fields.items()
     }
-    row = TypeRow(fields)
+    methods = {
+        name: analyse(method, env, non_generic)
+        for name, method in ref.methods.items()
+    }
+    row = TypeRow(fields | methods)
     env[ref] = row
     return row
 
@@ -236,12 +265,14 @@ def lookup_ref(node, env, non_generic):
 def unify(t1, t2):
     a = prune(t1)
     b = prune(t2)
-    if isinstance(a, TypeVariable):
+    if a == b:
+        return
+    elif isinstance(a, TypeVariable):
         if a != b:
             if occurs_in_type(a, b):
                 raise InferenceError("Recursive unification")
             a.forwarded = b
-    elif isinstance(a, TypeConstructor) and isinstance(b, TypeVariable):
+    elif isinstance(b, TypeVariable):
         unify(b, a)
     elif isinstance(a, TypeConstructor) and isinstance(b, TypeConstructor):
         if a.name != b.name or len(a.types) != len(b.types):
