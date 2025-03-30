@@ -67,17 +67,18 @@ class TypeRow:
         if self._str:
             return self._str
 
-        fields_format = ", ".join(
+        field_strings = [
             f"{k} = {v}" for k, v in self.fields.items()
             if not isinstance(prune(v), Function)
-        )
+        ]
         self._str = "self"
-        methods_format = ", ".join(
+        method_strings = [
             f"{k} = {v}" for k, v in self.fields.items()
             if isinstance(prune(v), Function)
-        )
+        ]
+        row_format = ", ".join(field_strings + method_strings)
         self._str = ""
-        return f"{{{fields_format}, {methods_format}, ...{str(self.rest)}}}"
+        return f"{{{row_format}, ...{str(self.rest)}}}"
 
 
 Void = TypeConstructor("void", [])
@@ -86,6 +87,14 @@ Float = TypeConstructor("float", [])
 Rational = TypeConstructor("frac", [])
 Char = TypeConstructor("char", [])
 Bool = TypeConstructor("bool", [])
+None_ = TypeConstructor("none", [])
+
+
+class Optional(TypeRow):
+    def __init__(self, some_type=TypeVariable()):
+        fields = {"some": some_type, "none": None_}
+        super().__init__(fields)
+
 
 Any = TypeVariable()
 
@@ -95,6 +104,7 @@ type_map = {
     builtin.types["frac"]: Rational,
     builtin.types["char"]: Char,
     builtin.types["bool"]: Bool,
+    builtin.types["none"]: None_, # TODO: naming convention?
 }
 
 operator_table = {
@@ -132,7 +142,10 @@ def analyse(node, env, non_generic=None):
         case ir.Ref():
             return lookup_ref(node, env, non_generic)
         case ir.Constant():
-            return type_map[node.typ.value.value]
+            typ = type_map[node.typ.value.value]
+            if typ == None_:
+                return Optional()
+            return typ
         case _:
             raise Exception(node)
 
@@ -267,6 +280,14 @@ def unify(t1, t2):
     b = prune(t2)
     if a == b:
         return
+    elif isinstance(a, Optional):
+        if isinstance(b, Optional):
+            return unify(a.fields["some"], b.fields["some"])
+        elif t2 != b:
+            unify(a.fields["some"], b)
+        t2.forwarded = a
+    elif isinstance(b, Optional):
+        unify(t2, t1)
     elif isinstance(a, TypeVariable):
         if a != b:
             if occurs_in_type(a, b):

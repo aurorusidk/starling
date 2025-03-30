@@ -205,6 +205,9 @@ class IRNoder:
             case T.BOOLEAN:
                 val = ir.Constant(tok.lexeme == "true")
                 val.typ = self.scope.lookup("bool")
+            case T.NIL:
+                val = ir.Constant(None)
+                val.typ = self.scope.lookup("none")
             case _:
                 assert False, f"Unexpected literal token {tok}"
         return val

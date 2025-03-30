@@ -6,6 +6,7 @@ import logging
 
 TokenType = Enum("TokenType", [
     "INTEGER", "FLOAT", "RATIONAL", "STRING", "CHAR", "BOOLEAN", "IDENTIFIER",
+    "NIL",
     "EQUALS_EQUALS", "BANG_EQUALS",
     "LESS_THAN", "GREATER_THAN", "LESS_EQUALS", "GREATER_EQUALS",
     "EQUALS", "STAR", "SLASH", "PLUS", "MINUS", "BANG",
@@ -34,6 +35,7 @@ T = TokenType
 KEYWORDS = {
     "true": T.BOOLEAN,
     "false": T.BOOLEAN,
+    "nil": T.NIL,
     "if": T.IF,
     "else": T.ELSE,
     "while": T.WHILE,
@@ -77,6 +79,7 @@ MONOGRAPHS = {
 
 SEMICOLON_INSERT = [
     T.INTEGER, T.FLOAT, T.RATIONAL, T.STRING, T.CHAR, T.BOOLEAN, T.IDENTIFIER,
+    T.NIL,
     T.RIGHT_BRACKET, T.RIGHT_SQUARE,
     T.RETURN,
 ]

@@ -14,6 +14,7 @@ class TypeFlag(Flag):
     STRUCT = auto()
     ARRAY = auto()
     VECTOR = auto()
+    NONE = auto()
 
     NUMERIC = SIGNED_INT | UNSIGNED_INT | FLOAT | RATIONAL
     ITERABLE = ARRAY | VECTOR | STRING

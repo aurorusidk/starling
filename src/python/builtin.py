@@ -14,6 +14,7 @@ types = {
     "frac": type_defs.Type(64, TypeFlag.RATIONAL, "frac"),
     "char": type_defs.Type(8, TypeFlag.STRING, "char"),
     "bool": type_defs.Type(1, TypeFlag.BOOLEAN, "bool"),
+    "none": type_defs.Type(0, TypeFlag.NONE, "none"),
 }
 for name, value in types.items():
     type_value = ir.Constant(value)
