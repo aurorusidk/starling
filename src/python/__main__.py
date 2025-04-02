@@ -24,14 +24,16 @@ cf_g.add_argument("--cf-path", help="save a cf-diagram at the given path")
 
 parser.add_argument("-v", "--verbosity", action="count")
 
-parser.add_argument("--test", action="store_true", help="causes the IRPrinter to enter test mode")
+parser.add_argument(
+    "--test", action="store_true", help="causes the IRPrinter to enter test mode"
+)
 
 parser.add_argument("filename", help="the file to translate")
 
 logging_levels = (logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG)
 
 args = vars(parser.parse_args())
-filename = args.pop("filename")
+filename = args.get("filename")
 verbosity = args.pop("verbosity") or 0
 logging_level = logging_levels[verbosity]
 logging.basicConfig(format="%(levelname)s: %(message)s")

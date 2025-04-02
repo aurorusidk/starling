@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from hashlib import sha1
+from pathlib import Path
 
 from . import type_defs as types
 
@@ -59,6 +60,12 @@ class Ref(Object):
     methods: dict[str, Ref] = field(default_factory=dict, kw_only=True)
 
 
+@dataclass(eq=False)
+class ImportResult(Object):
+    is_expr = True
+    value: StructLiteral = None
+
+
 class Instruction(Object):
     is_terminator = False
 
@@ -86,7 +93,7 @@ class FieldRef(Ref):
     parent: Ref
     # mimic functions for methods
     return_values: list[Object] = field(default_factory=list, init=False)
-    param_values: dict[str, list[Object]] = field(default_factory=dict, init=False)
+    param_values: list[Object] = field(default_factory=list, init=False)
     method: Ref = field(default=None, kw_only=True)
 
 
@@ -140,6 +147,11 @@ class StructRef(Ref):
 class ConstRef(Ref):
     is_const = True
     value: Object
+
+
+@dataclass(eq=False)
+class ModuleType(StructRef):
+    pass
 
 
 @dataclass(eq=False)
@@ -211,8 +223,12 @@ class Binary(Instruction):
 
 
 @dataclass(eq=False)
-class Program(Object):
+class Module(Object):
     block: Block
+    path: Path
+    value: ImportResult = None
+    imports: set[str] = field(default_factory=set)
+    dependencies: list[Object] = field(default_factory=list)
 
 
 def counter():
@@ -253,7 +269,7 @@ class IRPrinter:
             show_types = self.show_types
         string = ""
         match ir:
-            case Program(block):
+            case Module(block):
                 block, _ = self._to_string(block)
                 string = block
             case Block(instrs):
@@ -321,6 +337,8 @@ class IRPrinter:
             case StructLiteral():
                 fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
+            case ImportResult():
+                string = self._to_string(ir.value)
             case Ref(name):
                 string += name
             case Load(ref):

@@ -107,20 +107,19 @@ class Compiler:
                 for param, arg in zip(node.params, func.iter_params()):
                     ptr = self.build(param)
                     self.builder.build_store(arg, ptr)
-                    self.refs[id(param)] = ptr
-                # cannot build the block because no function is set yet
-                for instr in node.block.instrs:
-                    self.build(instr)
+                # TODO: builtins
+                self.build(node.block)
                 obj = func
             case ir.FieldRef():
-                if isinstance(node.typ, ir.FunctionSigRef):
+                if node.method:
                     obj = self.build(node.method)
+                elif isinstance(node.parent.typ, ir.ModuleType):
+                    obj = self.build(node.parent.values[0].value.fields[node.name])
                 else:
                     idx = list(node.parent.typ.fields.keys()).index(node.name)
                     parent = self.build(node.parent)
                     parent_type = self.build(node.parent.typ)
                     return self.builder.build_struct_ge2(parent_type, parent, idx, "")
-                self.refs[id(node)] = obj
             case ir.IndexRef():
                 parent = self.build(node.parent)
                 if isinstance(node.parent, ir.Ref):
@@ -140,6 +139,8 @@ class Compiler:
                     elem_type, ptr, [idx], ""
                 )
             case ir.Ref():
+                if node.comptime:
+                    return
                 typ = self.build(node.typ)
                 if node.is_global:
                     ptr = self.module.add_global(typ, node.name)
@@ -164,6 +165,8 @@ class Compiler:
                 for instr in block.instrs:
                     self.build(instr)
             case ir.Assign(ref, value):
+                if ref.comptime:
+                    return
                 var = self.build(ref)
                 val = self.build(value)
                 self.builder.build_store(val, var)
@@ -205,9 +208,12 @@ class Compiler:
                     self.build(instr)
                 self.builder.position_builder_at_end(prev_block)
                 return block
-            case ir.Program(block):
+            case ir.Module(block):
                 # cannot build the block because no IRBuilder is set
                 # perhaps there should be a global func/block
+                for mod in reversed(node.dependencies):
+                    for instr in mod.block.instrs:
+                        self.build(instr)
                 for instr in block.instrs:
                     self.build(instr)
             case ir.Constant(value):
@@ -247,6 +253,8 @@ class Compiler:
                 typ = self.build(node.typ)
                 fields = [self.build(f) for f in fields.values()]
                 return typ.const_named_struct(fields)
+            case ir.ImportResult(value):
+                assert False, "Unreachable"
             case _:
                 assert False
 

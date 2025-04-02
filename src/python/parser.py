@@ -73,7 +73,7 @@ class Parser:
         while self.cur < len(self.tokens):
             logging.debug(f"declrs: {declarations}")
             declarations.append(self.parse_declaration())
-        return ast.Program(declarations)
+        return ast.Module(declarations)
 
     def parse_declaration(self):
         if self.check(T.FUNC):
@@ -333,6 +333,8 @@ class Parser:
         while not self.consume(T.RIGHT_BRACKET):
             args.append(self.parse_expression())
             self.consume(T.COMMA)
+        if isinstance(target, ast.Builtin):
+            return ast.BuiltinCall(target, args)
         return ast.CallExpr(target, args)
 
     def parse_primary(self):
@@ -386,6 +388,9 @@ class Parser:
 
         elif self.check(T.IDENTIFIER):
             return self.parse_identifier()
+        elif self.consume(T.ATSIGN):
+            name = self.expect(T.IDENTIFIER)
+            return ast.Builtin(name.lexeme)
         else:
             value = self.consume(
                 T.INTEGER, T.FLOAT, T.RATIONAL, T.BOOLEAN, T.STRING, T.CHAR, T.NIL,

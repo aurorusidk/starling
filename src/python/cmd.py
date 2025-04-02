@@ -37,7 +37,7 @@ def translate(src, **flags):
     if flags.get("parse"):
         return ast
 
-    noder = IRNoder(error_handler)
+    noder = IRNoder(flags.get("filename"), error_handler)
     block = noder.block
     iir = noder.make(ast)
     if flags.get("cf_show") or (flags.get("cf_path") is not None):

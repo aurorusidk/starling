@@ -50,6 +50,7 @@ class Ref(Object):
     is_expr = True
     is_global = False
     is_const = False
+    comptime = False
     name: str
     values: list = field(default_factory=list, kw_only=True)
     members: dict = field(default_factory=dict, kw_only=True)
@@ -208,7 +209,7 @@ class Binary(Instruction):
 
 
 @dataclass
-class Program(Object):
+class Module(Object):
     block: Block
 
 
@@ -250,7 +251,7 @@ class IRPrinter:
             show_types = self.show_types
         string = ""
         match ir:
-            case Program(block):
+            case Module(block):
                 block, _ = self._to_string(block)
                 string = block
             case Block(instrs):

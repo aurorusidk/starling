@@ -181,10 +181,12 @@ class TypeChecker:
         if (n := self.node_map.get(id(node))):
             return n
         match node:
-            case ir.Program(block):
+            case ir.Module(block):
+                for dep in reversed(node.dependencies):
+                    self.check(dep)
                 checked_block = self.check(block)
                 # TODO: program types
-                checked_node = tir.Program(checked_block)
+                checked_node = tir.Module(checked_block)
             case ir.Ref():
                 checked_node = self.check_ref(node)
             case ir.Instruction():
@@ -228,7 +230,13 @@ class TypeChecker:
                     )
 
                 checked_type.fields = param_types + [return_type]
-                checked_node = tir.FunctionRef(node.name, typ=checked_type)
+                if isinstance(node, ir.MethodRef):
+                    checked_node = tir.MethodRef(
+                        node.name, self.check(node.parent), typ=checked_type
+                    )
+                else:
+                    checked_node = tir.FunctionRef(node.name, typ=checked_type)
+
 
                 # TODO: node.params check went here, should it be added back?
 
@@ -260,6 +268,9 @@ class TypeChecker:
                     checked_node = self.check(method)
                 assert checked_node is not None, \
                     f"{node.name} is not a field or method of {node.parent.name}"
+                checked_node.comptime = parent.comptime
+                if checked_node.comptime:
+                    checked_node = self.comptime_eval(checked_node)
             case ir.IndexRef():
                 checked_parent = self.check(node.parent)
                 assert isinstance(checked_parent.typ, tir.SequenceType), \
@@ -317,6 +328,9 @@ class TypeChecker:
             self.methods_map[id(checked_node.typ)] = node.typ.methods
         return checked_node
 
+        if isinstance(node.typ, ir.ModuleType):
+            node.comptime = True
+
     def check_instr(self, node):
         match node:
             case ir.Declare(ref):
@@ -337,14 +351,15 @@ class TypeChecker:
                 checked_node = tir.Load(self.check(ref))
                 checked_node.typ = checked_node.ref.typ
             case ir.Call(ref, args):
+                # TODO: struct literals end up here and die
                 checked_ref = self.check(ref)
-                assert len(args) == len(checked_ref.typ.fields) - 1
-                checked_args = []
-                for i in range(len(args)):
-                    checked_arg = self.check(args[i])
-                    checked_args.append(checked_arg)
+                checked_args = [self.check(arg) for arg in args]
+                if isinstance(checked_ref, tir.MethodRef):
+                    checked_args.insert(0, tir.Load(checked_ref.parent))
+                assert len(checked_args) == len(checked_ref.typ.fields) - 1
+                for i, arg in enumerate(checked_args):
                     checked_ref.typ.fields[i] = self.update_raw_types(
-                        checked_ref.typ.fields[i], checked_arg.typ
+                        checked_ref.typ.fields[i], arg.typ
                     )
                 checked_node = tir.Call(checked_ref, checked_args)
                 # TODO: this is a hack
@@ -360,7 +375,9 @@ class TypeChecker:
                     self.error("Branch condition must be a boolean")
                 checked_t_block = self.check(t_block)
                 checked_f_block = self.check(f_block)
-                checked_node = tir.CBranch(checked_condition, checked_t_block, checked_f_block)
+                checked_node = tir.CBranch(
+                    checked_condition, checked_t_block, checked_f_block
+                )
             case ir.Binary():
                 checked_node = self.check_binary(node)
             case ir.Unary():
@@ -455,6 +472,9 @@ class TypeChecker:
                         checked_type.fields[i], checked_val.typ
                     )
                 checked_node = tir.StructLiteral(checked_fields, typ=checked_type)
+            case ir.ImportResult():
+                checked_node = self.check(node.value)
+                checked_node.comptime = True
             case _:
                 assert False, f"Unexpected object {node}"
         return checked_node

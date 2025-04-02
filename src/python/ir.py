@@ -1,24 +1,32 @@
 from contextlib import contextmanager
 from fractions import Fraction
 import logging
+from pathlib import Path
 
 from .lexer import TokenType as T
 from .scope import Scope
 from . import ast_nodes as ast
-from . import type_defs as types
 from . import builtin
 from . import ir_nodes as ir
 
 
 class IRNoder:
-    def __init__(self, error_handler=None):
+    def __init__(self, filename, error_handler=None):
         self.scope = Scope(builtin.scope)
-        self.exprs = []
+        self.exprs = []  # TODO: what does this do??
         self.block = ir.Block([])
         self.current_func = None
         self.blocks = {}
         self.error_handler = error_handler
-        self.global_block = None
+        self.global_block = None  # TODO: there is probably a better way
+
+        self.main_filename = Path(filename).resolve()
+        # TODO: improve demarkation
+        self.module = None
+        self.filename = self.main_filename
+        self.import_table = {}
+        self.imports_seen = set()
+        self.import_results = []
 
     def error(self, msg):
         # add position info
@@ -27,6 +35,17 @@ class IRNoder:
             assert False, msg
 
         self.error_handler(msg)
+
+    def resolve_filepath(self, path):
+        assert Path(path).suffix != ".sta", \
+            "Bad import: file extension should be excluded"
+        path = self.filename.parent.joinpath(path)
+        # don't clobber file stems with a dot
+        return path.with_suffix(path.suffix + ".sta").resolve()
+
+    @property
+    def imports(self):
+        return self.module.imports
 
     @property
     def instrs(self):
@@ -60,6 +79,17 @@ class IRNoder:
         from_block.instrs.append(instr)
         return instr
 
+    def get_module_struct(self, module):
+        declrs = {}
+        for instr in module.block.instrs:
+            if isinstance(instr, ir.Declare):
+                declrs[instr.ref.name] = instr.ref
+        struct = ir.StructLiteral(declrs)
+        fields = {k: v.typ for k, v in declrs.items()}
+        typ = ir.ModuleType(str(module.path.stem), fields)
+        struct.typ = typ
+        return struct
+
     def make(self, node):
         match node:
             case ast.Expr():
@@ -70,14 +100,57 @@ class IRNoder:
                 self.make_stmt(node)
             case ast.Declr():
                 self.make_declr(node)
-            case ast.Program(declrs):
-                block = self.block
-                self.global_block = block
-                for declr in declrs:
-                    self.make_declr(declr)
-                return ir.Program(block)
+            case ast.Module(declrs):
+                return self.make_module(declrs)
             case _:
                 assert False, f"Unexpected node {node}"
+
+    def make_module(self, declrs):
+        prev_module = self.module
+        self.module = ir.Module(self.new_block(), self.filename)
+        self.block = self.module.block
+        self.global_block = self.block
+        for declr in declrs:
+            self.make_declr(declr)
+        self.imports_seen.add(self.filename)
+        self.import_table[self.filename] = self.module
+
+        for mod in self.module.dependencies:
+            for dep in mod.dependencies:
+                assert dep.path != self.filename, \
+                    f"Bad import: circular dependency {dep.path}"
+                if dep not in self.module.dependencies:
+                    self.module.dependencies.append(dep)
+
+        if self.filename == self.main_filename:
+            for mod in self.module.dependencies:
+                self.module.block.instrs = mod.block.instrs + self.module.block.instrs
+
+        logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
+        current_module = self.module
+        self.module = prev_module
+        if self.module is not None:
+            self.filename = self.module.path
+            self.block = self.module.block
+        return current_module
+
+    def import_module(self, path):
+        from .cmd import translate
+        assert path != self.filename, "Bad import: cannot import self"
+
+        if path not in self.imports_seen:
+            self.imports_seen.add(path)
+            self.filename = path
+            with open(path) as f:
+                src = f.read()
+            parse_tree = translate(src, filename=path, parse=True)
+            with self.new_scope():
+                mod = self.make(parse_tree)
+            mod.value = self.get_module_struct(mod)
+            self.import_table[path] = mod
+        if path not in self.module.dependencies:
+            self.module.dependencies.append(self.import_table[path])
+        return self.import_table[path].value
 
     def make_expr(self, node, load=True):
         match node:
@@ -94,6 +167,8 @@ class IRNoder:
                 return self.make_sequence_expr(node, elements)
             case ast.GroupExpr(expr):
                 return self.make_expr(expr, load)
+            case ast.BuiltinCall(target, args):
+                return self.make_builtin_call(target, args)
             case ast.CallExpr(target, args):
                 return self.make_call_expr(target, args)
             case ast.IndexExpr(target, index):
@@ -229,6 +304,21 @@ class IRNoder:
         else:
             return ir.Sequence(elements)
 
+    def make_builtin_call(self, target, args):
+        match target.value:
+            case "import":
+                assert len(args) == 1
+                node = args[0]
+                assert isinstance(node, ast.Literal)
+                tok = node.value
+                assert tok.typ == T.STRING
+                path = self.resolve_filepath(tok.lexeme[1:-1])
+                result = ir.ImportResult(self.import_module(path))
+                self.import_results.append((result, path))
+                return result
+            case _:
+                raise NotImplementedError
+
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)
         args = [self.make(a) for a in args]
@@ -238,10 +328,6 @@ class IRNoder:
                 values.append(arg)
                 target.param_values[param.name] = values
                 param.values.append(arg)
-        elif isinstance(target, ir.FieldRef):
-            # method so add `self`
-            args.insert(0, ir.Load(target.parent))
-            target.param_values = args
         elif isinstance(target, ir.StructRef):
             assert len(args) == len(target.fields)
             fields = {}
@@ -456,7 +542,7 @@ class IRNoder:
             method_refs[method_ref.name] = method_ref
         ref = ir.InterfaceRef(name, method_refs)
         self.scope.declare(name, ref)
-        # self.instrs.append(ir.Declare(ref))
+        self.instrs.append(ir.Declare(ref))
 
     def make_variable_declr(self, name, typ, value):
         name = name.value

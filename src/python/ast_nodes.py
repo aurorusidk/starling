@@ -32,7 +32,7 @@ class Type(Node):
 
 
 @dataclass
-class Program(Node):
+class Module(Node):
     declrs: list[Declr]
 
 
@@ -44,6 +44,11 @@ class Literal(Expr):
 @dataclass
 class Identifier(Expr):
     value: str
+
+
+@dataclass
+class Builtin(Identifier):
+    pass
 
 
 @dataclass
@@ -76,6 +81,11 @@ class GroupExpr(Expr):
 class CallExpr(Expr):
     target: Expr
     args: list[Expr]
+
+
+@dataclass
+class BuiltinCall(CallExpr):
+    pass
 
 
 @dataclass
