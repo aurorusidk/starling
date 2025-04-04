@@ -71,14 +71,17 @@ class TypeRow:
         self._str = "self"
         rest, fields = row_flatten(self)
 
-        field_strings = [
-            f"{k} = {v}" for k, v in fields.items()
-            if not isinstance(prune(v), Function)
-        ]
-        method_strings = [
-            f"{k} = {v}" for k, v in fields.items()
-            if isinstance(prune(v), Function)
-        ]
+        field_strings = []
+        method_strings = []
+        for k, v in fields.items():
+            if isinstance((v := prune(v)), Function):
+                self_type = v.types[0]
+                v.types[0] = "self"
+                v_str = str(v)
+                v.types[0] = self_type
+                method_strings.append(f"{k} = {v_str}")
+            else:
+                field_strings.append(f"{k} = {v}")
         row_format = ", ".join(field_strings + method_strings)
         self._str = ""
         return f"{{{row_format}, ...{str(rest)}}}"
