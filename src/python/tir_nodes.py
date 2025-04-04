@@ -52,13 +52,10 @@ class Ref(Object):
     is_const = False
     comptime = False
     name: str
-    values: list = field(default_factory=list, kw_only=True)
-    members: dict = field(default_factory=dict, kw_only=True)
 
 
 @dataclass
 class Type(Ref):
-    name: str
     checked: types.Type = field(default=None, kw_only=True)
     methods: dict[str, Type] = field(default_factory=dict, kw_only=True)
 
@@ -213,6 +210,11 @@ class Module(Object):
     block: Block
 
 
+@dataclass
+class VoidDummy(Object):
+    pass
+
+
 def counter():
     i = 0
     cache = {}
@@ -268,8 +270,6 @@ class IRPrinter:
                 return block, name
             case Declare(ref):
                 string = f"DECLARE {self._to_string(ref)}"
-                if isinstance(ref, Type) and show_types:
-                    string += f" [{self._to_string(ref.checked)}]"
             case DeclareMethods(typ, block):
                 block, block_name = self.defer_block(block)
                 string = f"DECLARE_METHODS {typ.name} {block_name}"
@@ -302,11 +302,8 @@ class IRPrinter:
                     f"{self._to_string(ir.parent, show_types=False)}"
                     f"[{self._to_string(ir.index, show_types=False)}]"
                 )
-            case FieldRef():
+            case FieldRef() | MethodRef():
                 string = f"{self._to_string(ir.parent, show_types=False)}.{ir.name}"
-            case FunctionSigRef():
-                params = ', '.join(self._to_string(p) for p in ir.checked.fields[:-1])
-                string += f"fn ({params}) -> {self._to_string(ir.checked.fields[-1])}"
             case FunctionRef():
                 block, block_name = self.defer_block(ir.block)
                 string += f"{ir.name}() {block_name}"
@@ -314,7 +311,7 @@ class IRPrinter:
                 string += f"CONST {name} = {self._to_string(value)}"
                 return string  # avoids duplication of type
             case StructLiteral():
-                fields = ', '.join(self._to_string(f) for f in ir.fields)
+                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
                 string = f"{{{fields}}}"
             case Type():
                 string += ir.name
@@ -324,22 +321,17 @@ class IRPrinter:
                 string += f"LOAD({self._to_string(ref)})"
             case Call(ref, args):
                 args = ', '.join(self._to_string(a) for a in args)
-                string += f"CALL {self._to_string(ref)} ({args})"
+                string += f"CALL {self._to_string(ref, show_types=False)} ({args})"
             case Unary(op, rhs):
                 string += f"{op}{self._to_string(rhs)}"
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
-            case types.Type():
-                return str(ir)
-            case None:
-                return "nil"
             case _:
                 assert False, ir
 
-        if ir.typ is not None and show_types:
+        if ir.typ is not None and show_types and ir.is_expr:
             # TODO: is there a better check for this?
-            if not (ir.typ.flags & types.TypeFlag.META):
-                string += f" [{self._to_string(ir.typ)}]"
+            string += f" [{ir.typ}]"
         return string
 
     def to_string(self, ir):

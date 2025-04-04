@@ -3,6 +3,7 @@ import sys
 from . import builtin
 from . import cmd
 from . import ir_nodes as ir
+from . import tir_nodes as tir
 
 
 class TypeVariable:
@@ -67,18 +68,20 @@ class TypeRow:
         if self._str:
             return self._str
 
+        self._str = "self"
+        rest, fields = row_flatten(self)
+
         field_strings = [
-            f"{k} = {v}" for k, v in self.fields.items()
+            f"{k} = {v}" for k, v in fields.items()
             if not isinstance(prune(v), Function)
         ]
-        self._str = "self"
         method_strings = [
-            f"{k} = {v}" for k, v in self.fields.items()
+            f"{k} = {v}" for k, v in fields.items()
             if isinstance(prune(v), Function)
         ]
         row_format = ", ".join(field_strings + method_strings)
         self._str = ""
-        return f"{{{row_format}, ...{str(self.rest)}}}"
+        return f"{{{row_format}, ...{str(rest)}}}"
 
 
 Void = TypeConstructor("void", [])
@@ -120,17 +123,21 @@ def analyse(node, env, non_generic=None):
         non_generic = set()
 
     match node:
-        case ir.Program(block):
-            program_types = {}
+        case ir.Module(block):
+            module_types = {}
+            instrs = []
             for instr in block.instrs:
-                instr_type = analyse(instr, env, non_generic)
-                if isinstance(instr, ir.Declare):
-                    program_types[instr.ref.name] = instr_type
-            return TypeRow(program_types)
+                instr = analyse(instr, env, non_generic)
+                if isinstance(instr, tir.Declare):
+                    module_types[instr.ref.name] = instr.typ
+                instrs.append(instr)
+            module_type = TypeRow(module_types)
+            return tir.Module(tir.Block(instrs), typ=module_type)
         case ir.Block():
             return analyse_block(node, env, non_generic)
         case ir.Instruction():
             return analyse_instruction(node, env, non_generic)
+        # not in use
         case ir.StructLiteral():
             struct_ref = analyse(node.typ, env, non_generic)
             row = TypeRow({
@@ -144,8 +151,8 @@ def analyse(node, env, non_generic=None):
         case ir.Constant():
             typ = type_map[node.typ.value.value]
             if typ == None_:
-                return Optional()
-            return typ
+                typ = Optional()
+            return tir.Constant(node.value, typ=typ)
         case _:
             raise Exception(node)
 
@@ -154,97 +161,139 @@ def analyse_block(node, env, non_generic):
     if node in env:
         return env[node]
     block_type = TypeVariable()
-    env[node] = block_type
+    block = tir.Block(None, typ=block_type)
+    env[node] = block
+    instrs = []
     for i, instr in enumerate(node.instrs):
-        instr_type = analyse(instr, env, non_generic)
-        if isinstance(instr, (ir.Branch, ir.CBranch)):
-            unify(block_type, instr_type)
-        elif isinstance(instr, ir.Return):
-            unify(block_type, instr_type)
+        instr = analyse(instr, env, non_generic)
+        instrs.append(instr)
+        if isinstance(instr, (tir.Branch, tir.CBranch)):
+            unify(block_type, instr.typ)
+        elif isinstance(instr, tir.Return):
+            unify(block_type, instr.typ)
             # TODO: handle properly instead of asserting
             assert i == len(node.instrs) - 1, "Return not last instruction in block"
-    return block_type
+    block.instrs = instrs
+    return block
 
 
 def analyse_instruction(node, env, non_generic):
+    tir_node = None
     match node:
         case ir.Assign(target, value):
-            target_type = analyse(target, env, non_generic)
-            value_type = analyse(value, env, non_generic)
-            unify(target_type, value_type)
-            return target_type
+            target = analyse(target, env, non_generic)
+            value = analyse(value, env, non_generic)
+            unify(target.typ, value.typ)
+            tir_node = tir.Assign(target, value, typ=target.typ)
         case ir.Binary(op, lhs, rhs):
             target_type = operator_table[op]
+            args = []
             for arg in [lhs, rhs]:
-                arg_type = analyse(arg, env, non_generic)
+                value = analyse(arg, env, non_generic)
+                args.append(value)
                 result_type = TypeVariable()
-                unify(Function(arg_type, result_type), target_type)
+                unify(Function(value.typ, result_type), target_type)
                 target_type = result_type
-            return result_type
+            # TODO: should we convert this into a function call to the op
+            tir_node = tir.Binary(op, *args, typ=result_type)
         case ir.Unary(op, rhs):
             target_type = operator_table[op]
-            arg_type = analyse(rhs, env, non_generic)
+            arg = analyse(rhs, env, non_generic)
             result_type = TypeVariable()
-            unify(Function(arg_type, result_type), target_type)
-            return result_type
+            unify(Function(arg.typ, result_type), target_type)
+            # TODO: should we convert this into a function call to the op
+            tir_node = tir.Unary(op, arg, typ=result_type)
         case ir.Branch(block):
-            return analyse(block, env, non_generic)
-        case ir.CBranch(_, t_block, f_block):
-            t_block_type = analyse(t_block, env, non_generic)
-            f_block_type = analyse(f_block, env, non_generic)
-            unify(t_block_type, f_block_type)
-            return t_block_type
+            block = analyse(block, env, non_generic)
+            tir_node = tir.Branch(block, typ=block.typ)
+        case ir.CBranch(cond, t_block, f_block):
+            cond = analyse(cond, env, non_generic)
+            unify(cond.typ, Bool)
+            t_block = analyse(t_block, env, non_generic)
+            f_block = analyse(f_block, env, non_generic)
+            unify(t_block.typ, f_block.typ)
+            tir_node = tir.CBranch(cond, t_block, f_block, typ=t_block.typ)
         case ir.Call(target, args):
-            target_type = analyse(target, env, non_generic)
-            for arg in args:
-                arg_type = analyse(arg, env, non_generic)
-                result_type = TypeVariable()
-                unify(Function(arg_type, result_type), target_type)
-                target_type = result_type
-            return result_type
+            ir_target = target
+            target = analyse(target, env, non_generic)
+            if isinstance((s := prune(target.typ)), TypeRow):
+                fields = {}
+                args = [analyse(arg, env, non_generic) for arg in args]
+                for i, field in enumerate(s.fields):
+                    if isinstance(prune(s.fields[field]), Function):
+                        continue
+                    fields[field] = args[i]
+                field_types = {k: v.typ for k, v in fields.items()}
+                result = TypeRow(field_types, TypeVariable())
+                unify(result, target.typ)
+                tir_node = tir.StructLiteral(fields, typ=result)
+            else:
+                # TODO: need to account for methods (add the parent as arg 0)
+                target_type = target.typ
+                if isinstance(target, (tir.MethodRef, tir.FieldRef)):
+                    args.insert(0, ir_target.parent)
+                tir_args = []
+                for arg in args:
+                    arg = analyse(arg, env, non_generic)
+                    result_type = TypeVariable()
+                    unify(Function(arg.typ, result_type), target_type)
+                    tir_args.append(arg)
+                    target_type = result_type
+                tir_node = tir.Call(target, tir_args, typ=target_type)
         case ir.Declare(ref):
             if isinstance(ref, ir.FunctionRef):
-                return declare_function(ref, env, non_generic)
+                tir_node = declare_function(ref, env, non_generic)
             elif isinstance(ref, ir.StructRef):
-                return declare_struct(ref, env, non_generic)
+                tir_node = declare_struct(ref, env, non_generic)
             else:
-                return analyse(ref, env, non_generic)
+                tir_node = analyse(ref, env, non_generic)
+            tir_node = tir.Declare(tir_node, typ=tir_node.typ)
         case ir.DeclareMethods(ref, block):
-            analyse(block, env, non_generic)
-            return analyse(ref, env, non_generic)
+            ref = analyse(ref, env, non_generic)
+            temp_non_generic = non_generic.copy()
+            temp_non_generic.add(ref.typ)
+            block = analyse(block, env, temp_non_generic)
+            method_types = {i.ref.name: i.ref.typ for i in block.instrs}
+            method_row = TypeRow(method_types, TypeVariable())
+            unify(ref.typ, method_row)
+            tir_node = tir.DeclareMethods(ref, block, typ=ref.typ)
         case ir.Load(ref):
-            return analyse(ref, env, non_generic)
+            ref = analyse(ref, env, non_generic)
+            tir_node = tir.Load(ref, typ=ref.typ)
         case ir.Return(value):
-            return analyse(value, env, non_generic)
-
+            value = analyse(value, env, non_generic)
+            tir_node = tir.Return(value, typ=value.typ)
+    return tir_node
 
 def declare_function(ref, env, non_generic):
-    args = []
+    params = []
     for param in ref.params:
-        param_type = analyse(param, env, non_generic)
+        tir_param = analyse(param, env, non_generic)
         if param.typ is not None:
             type_hint = analyse(param.typ, env, non_generic)
-            unify(param_type, type_hint)
-        args.append(param_type)
-    if len(args) == 0:
-        args = [Void]
+            unify(tir_param.typ, type_hint.typ)
+        params.append(tir_param)
+    if len(params) == 0:
+        params = [tir.VoidDummy(typ=Void)]
     return_type = TypeVariable()  # TODO: annotated return type not checked here
-    func_type = Function(args[-1], return_type)
-    for arg in args[-2::-1]:
-        func_type = Function(arg, func_type)
+    func_type = Function(params[-1].typ, return_type)
+    for param in params[-2::-1]:
+        func_type = Function(param.typ, func_type)
+    func = tir.FunctionRef(ref.name, params=params, typ=func_type)
     if ref in env:
-        unify(env[ref], func_type)
+        unify(func.typ, env[ref].typ)
     else:
-        env[ref] = func_type
+        env[ref] = func
     temp_env = env.copy()
     temp_non_generic = non_generic.copy()
     temp_non_generic.add(func_type)
-    for param, arg in zip(ref.params, args):
-        temp_env[param] = arg
-        temp_non_generic.add(arg)
-    block_type = analyse(ref.block, temp_env, temp_non_generic)
-    unify(return_type, block_type)
-    return func_type
+    for ir_param, tir_param in zip(ref.params, params):
+        temp_env[ir_param] = tir_param
+        temp_non_generic.add(tir_param.typ)
+    block = analyse(ref.block, temp_env, temp_non_generic)
+    unify(return_type, block.typ)
+    func.block = block
+    return func
 
 
 def declare_struct(ref, env, non_generic):
@@ -256,23 +305,29 @@ def declare_struct(ref, env, non_generic):
         name: analyse(method, env, non_generic)
         for name, method in ref.methods.items()
     }
-    row = TypeRow(fields | methods)
-    env[ref] = row
-    return row
-
+    row_inner_type = {k: v.typ for k, v in (fields | methods).items()}
+    row = TypeRow(row_inner_type)
+    struct_type = tir.Type(ref.name, typ=row)
+    env[ref] = struct_type
+    # TODO: feels wrong?
+    #       maybe make an empty subclass just to have the named type
+    return struct_type
 
 def lookup_ref(node, env, non_generic):
     if node in env:
-        node_type = env[node]
+        pass
     elif isinstance(node, ir.FieldRef):
-        parent_type = analyse(node.parent, env, non_generic)
+        parent = analyse(node.parent, env, non_generic)
         node_type = TypeVariable()
-        unify(TypeRow({node.name: node_type}, TypeVariable()), parent_type)
-        env[node] = node_type
+        unify(TypeRow({node.name: node_type}, TypeVariable()), parent.typ)
+        if isinstance(prune(node_type), Function):
+            env[node] = tir.MethodRef(node.name, parent, typ=node_type)
+        else:
+            env[node] = tir.FieldRef(node.name, parent, typ=node_type)
     else:
         node_type = TypeVariable()
-        env[node] = node_type
-    return node_type
+        env[node] = tir.Ref(node.name, typ=node_type)
+    return env[node]
 
 
 def unify(t1, t2):
@@ -377,9 +432,11 @@ def main():
     filename = sys.argv[1]
     with open(filename) as f:
         src = f.read()
-    ir = cmd.translate(src, make_ir=True)
-    checked = analyse(ir, {})
-    print("\n".join(f"{name}:\t{t}" for name, t in checked.fields.items()))
+    ir = cmd.translate(src, filename=filename, make_ir=True)
+    program = analyse(ir, {})
+    print("\n".join(f"{name}:\t{t}" for name, t in program.typ.fields.items()))
+    printer = tir.IRPrinter()
+    print(printer.to_string(program))
 
 
 if __name__ == "__main__":

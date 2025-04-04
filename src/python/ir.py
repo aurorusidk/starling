@@ -322,18 +322,18 @@ class IRNoder:
     def make_call_expr(self, target, args):
         target = self.make_expr(target, load=False)
         args = [self.make(a) for a in args]
-        if isinstance(target, ir.FunctionRef):
-            for param, arg in zip(target.params, args):
-                values = target.param_values.get(param.name, [])
-                values.append(arg)
-                target.param_values[param.name] = values
-                param.values.append(arg)
-        elif isinstance(target, ir.StructRef):
-            assert len(args) == len(target.fields)
-            fields = {}
-            for fname, value in zip(target.fields, args):
-                fields[fname] = value
-            return ir.StructLiteral(fields, typ=target)
+        #if isinstance(target, ir.FunctionRef):
+        #    for param, arg in zip(target.params, args):
+        #        values = target.param_values.get(param.name, [])
+        #        values.append(arg)
+        #        target.param_values[param.name] = values
+        #        param.values.append(arg)
+        #elif isinstance(target, ir.StructRef):
+        #    assert len(args) == len(target.fields)
+        #    fields = {}
+        #    for fname, value in zip(target.fields, args):
+        #        fields[fname] = value
+        #    return ir.StructLiteral(fields, typ=target)
         return ir.Call(target, args)
 
     def make_index_expr(self, target, index, load=True):
