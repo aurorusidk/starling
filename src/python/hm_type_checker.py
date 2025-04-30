@@ -9,10 +9,10 @@ from . import tir_nodes as tir
 class TypeVariable:
     next_var_id = 0
 
-    def __init__(self):
+    def __init__(self, name=None):
         self.id = TypeVariable.next_var_id
         TypeVariable.next_var_id += 1
-        self.__name = None
+        self.__name = name
         self.forwarded = None
 
     next_var_name = 'a'
@@ -87,6 +87,16 @@ class TypeRow:
         return f"{{{row_format}, ...{str(rest)}}}"
 
 
+class TypeScheme:
+    def __init__(self, tyvars, typ):
+        self.tyvars = tyvars
+        self.typ = typ
+
+    def __str__(self):
+        tyvars_string = ",".join(str(t) for t in self.tyvars)
+        return f"∀{{{tyvars_string}}}.{self.typ}"
+
+
 Void = TypeConstructor("void", [])
 Integer = TypeConstructor("int", [])
 Float = TypeConstructor("float", [])
@@ -114,10 +124,10 @@ type_map = {
 }
 
 operator_table = {
-    "+": Function(Any, Function(Any, Any)),
-    "*": Function(Integer, Function(Integer, Integer)),
-    "<": Function(Any, Function(Any, Bool)),
-    "-": Function(Integer, Integer),
+    "+": TypeScheme([Any], Function(Any, Function(Any, Any))),
+    "*": TypeScheme([Integer], Function(Integer, Function(Integer, Integer))),
+    "<": TypeScheme([Any], Function(Any, Function(Any, Bool))),
+    "-": TypeScheme([Integer], Function(Integer, Integer)),
 }
 
 
@@ -165,7 +175,6 @@ def analyse_block(node, env, non_generic):
         return env[node]
     block_type = TypeVariable()
     block = tir.Block(None, typ=block_type)
-    env[node] = block
     instrs = []
     for i, instr in enumerate(node.instrs):
         instr, i_type = analyse(instr, env, non_generic)
@@ -189,7 +198,7 @@ def analyse_instruction(node, env, non_generic):
             unify(t_type, v_type)
             tir_node = tir.Assign(target, value, typ=t_type), t_type
         case ir.Binary(op, lhs, rhs):
-            target_type = operator_table[op]
+            target_type = instantiate(operator_table[op])
             args = []
             for arg in [lhs, rhs]:
                 value, v_type = analyse(arg, env, non_generic)
@@ -250,6 +259,9 @@ def analyse_instruction(node, env, non_generic):
                 tir_node, n_type = declare_struct(ref, env, non_generic)
             else:
                 tir_node, n_type = analyse(ref, env, non_generic)
+            n_type = generalise(n_type, env)
+            tir_node.typ = generalise(tir_node.typ, env)
+            env[ref] = tir_node, n_type
             tir_node = tir.Declare(tir_node, typ=n_type), n_type
         case ir.DeclareMethods(ref, block):
             ref, r_type = analyse(ref, env, non_generic)
@@ -267,6 +279,7 @@ def analyse_instruction(node, env, non_generic):
             value, v_type = analyse(value, env, non_generic)
             tir_node = tir.Return(value, typ=v_type), v_type
     return tir_node
+
 
 def declare_function(ref, env, non_generic):
     params = []
@@ -287,14 +300,14 @@ def declare_function(ref, env, non_generic):
         func_type = Function(param, func_type)
     func = tir.FunctionRef(ref.name, params=params, typ=func_type)
     if ref in env:
+        assert False, "why are we here"
         unify(func_type, env[ref][1])
-    else:
-        env[ref] = func, func_type
     temp_env = env.copy()
+    temp_env[ref] = func, generalise(func_type, env)
     temp_non_generic = non_generic.copy()
     temp_non_generic.add(func_type)
     for ir_param, tir_param, p_type in zip(ref.params, params, param_types):
-        temp_env[ir_param] = tir_param, p_type
+        # temp_env[ir_param] = tir_param, p_type
         temp_non_generic.add(p_type)
     block, b_type = analyse(ref.block, temp_env, temp_non_generic)
     unify(return_type, b_type)
@@ -314,26 +327,27 @@ def declare_struct(ref, env, non_generic):
     row_inner_type = {k: v[1] for k, v in (fields | methods).items()}
     row = TypeRow(row_inner_type)
     struct_type = tir.Type(ref.name, typ=row)
-    env[ref] = struct_type, row
     # TODO: feels wrong?
     #       maybe make an empty subclass just to have the named type
     return struct_type, row
 
+
 def lookup_ref(node, env, non_generic):
     if node in env:
-        pass
+        tir_node, node_type = env[node]
+        return tir_node, instantiate(node_type)
     elif isinstance(node, ir.FieldRef):
         parent, p_type = analyse(node.parent, env, non_generic)
         node_type = TypeVariable()
         unify(TypeRow({node.name: node_type}, TypeVariable()), p_type)
         if isinstance(prune(node_type), Function):
-            env[node] = tir.MethodRef(node.name, parent, typ=node_type), node_type
+            tir_node = tir.MethodRef(node.name, parent, typ=node_type)
         else:
-            env[node] = tir.FieldRef(node.name, parent, typ=node_type), node_type
+            tir_node = tir.FieldRef(node.name, parent, typ=node_type)
     else:
         node_type = TypeVariable()
-        env[node] = tir.Ref(node.name, typ=node_type), node_type
-    return env[node]
+        tir_node = tir.Ref(node.name, typ=node_type)
+    return tir_node, node_type
 
 
 def unify(t1, t2):
@@ -422,6 +436,58 @@ def occurs_in_type(v, type2):
 
 def occurs_in(t, types):
     return any(occurs_in_type(t, t2) for t2 in types)
+
+
+def ftv_typ(typ):
+    typ = prune(typ)
+    if isinstance(typ, TypeVariable):
+        return {typ.name}
+    if isinstance(typ, TypeConstructor):
+        # Unwrap both levels of iterable
+        return set().union(*map(ftv_typ, typ.types))
+    if isinstance(typ, EmptyRow):
+        return set()
+    if isinstance(typ, TypeRow):
+        # Unwrap both levels of iterable
+        return set().union(*map(ftv_typ, typ.fields.values()), ftv_typ(typ.rest))
+    raise InferenceError(f"Unknown type: {typ}")
+
+
+def ftv_scheme(scheme):
+    return ftv_typ(scheme.typ) - set(tyvar.name for tyvar in scheme.tyvars)
+
+
+def ftv_env(env):
+    return set().union(*(ftv_scheme(ref[1]) for ref in env.values()))
+
+
+def generalise(typ, env):
+    tyvars = ftv_typ(typ) - ftv_env(env)
+    return TypeScheme([TypeVariable(name) for name in sorted(tyvars)], typ)
+
+
+def substitute_typ(typ, subst):
+    typ = prune(typ)
+    if isinstance(typ, TypeVariable):
+        return subst.get(typ.name, typ)
+    if isinstance(typ, TypeConstructor):
+        return TypeConstructor(
+            typ.name, [substitute_typ(t, subst) for t in typ.types]
+        )
+    if isinstance(typ, EmptyRow):
+        return typ
+    if isinstance(typ, TypeRow):
+        rest = substitute_typ(typ.rest, subst)
+        assert isinstance(rest, (TypeVariable, EmptyRow))
+        return TypeRow(
+            {k: substitute_typ(v, subst) for k, v in typ.fields.items()}, rest
+        )
+    raise InferenceError(f"Unknown type: {typ}")
+
+
+def instantiate(scheme):
+    fresh = {tyvar.name: TypeVariable() for tyvar in scheme.tyvars}
+    return substitute_typ(scheme.typ, fresh)
 
 
 class InferenceError(Exception):
