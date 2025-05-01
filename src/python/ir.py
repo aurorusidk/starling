@@ -471,15 +471,12 @@ class IRNoder:
         self.instrs.append(ir.Declare(func))
         with self.new_scope():
             param_refs = []
-            param_declrs = []
             for pname, ptype in func.typ.params.items():
                 ref = ir.Ref(pname, typ=ptype)
                 self.scope.declare(pname, ref)
                 param_refs.append(ref)
-                param_declrs.append(ir.Declare(ref))
             func.params = param_refs
             block = self.make_stmt(block)
-            block.instrs = param_declrs + block.instrs
         self.block = prev_block
         self.current_func = prev_func
         func.block = block

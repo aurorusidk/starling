@@ -255,12 +255,15 @@ def analyse_instruction(node, env, non_generic):
         case ir.Declare(ref):
             if isinstance(ref, ir.FunctionRef):
                 tir_node, n_type = declare_function(ref, env, non_generic)
+                n_type = generalise(n_type, env)
+                tir_node.typ = generalise(tir_node.typ, env)
             elif isinstance(ref, ir.StructRef):
                 tir_node, n_type = declare_struct(ref, env, non_generic)
+                n_type = generalise(n_type, env)  # TODO: copy-pasted code is bad!
+                tir_node.typ = generalise(tir_node.typ, env)
             else:
                 tir_node, n_type = analyse(ref, env, non_generic)
-            n_type = generalise(n_type, env)
-            tir_node.typ = generalise(tir_node.typ, env)
+                n_type = TypeScheme([], n_type)  # manually create non-general TypeScheme
             env[ref] = tir_node, n_type
             tir_node = tir.Declare(tir_node, typ=n_type), n_type
         case ir.DeclareMethods(ref, block):
@@ -307,7 +310,7 @@ def declare_function(ref, env, non_generic):
     temp_non_generic = non_generic.copy()
     temp_non_generic.add(func_type)
     for ir_param, tir_param, p_type in zip(ref.params, params, param_types):
-        # temp_env[ir_param] = tir_param, p_type
+        temp_env[ir_param] = tir_param, TypeScheme([], p_type)
         temp_non_generic.add(p_type)
     block, b_type = analyse(ref.block, temp_env, temp_non_generic)
     unify(return_type, b_type)
