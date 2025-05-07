@@ -383,7 +383,8 @@ def unify(t1, t2):
     elif isinstance(a, EmptyRow) and isinstance(b, TypeRow):
         unify(b, a)
     elif isinstance(a, TypeRow) and isinstance(b, EmptyRow):
-        raise InferenceError("Cannot unify EmptyRow and TypeRow")
+        missing = [name for name in a.fields]
+        raise InferenceError(f"Cannot unify EmptyRow and TypeRow, expected field(s) {missing}")
     elif isinstance(a, TypeRow) and isinstance(b, TypeRow):
         a_rest, a_fields = row_flatten(a)
         b_rest, b_fields = row_flatten(b)
@@ -481,7 +482,8 @@ def substitute_typ(typ, subst):
         return typ
     if isinstance(typ, TypeRow):
         rest = substitute_typ(typ.rest, subst)
-        assert isinstance(rest, (TypeVariable, EmptyRow))
+        # assert isinstance(rest, (TypeVariable, EmptyRow))
+        # TODO this is based on scrapscript but doesn't seem to be correct?
         return TypeRow(
             {k: substitute_typ(v, subst) for k, v in typ.fields.items()}, rest
         )
