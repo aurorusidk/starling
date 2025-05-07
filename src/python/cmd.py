@@ -5,7 +5,7 @@ from .parser import Parser
 from .ir import IRNoder
 from .ir_nodes import IRPrinter, counter
 from . import tir_nodes as tir
-from .type_checker import TypeChecker
+from .hm_type_checker import type_check
 from .interpreter import Interpreter, StaFunctionReturn
 from .compiler import Compiler, execute_module
 from .control_flows import ControlFlows, create_flows
@@ -45,8 +45,7 @@ def translate(src, **flags):
     if flags.get("make_ir"):
         return iir
 
-    tc = TypeChecker(error_handler)
-    tiir = tc.check(iir)
+    tiir = type_check(iir)
     if flags.get("typecheck"):
         return tiir
 

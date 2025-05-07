@@ -1,4 +1,5 @@
 import logging
+from warnings import deprecated
 
 from . import ir_nodes as ir
 from . import tir_nodes as tir
@@ -25,6 +26,7 @@ def is_comparison_op(op):
     )
 
 
+@deprecated("Use HM type checker instead.")
 class TypeChecker:
     def __init__(self, error_handler=None):
         self.fields_map = {}

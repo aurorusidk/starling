@@ -1,6 +1,6 @@
 from llvmcpy import LLVMCPy
 
-from . import ir_nodes as ir
+from . import tir_nodes as ir
 from . import builtin
 
 
