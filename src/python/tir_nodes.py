@@ -60,6 +60,12 @@ class Type(Ref):
     methods: dict[str, Type] = field(default_factory=dict, kw_only=True)
 
 
+@dataclass(eq=False)
+class ImportResult(Object):
+    is_expr = True
+    value: StructLiteral = None
+
+
 class Instruction(Object):
     is_terminator = False
 
@@ -208,6 +214,7 @@ class Binary(Instruction):
 @dataclass
 class Module(Object):
     block: Block
+    dependencies: list[Module] = field(default_factory=list, kw_only=True)
 
 
 @dataclass
@@ -311,7 +318,7 @@ class IRPrinter:
                 string += f"CONST {name} = {self._to_string(value)}"
                 return string  # avoids duplication of type
             case StructLiteral():
-                fields = ', '.join(self._to_string(f) for f in ir.fields.values())
+                fields = ', '.join(self._to_string(f) for f in ir.fields)
                 string = f"{{{fields}}}"
             case Type():
                 string += ir.name
@@ -326,6 +333,8 @@ class IRPrinter:
                 string += f"{op}{self._to_string(rhs)}"
             case Binary(op, lhs, rhs):
                 string += f"({self._to_string(lhs)} {op} {self._to_string(rhs)})"
+            case ImportResult(value):
+                string += f"IMPORT({self._to_string(value)})"
             case _:
                 assert False, ir
 

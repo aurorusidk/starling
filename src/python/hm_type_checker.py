@@ -75,11 +75,7 @@ class TypeRow:
         method_strings = []
         for k, v in fields.items():
             if isinstance((v := prune(v)), Function):
-                self_type = v.types[0]
-                v.types[0] = "self"
-                v_str = str(v)
-                v.types[0] = self_type
-                method_strings.append(f"{k} = {v_str}")
+                method_strings.append(f"{k} = {v}")
             else:
                 field_strings.append(f"{k} = {v}")
         row_format = ", ".join(field_strings + method_strings)
@@ -130,6 +126,8 @@ operator_table = {
     "-": TypeScheme([Integer], Function(Integer, Integer)),
 }
 
+analysed_modules = {}
+
 
 def analyse(node, env, non_generic=None):
     if non_generic is None:
@@ -137,6 +135,11 @@ def analyse(node, env, non_generic=None):
 
     match node:
         case ir.Module(block):
+            if node.path in analysed_modules:
+                return analysed_modules[node.path]
+            deps = []
+            for dep in reversed(node.dependencies):
+                deps.append(analyse(dep, env, non_generic)[0])
             module_types = {}
             instrs = []
             for instr in block.instrs:
@@ -145,20 +148,32 @@ def analyse(node, env, non_generic=None):
                     module_types[instr.ref.name] = i_type
                 instrs.append(instr)
             module_type = TypeRow(module_types)
-            return tir.Module(tir.Block(instrs), typ=module_type), module_type
+            tir_node = tir.Module(tir.Block(instrs), typ=module_type)
+            analysed_modules[node.path] = (tir_node, module_type)
+            tir_node.dependencies = deps
+            return tir_node, module_type
         case ir.Block():
             return analyse_block(node, env, non_generic)
         case ir.Instruction():
             return analyse_instruction(node, env, non_generic)
-        # not in use
+        case ir.ImportResult(value):
+            # TODO: find a way of storing polymorphism in ImportResult type thing
+            # (we want polymorphism to persist across imports,
+            #  currently everything in an import gets instantiated when imported)
+            # note that a.c and b.c have different versions of import_test
+            import_struct, import_type = analyse(value, env, non_generic)
+            return tir.ImportResult(import_struct), import_type
         case ir.StructLiteral():
-            struct_ref = analyse(node.typ, env, non_generic)
-            row = TypeRow({
-                name: analyse(obj, env, non_generic)
-                for name, obj in node.fields.items()
-            }, TypeVariable())
-            unify(row, struct_ref)
-            return row
+            struct_ref, struct_type = analyse(node.typ, env, non_generic)
+            row_fields = {}
+            literal_fields = []
+            for name, obj in node.fields.items():
+                field_value, field_type = analyse(obj, env, non_generic)
+                row_fields[name] = field_type
+                literal_fields.append(field_value)
+            row = TypeRow(row_fields, TypeVariable())
+            unify(row, struct_type)
+            return tir.StructLiteral(literal_fields), row
         case ir.Ref():
             return lookup_ref(node, env, non_generic)
         case ir.Constant():
@@ -239,19 +254,19 @@ def analyse_instruction(node, env, non_generic):
                     field_types[field] = args[i][1]
                 result = TypeRow(field_types, TypeVariable())
                 unify(result, target_type)
-                tir_node = tir.StructLiteral(fields, typ=result), result
+                tir_node = tir.StructLiteral(list(fields.values()), typ=result), result
             else:
-                # TODO: need to account for methods (add the parent as arg 0)
-                if isinstance(target, (tir.MethodRef, tir.FieldRef)):
-                    args.insert(0, ir_target.parent)
                 tir_args = []
+                if not args:
+                    result_type = TypeVariable()
+                    unify(Function(Void, result_type), target_type)
                 for arg in args:
                     arg, a_type = analyse(arg, env, non_generic)
                     result_type = TypeVariable()
                     unify(Function(a_type, result_type), target_type)
                     tir_args.append(arg)
                     target_type = result_type
-                tir_node = tir.Call(target, tir_args, typ=target_type), target_type
+                tir_node = tir.Call(target, tir_args, typ=result_type), result_type
         case ir.Declare(ref):
             if isinstance(ref, ir.FunctionRef):
                 tir_node, n_type = declare_function(ref, env, non_generic)
@@ -259,22 +274,26 @@ def analyse_instruction(node, env, non_generic):
                 tir_node.typ = generalise(tir_node.typ, env)
             elif isinstance(ref, ir.StructRef):
                 tir_node, n_type = declare_struct(ref, env, non_generic)
-                n_type = generalise(n_type, env)  # TODO: copy-pasted code is bad!
-                tir_node.typ = generalise(tir_node.typ, env)
+                n_type = TypeScheme([], n_type)  # manually create non-general TypeScheme
+                # TODO: copy-pasted code is STILL bad!
             else:
                 tir_node, n_type = analyse(ref, env, non_generic)
                 n_type = TypeScheme([], n_type)  # manually create non-general TypeScheme
             env[ref] = tir_node, n_type
             tir_node = tir.Declare(tir_node, typ=n_type), n_type
-        case ir.DeclareMethods(ref, block):
-            ref, r_type = analyse(ref, env, non_generic)
+        case ir.DeclareMethods(target, instance_ref, block):
+            target, t_type = analyse(target, env, non_generic)
+            ref, i_type = analyse(instance_ref, env, non_generic)
+            unify(i_type, t_type)
             temp_non_generic = non_generic.copy()
-            temp_non_generic.add(r_type)
-            block, b_type = analyse(block, env, temp_non_generic)
-            method_types = {i.ref.name: i.ref.typ for i in block.instrs}
+            temp_non_generic.add(t_type)
+            temp_env = env.copy()
+            temp_env[instance_ref] = ref, generalise(i_type, env)
+            block, b_type = analyse(block, temp_env, temp_non_generic)
+            method_types = {i.ref.name: instantiate(i.ref.typ) for i in block.instrs}
             method_row = TypeRow(method_types, TypeVariable())
-            unify(r_type, method_row)
-            tir_node = tir.DeclareMethods(ref, block, typ=r_type), r_type
+            unify(t_type, method_row)
+            tir_node = tir.DeclareMethods(target, block, typ=t_type), t_type
         case ir.Load(ref):
             ref, r_type = analyse(ref, env, non_generic)
             tir_node = tir.Load(ref, typ=r_type), r_type
@@ -474,6 +493,8 @@ def substitute_typ(typ, subst):
     typ = prune(typ)
     if isinstance(typ, TypeVariable):
         return subst.get(typ.name, typ)
+    if isinstance(typ, Function):
+        return Function(*[substitute_typ(t, subst) for t in typ.types])
     if isinstance(typ, TypeConstructor):
         return TypeConstructor(
             typ.name, [substitute_typ(t, subst) for t in typ.types]
@@ -505,14 +526,22 @@ class InferenceError(Exception):
         return str(self.message)
 
 
+def type_check(ir):
+    program, p_type = analyse(ir, {})
+    return program
+
+
 def main():
     filename = sys.argv[1]
     with open(filename) as f:
         src = f.read()
     ir = cmd.translate(src, filename=filename, make_ir=True)
-    program, p_type = analyse(ir, {})
+    program = type_check(ir)
     print("\n".join(f"{name}:\t{t}" for name, t in program.typ.fields.items()))
     printer = tir.IRPrinter()
+    for dep in program.dependencies:
+        print(printer._to_string(dep))
+        print("---")
     print(printer.to_string(program))
 
 

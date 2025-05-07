@@ -200,7 +200,8 @@ class CBranch(Instruction):
 
 @dataclass(eq=False)
 class DeclareMethods(Instruction):
-    target: Ref
+    target_type: Ref
+    instance_ref: Ref
     block: Block
 
 

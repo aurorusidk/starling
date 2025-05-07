@@ -211,9 +211,10 @@ class Compiler:
             case ir.Module(block):
                 # cannot build the block because no IRBuilder is set
                 # perhaps there should be a global func/block
-                for mod in reversed(node.dependencies):
-                    for instr in mod.block.instrs:
-                        self.build(instr)
+
+                # for mod in reversed(node.dependencies):
+                #     for instr in mod.block.instrs:
+                #         self.build(instr)
                 for instr in block.instrs:
                     self.build(instr)
             case ir.Constant(value):

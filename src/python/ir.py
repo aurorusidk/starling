@@ -122,9 +122,9 @@ class IRNoder:
                 if dep not in self.module.dependencies:
                     self.module.dependencies.append(dep)
 
-        if self.filename == self.main_filename:
-            for mod in self.module.dependencies:
-                self.module.block.instrs = mod.block.instrs + self.module.block.instrs
+        # if self.filename == self.main_filename:
+        #     for mod in self.module.dependencies:
+        #         self.module.block.instrs = mod.block.instrs + self.module.block.instrs
 
         logging.info(f"{self.module.path}: {[d.path for d in self.module.dependencies]}")
         current_module = self.module
@@ -460,7 +460,7 @@ class IRNoder:
 
     def make_method_signature(self, method, target=None):
         sig = self.make_type(method)
-        sig.params = {"self": target} | sig.params
+        # sig.params = {"self": target} | sig.params
         return sig
 
     def make_function_body(self, func, block):
@@ -514,6 +514,8 @@ class IRNoder:
         prev_block = self.block
         block = ir.Block([])
         self.block = block
+        ref = ir.Ref("self", typ=target)
+        self.scope.declare("self", ref)
         if interface is None:
             for method in methods:
                 method = self.make_method_declr(method, target)
@@ -531,7 +533,7 @@ class IRNoder:
             assert defined_methods == set(interface.methods.keys())
         self.block = prev_block
         self.scope = self.scope.parent
-        self.instrs.append(ir.DeclareMethods(target, block))
+        self.instrs.append(ir.DeclareMethods(target, ref, block))
         self.block.deps.append(block)
 
     def make_interface_declr(self, name, methods):
